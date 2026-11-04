@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      WHATSAPP_PROVIDER: mock
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  # Runs only when the DATABASE_URL secret is configured in the repository.
+  db:
+    runs-on: ubuntu-latest
+    needs: check
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        if: env.DATABASE_URL != ''
+      - uses: actions/setup-node@v4
+        if: env.DATABASE_URL != ''
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+        if: env.DATABASE_URL != ''
+      - run: npm run test:db
+        if: env.DATABASE_URL != ''
