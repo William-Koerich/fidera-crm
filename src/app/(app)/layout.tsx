@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui";
+import { NavLink } from "./nav-link";
 import { OrgHeader } from "./org-header";
 
 const showSimulator = (process.env.WHATSAPP_PROVIDER ?? "mock") === "mock";
@@ -8,9 +9,9 @@ const showSimulator = (process.env.WHATSAPP_PROVIDER ?? "mock") === "mock";
 export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/90 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90">
+      <header className="sticky top-0 z-10 border-b border-border bg-surface/90 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-3xl items-center gap-3 px-4">
-          <Link href="/inbox" className="font-semibold text-emerald-700">
+          <Link href="/inbox" className="font-semibold text-brand">
             Fidera
           </Link>
           <Suspense fallback={<Skeleton className="h-6 w-32" />}>
@@ -21,19 +22,13 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
 
       <div className="mx-auto w-full max-w-3xl flex-1 pb-20">{children}</div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-zinc-200 bg-white pb-[env(safe-area-inset-bottom)] dark:border-zinc-800 dark:bg-zinc-950">
+      <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto grid h-14 max-w-3xl grid-flow-col text-center text-sm">
-          <Link href="/inbox" className="grid place-items-center">
-            Inbox
-          </Link>
+          <NavLink href="/inbox">Inbox</NavLink>
           {showSimulator ? (
-            <Link href="/dev/simulator" className="grid place-items-center">
-              Simulador
-            </Link>
+            <NavLink href="/dev/simulator">Simulador</NavLink>
           ) : null}
-          <Link href="/settings" className="grid place-items-center">
-            Ajustes
-          </Link>
+          <NavLink href="/settings">Ajustes</NavLink>
         </div>
       </nav>
     </div>

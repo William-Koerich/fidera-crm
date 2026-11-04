@@ -47,7 +47,7 @@ async function Team() {
   return (
     <>
       <Card title="Equipe">
-        <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+        <ul className="divide-y divide-border">
           {(members ?? []).map((m) => {
             const isMe = m.user_id === me.user.id;
             const editable = manage && !isMe && (me.role === "owner" || m.role !== "owner");
@@ -58,7 +58,7 @@ async function Team() {
                     {m.email}
                     {isMe ? " (você)" : ""}
                   </p>
-                  <p className="text-xs text-zinc-500">{ROLE_LABEL[m.role]}</p>
+                  <p className="text-xs text-text-muted">{ROLE_LABEL[m.role]}</p>
                 </div>
                 {editable ? (
                   <div className="flex gap-2">
@@ -67,7 +67,7 @@ async function Team() {
                       <select
                         name="role"
                         defaultValue={m.role}
-                        className="rounded-lg border border-zinc-300 bg-transparent px-2 text-sm dark:border-zinc-700"
+                        className="rounded-lg border border-border bg-transparent px-2 text-sm"
                         aria-label={`Papel de ${m.email}`}
                       >
                         <option value="member">Membro</option>
@@ -80,7 +80,7 @@ async function Team() {
                     </form>
                     <form action={removeMemberAction}>
                       <input type="hidden" name="userId" value={m.user_id} />
-                      <Button variant="ghost" type="submit" className="min-h-9 px-2 text-red-600">
+                      <Button variant="ghost" type="submit" className="min-h-9 px-2 text-danger">
                         Remover
                       </Button>
                     </form>
@@ -97,7 +97,7 @@ async function Team() {
           <InviteForm />
           {invites && invites.length > 0 ? (
             <div className="mt-4 grid gap-2">
-              <h3 className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Convites pendentes</h3>
+              <h3 className="text-sm font-medium text-text-muted">Convites pendentes</h3>
               <ul className="grid gap-2">
                 {invites.map((i) => (
                   <li key={i.id} className="flex items-center gap-2 text-sm">
@@ -106,7 +106,7 @@ async function Team() {
                     </span>
                     <form action={revokeInvitationAction}>
                       <input type="hidden" name="id" value={i.id} />
-                      <Button variant="ghost" type="submit" className="min-h-9 px-2 text-red-600">
+                      <Button variant="ghost" type="submit" className="min-h-9 px-2 text-danger">
                         Cancelar
                       </Button>
                     </form>

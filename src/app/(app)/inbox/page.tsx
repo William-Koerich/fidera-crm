@@ -18,5 +18,5 @@ export default function InboxPage() {
 
 async function Content() {
   const me = await requireMembership();
-  return <p className="text-sm text-zinc-600">Nenhuma conversa ainda em {me.organizationName}.</p>;
+  return <p className="text-sm text-text-muted">Nenhuma conversa ainda em {me.organizationName}.</p>;
 }

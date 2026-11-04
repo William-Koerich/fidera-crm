@@ -6,7 +6,7 @@ export async function OrgHeader() {
   const memberships = await getMemberships();
 
   if (memberships.length < 2) {
-    return <span className="truncate text-sm text-zinc-600 dark:text-zinc-400">{active.organizationName}</span>;
+    return <span className="truncate text-sm text-text-muted">{active.organizationName}</span>;
   }
 
   return (
@@ -14,7 +14,7 @@ export async function OrgHeader() {
       <select
         name="organizationId"
         defaultValue={active.organizationId}
-        className="max-w-48 truncate rounded-lg border border-zinc-300 bg-transparent px-2 py-1 text-sm dark:border-zinc-700"
+        className="max-w-48 truncate rounded-lg border border-border bg-transparent px-2 py-1 text-sm focus:border-info"
         aria-label="Negócio"
       >
         {memberships.map((m) => (
@@ -23,7 +23,7 @@ export async function OrgHeader() {
           </option>
         ))}
       </select>
-      <button type="submit" className="text-sm text-emerald-700">
+      <button type="submit" className="text-sm text-info underline-offset-2 hover:underline">
         Trocar
       </button>
     </form>

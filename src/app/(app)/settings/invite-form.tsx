@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { Button, Input, Label, Notice } from "@/components/ui";
+import { Button, Input, Label, Notice, Select } from "@/components/ui";
 import { inviteMemberAction, type FormState } from "../org-actions";
 
 export function InviteForm() {
@@ -14,14 +14,10 @@ export function InviteForm() {
       </Label>
       <Label>
         Papel
-        <select
-          name="role"
-          defaultValue="member"
-          className="min-h-11 rounded-xl border border-zinc-300 bg-white px-3 dark:border-zinc-700 dark:bg-zinc-900"
-        >
+        <Select name="role" defaultValue="member">
           <option value="member">Membro: atende conversas</option>
           <option value="admin">Administrador: também gerencia equipe e canais</option>
-        </select>
+        </Select>
       </Label>
       {state.status === "error" ? <Notice tone="error">{state.message}</Notice> : null}
       {state.status === "success" ? (

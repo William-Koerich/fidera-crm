@@ -1,5 +1,26 @@
 @import "tailwindcss";
 
+/*
+ * Palette: purple is the brand (primary buttons, active items); blue supports
+ * it (links, information, selections). Keep purple for the single main action
+ * of a screen so it stays easy to spot.
+ */
+@theme {
+  --color-brand: #6d28d9;
+  --color-brand-hover: #5b21b6;
+  --color-brand-soft: #f5f3ff;
+  --color-info: #2563eb;
+  --color-info-soft: #eff6ff;
+  --color-surface: #ffffff;
+  --color-background: #f8fafc;
+  --color-border: #e2e8f0;
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-success: #15803d;
+  --color-warning: #b45309;
+  --color-danger: #b91c1c;
+}
+
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);

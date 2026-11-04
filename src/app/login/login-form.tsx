@@ -23,13 +23,13 @@ export function LoginForm() {
       <input type="hidden" name="next" value={next} />
       <input type="hidden" name="mode" value={mode} />
 
-      <div className="grid grid-cols-3 gap-1 rounded-xl bg-zinc-100 p-1 text-sm dark:bg-zinc-800">
+      <div className="grid grid-cols-3 gap-1 rounded-xl bg-background p-1 text-sm">
         {(["password", "signup", "magic"] as const).map((m) => (
           <button
             key={m}
             type="button"
             onClick={() => setMode(m)}
-            className={`min-h-9 rounded-lg px-2 ${mode === m ? "bg-white font-medium shadow-sm dark:bg-zinc-900" : "text-zinc-600 dark:text-zinc-400"}`}
+            className={`min-h-9 rounded-lg px-2 ${mode === m ? "bg-info-soft font-medium text-info shadow-sm" : "text-text-muted"}`}
           >
             {m === "password" ? "Entrar" : m === "signup" ? "Criar conta" : "Link"}
           </button>
