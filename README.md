@@ -21,3 +21,12 @@ npm run dev
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Unit tests (no network) |
+| `npm run test:db` | RLS isolation tests against `DATABASE_URL` (each test runs in a transaction that is rolled back) |
+| `npm run db:status` / `db:migrate` | List / apply migrations in `supabase/migrations` |
+
+## Database
+
+The Supabase project is shared with other apps, so all CRM objects live in the
+`crm` schema (exposed to the Data API) and `crm_private` (helpers, not exposed).
+Migrations are applied by `scripts/migrate.mts`, which keeps its own history in
+`crm_private.schema_migrations` and does not touch `supabase_migrations`.

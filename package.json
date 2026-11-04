@@ -9,9 +9,11 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --project unit",
-    "test:db": "vitest run --project db",
+    "test:db": "node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run --project db",
     "test:all": "vitest run",
-    "test:watch": "vitest --project unit"
+    "test:watch": "vitest --project unit",
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mts",
+    "db:status": "node --env-file-if-exists=.env.local scripts/migrate.mts --status"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -23,10 +25,12 @@
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.5",
+    "pg": "^8.23.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.1.0"
