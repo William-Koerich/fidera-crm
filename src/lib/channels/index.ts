@@ -1,21 +1,29 @@
 import "server-only";
-import { getWhatsAppProviderName } from "@/lib/env";
+import { getWhatsAppProviderName, type ChannelProviderName } from "@/lib/env";
 import { MockChannelProvider } from "./mock-provider";
 import type { ChannelProvider } from "./types";
 
 export type * from "./types";
 
-let cached: ChannelProvider | null = null;
+const instances = new Map<ChannelProviderName, ChannelProvider>();
 
-/** Returns the WhatsApp provider selected by WHATSAPP_PROVIDER (default: mock). */
-export function getWhatsAppProvider(): ChannelProvider {
-  if (cached) return cached;
-  const name = getWhatsAppProviderName();
+/** Provider by name, e.g. the one recorded on a stored webhook event. */
+export function getProviderByName(name: ChannelProviderName): ChannelProvider {
+  const existing = instances.get(name);
+  if (existing) return existing;
+  let provider: ChannelProvider;
   switch (name) {
     case "mock":
-      cached = new MockChannelProvider();
-      return cached;
+      provider = new MockChannelProvider();
+      break;
     case "meta":
-      throw new Error("WHATSAPP_PROVIDER=meta is not implemented yet (Phase 1, Meta test number step).");
+      throw new Error("WHATSAPP_PROVIDER=meta is not implemented yet.");
   }
+  instances.set(name, provider);
+  return provider;
+}
+
+/** Provider selected by WHATSAPP_PROVIDER (default: mock). */
+export function getWhatsAppProvider(): ChannelProvider {
+  return getProviderByName(getWhatsAppProviderName());
 }

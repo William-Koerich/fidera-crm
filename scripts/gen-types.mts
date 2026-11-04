@@ -116,6 +116,8 @@ async function main(): Promise<void> {
         ret_type: string;
         ret_schema: string;
         returns_set: boolean;
+        n_defaults: number;
+        ret_is_table: boolean;
         table_cols: { name: string; type: string; schema: string }[] | null;
       }>(
         `select p.proname as name,
@@ -126,6 +128,7 @@ async function main(): Promise<void> {
                       join pg_type t on t.oid = a.oid join pg_namespace tn on tn.oid = t.typnamespace
                       order by i)::text[] as arg_schemas,
                 rt.typname as ret_type, rn.nspname as ret_schema, p.proretset as returns_set,
+                p.pronargdefaults::int as n_defaults, (rt.typtype = 'c' and rn.nspname = n.nspname) as ret_is_table,
                 case when p.proallargtypes is not null then (
                   select json_agg(json_build_object('name', p.proargnames[i], 'type', t.typname, 'schema', tn.nspname) order by i)
                   from unnest(p.proallargtypes, p.proargmodes) with ordinality a(oid, mode, i)
@@ -184,10 +187,15 @@ async function main(): Promise<void> {
     out.push("    Functions: {");
     for (const f of functions) {
       const names = f.arg_names ?? [];
-      const args = f.arg_types.map((t, i) => `${names[i] ?? `arg${i}`}: ${tsType(t, f.arg_schemas[i] ?? "", enums)}`);
+      const firstOptional = f.arg_types.length - f.n_defaults;
+      const args = f.arg_types.map(
+        (t, i) => `${names[i] ?? `arg${i}`}${i >= firstOptional ? "?" : ""}: ${tsType(t, f.arg_schemas[i] ?? "", enums)}`,
+      );
       let ret: string;
       if (f.table_cols && f.table_cols.length > 0) {
         ret = `{ ${f.table_cols.map((c) => `${c.name}: ${tsType(c.type, c.schema, enums)}`).join("; ")} }[]`;
+      } else if (f.ret_is_table) {
+        ret = `Database["${SCHEMA}"]["Tables"]["${f.ret_type}"]["Row"]${f.returns_set ? "[]" : ""}`;
       } else {
         ret = tsType(f.ret_type, f.ret_schema, enums) + (f.returns_set ? "[]" : "");
       }

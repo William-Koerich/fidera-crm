@@ -12,9 +12,9 @@ export type Database = {
         Relationships: [{ foreignKeyName: "audit_log_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
       channel_accounts: {
-        Row: { id: string; organization_id: string; channel: Database["crm"]["Enums"]["channel"]; provider: Database["crm"]["Enums"]["channel_provider"]; external_account_id: string; external_business_id: string | null; display_name: string | null; display_phone: string | null; status: Database["crm"]["Enums"]["channel_account_status"]; token_secret_id: string | null; connected_at: string | null; created_at: string; updated_at: string };
-        Insert: { id?: string; organization_id: string; channel: Database["crm"]["Enums"]["channel"]; provider: Database["crm"]["Enums"]["channel_provider"]; external_account_id: string; external_business_id?: string | null; display_name?: string | null; display_phone?: string | null; status?: Database["crm"]["Enums"]["channel_account_status"]; token_secret_id?: string | null; connected_at?: string | null; created_at?: string; updated_at?: string };
-        Update: { id?: string; organization_id?: string; channel?: Database["crm"]["Enums"]["channel"]; provider?: Database["crm"]["Enums"]["channel_provider"]; external_account_id?: string; external_business_id?: string | null; display_name?: string | null; display_phone?: string | null; status?: Database["crm"]["Enums"]["channel_account_status"]; token_secret_id?: string | null; connected_at?: string | null; created_at?: string; updated_at?: string };
+        Row: { id: string; organization_id: string; channel: Database["crm"]["Enums"]["channel"]; provider: Database["crm"]["Enums"]["channel_provider"]; external_account_id: string; external_business_id: string | null; display_name: string | null; display_phone: string | null; status: Database["crm"]["Enums"]["channel_account_status"]; token_secret_id: string | null; connected_at: string | null; created_at: string; updated_at: string; history_sync_progress: number | null; disconnected_reason: string | null };
+        Insert: { id?: string; organization_id: string; channel: Database["crm"]["Enums"]["channel"]; provider: Database["crm"]["Enums"]["channel_provider"]; external_account_id: string; external_business_id?: string | null; display_name?: string | null; display_phone?: string | null; status?: Database["crm"]["Enums"]["channel_account_status"]; token_secret_id?: string | null; connected_at?: string | null; created_at?: string; updated_at?: string; history_sync_progress?: number | null; disconnected_reason?: string | null };
+        Update: { id?: string; organization_id?: string; channel?: Database["crm"]["Enums"]["channel"]; provider?: Database["crm"]["Enums"]["channel_provider"]; external_account_id?: string; external_business_id?: string | null; display_name?: string | null; display_phone?: string | null; status?: Database["crm"]["Enums"]["channel_account_status"]; token_secret_id?: string | null; connected_at?: string | null; created_at?: string; updated_at?: string; history_sync_progress?: number | null; disconnected_reason?: string | null };
         Relationships: [{ foreignKeyName: "channel_accounts_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
       contact_identities: {
@@ -75,7 +75,10 @@ export type Database = {
     Views: { [_ in never]: never };
     Functions: {
       accept_invitation: { Args: { invite_token: string }; Returns: string };
+      claim_webhook_events: { Args: { p_limit?: number; p_ids?: string[] }; Returns: Database["crm"]["Tables"]["webhook_events"]["Row"][] };
+      complete_webhook_event: { Args: { p_id: string; p_error?: string; p_organization_id?: string }; Returns: undefined };
       create_organization: { Args: { org_name: string }; Returns: string };
+      ingest_events: { Args: { p_provider: Database["crm"]["Enums"]["channel_provider"]; p_events: Json }; Returns: Json };
       list_members: { Args: { org_id: string }; Returns: { user_id: string; email: string; role: Database["crm"]["Enums"]["membership_role"]; created_at: string }[] };
     };
     Enums: {
