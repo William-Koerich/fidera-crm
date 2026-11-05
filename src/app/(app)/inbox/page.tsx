@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { Notice, Skeleton } from "@/components/ui";
 import { requireMembership } from "@/lib/auth";
@@ -34,6 +35,8 @@ function ListSkeleton() {
 
 async function Content({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
+  // Dates below are formatted relative to "now": render at request time.
+  await connection();
   const filter: InboxFilter = params.filter === "awaiting" ? "awaiting" : "all";
   const cursorParam = typeof params.cursor === "string" ? params.cursor : null;
   const me = await requireMembership();

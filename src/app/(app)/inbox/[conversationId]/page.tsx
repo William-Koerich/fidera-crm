@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui";
 import { requireMembership } from "@/lib/auth";
@@ -43,6 +44,8 @@ async function Content({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const [{ conversationId }, query] = await Promise.all([params, searchParams]);
+  // The reply window is compared with "now": render at request time.
+  await connection();
   await requireMembership();
   const conversation = await getConversation(conversationId);
   if (!conversation) notFound();

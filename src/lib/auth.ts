@@ -43,7 +43,14 @@ export const getMemberships = cache(async (): Promise<ActiveMembership[]> => {
     .select("organization_id, role, organizations(name)")
     .eq("user_id", user.id)
     .order("created_at");
-  if (error) throw new Error("Could not load memberships");
+  if (error) {
+    if (error.code === "PGRST106") {
+      throw new Error(
+        'The "crm" schema is not exposed by the Supabase Data API. Add it in Project Settings -> Data API -> Exposed schemas.',
+      );
+    }
+    throw new Error(`Could not load memberships (${error.code ?? "unknown"})`);
+  }
   return data.map((m) => ({
     organizationId: m.organization_id,
     organizationName: m.organizations?.name ?? "",
