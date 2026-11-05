@@ -45,3 +45,25 @@ Migrations are applied by `scripts/migrate.mts`, which keeps its own history in
 
 The simulator signs Cloud API shaped payloads and sends them through the same
 intake + processing code as `POST /api/webhooks/whatsapp`.
+
+## WhatsApp providers
+
+`WHATSAPP_PROVIDER` selects how WhatsApp is reached. Everything after the
+webhook (queue, ingestion, inbox) is the same for all of them.
+
+| Value | What it is | Webhook route | Signature header |
+| --- | --- | --- | --- |
+| `mock` (default) | In-memory provider + simulator, no account needed | `/api/webhooks/whatsapp` | `X-Hub-Signature-256` (`MOCK_WEBHOOK_SECRET`) |
+| `meta` | Cloud API directly (e.g. Meta's free test number) | `/api/webhooks/whatsapp` | `X-Hub-Signature-256` (`META_APP_SECRET`) |
+| `coexy` | Official Cloud API through Coexy, with WhatsApp Business app coexistence | `/api/webhooks/coexy` | `X-Coexy-Signature` (`COEXY_WEBHOOK_SECRET`) |
+
+### Coexy setup
+
+1. Deploy the app (the webhook needs a public https URL).
+2. Set `COEXY_API_KEY` (Coexy panel → Configurações → API Keys) and `WHATSAPP_PROVIDER=coexy`.
+3. Create the webhook once and save the printed secret as `COEXY_WEBHOOK_SECRET`:
+   `node --env-file=.env.local scripts/coexy-webhook.mts https://<your-app>`
+4. In the app: *Ajustes → Conectar WhatsApp Business*. The owner finishes the
+   connection on Coexy's page, comes back and taps *Já conectei, verificar*.
+
+Channel tokens are stored per account in Supabase Vault (`crm.set_channel_token`).
