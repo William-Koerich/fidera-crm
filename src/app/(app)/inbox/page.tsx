@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { Notice, Skeleton } from "@/components/ui";
+import { Alert, Skeleton } from "@/components/ui";
 import { requireMembership } from "@/lib/auth";
 import { decodeCursor } from "@/lib/inbox/cursor";
 import { formatPhone, formatShortDate } from "@/lib/inbox/format";
@@ -52,17 +52,17 @@ async function Content({ searchParams }: { searchParams: Promise<Record<string, 
       <RealtimeRefresh table="conversations" filter={`organization_id=eq.${me.organizationId}`} />
 
       {disconnected.length > 0 ? (
-        <Notice tone="warning">
+        <Alert tone="warning">
           O WhatsApp foi desconectado ({disconnected[0]?.disconnected_reason ?? "sem motivo informado"}). Novas mensagens
           não chegam até você reconectar em <Link href="/settings" className="underline">Ajustes</Link>.
-        </Notice>
+        </Alert>
       ) : null}
 
       {accounts.length === 0 ? (
-        <Notice tone="info">
+        <Alert tone="info">
           Nenhum canal conectado. <Link href="/settings" className="font-medium underline">Conecte o WhatsApp</Link> para
           receber conversas.
-        </Notice>
+        </Alert>
       ) : null}
 
       <nav className="flex gap-2 text-sm" aria-label="Filtro">

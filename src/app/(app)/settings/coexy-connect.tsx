@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Button, Notice } from "@/components/ui";
+import { Alert, Button } from "@/components/ui";
 import { refreshCoexyChannelAction, startCoexyConnectionAction, type ChannelActionState } from "./channel-actions";
 
 export function CoexyConnect({ hasPending, hasActive }: { hasPending: boolean; hasActive: boolean }) {
@@ -32,8 +32,8 @@ export function CoexyConnect({ hasPending, hasActive }: { hasPending: boolean; h
         </div>
       ) : null}
 
-      {state.status === "error" ? <Notice tone="error">{state.message}</Notice> : null}
-      {state.status === "success" ? <Notice tone="success">{state.message}</Notice> : null}
+      {state.status === "error" ? <Alert tone="danger">{state.message}</Alert> : null}
+      {state.status === "success" ? <Alert tone="success">{state.message}</Alert> : null}
 
       {!hasActive ? (
         <form action={start}>

@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useActionState, useState } from "react";
-import { Button, Input, Label, Notice } from "@/components/ui";
+import { Alert, Button, Input } from "@/components/ui";
 import { loginAction, type LoginState } from "./actions";
 
 type Mode = "password" | "signup" | "magic";
@@ -36,13 +36,13 @@ export function LoginForm() {
         ))}
       </div>
 
-      <Label>
+      <label className="grid gap-1.5 text-sm font-medium text-text">
         E-mail
         <Input name="email" type="email" autoComplete="email" inputMode="email" required />
-      </Label>
+      </label>
 
       {mode !== "magic" ? (
-        <Label>
+        <label className="grid gap-1.5 text-sm font-medium text-text">
           Senha
           <Input
             name="password"
@@ -51,11 +51,11 @@ export function LoginForm() {
             minLength={8}
             required
           />
-        </Label>
+        </label>
       ) : null}
 
-      {state.status === "error" ? <Notice tone="error">{state.message}</Notice> : null}
-      {state.status === "sent" ? <Notice tone="success">{state.message}</Notice> : null}
+      {state.status === "error" ? <Alert tone="danger">{state.message}</Alert> : null}
+      {state.status === "sent" ? <Alert tone="success">{state.message}</Alert> : null}
 
       <Button type="submit" disabled={pending}>
         {pending ? "Aguarde..." : TITLES[mode]}

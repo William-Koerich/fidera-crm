@@ -1,4 +1,4 @@
-import { Button, Card, Notice } from "@/components/ui";
+import { Alert, Button, Panel } from "@/components/ui";
 import { canManage, requireMembership } from "@/lib/auth";
 import { getWhatsAppProviderName } from "@/lib/env";
 import { listChannelAccounts } from "@/lib/inbox/queries";
@@ -21,7 +21,7 @@ export async function Channels() {
   const coexyAccounts = accounts.filter((a) => a.provider === "coexy");
 
   return (
-    <Card title="Canais">
+    <Panel title="Canais">
       {accounts.length > 0 ? (
         <ul className="mb-3 grid gap-2">
           {accounts.map((a) => (
@@ -54,9 +54,9 @@ export async function Channels() {
 
       {accounts.some((a) => a.status === "disconnected") ? (
         <div className="mb-3">
-          <Notice tone="warning">
+          <Alert tone="warning">
             A conexão com o WhatsApp foi removida. Mensagens novas não chegam até reconectar.
-          </Notice>
+          </Alert>
         </div>
       ) : null}
 
@@ -77,6 +77,6 @@ export async function Channels() {
           </p>
         </form>
       ) : null}
-    </Card>
+    </Panel>
   );
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { Card, Skeleton } from "@/components/ui";
+import { Panel, Skeleton } from "@/components/ui";
 import { requireMembership } from "@/lib/auth";
 import { getWhatsAppProviderName } from "@/lib/env";
 import { SimulatorForm } from "./simulator-form";
@@ -28,8 +28,8 @@ async function Gate() {
   await requireMembership();
   if (getWhatsAppProviderName() !== "mock") notFound();
   return (
-    <Card>
+    <Panel>
       <SimulatorForm />
-    </Card>
+    </Panel>
   );
 }

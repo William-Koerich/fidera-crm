@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { Button, Input, Label, Notice } from "@/components/ui";
+import { Alert, Button, Input } from "@/components/ui";
 import { simulateAction, type SimulatorState } from "./actions";
 
 export function SimulatorForm() {
@@ -9,21 +9,21 @@ export function SimulatorForm() {
 
   return (
     <form action={action} className="grid gap-3">
-      <Label>
+      <label className="grid gap-1.5 text-sm font-medium text-text">
         Nome do contato
         <Input name="name" defaultValue="Ana Souza" />
-      </Label>
-      <Label>
+      </label>
+      <label className="grid gap-1.5 text-sm font-medium text-text">
         Telefone
         <Input name="phone" defaultValue="+55 48 99999-0000" inputMode="tel" />
-      </Label>
-      <Label>
+      </label>
+      <label className="grid gap-1.5 text-sm font-medium text-text">
         Mensagem
         <Input name="body" defaultValue="Oi! Tem horário amanhã à tarde?" />
-      </Label>
+      </label>
 
-      {state.status === "error" ? <Notice tone="error">{state.message}</Notice> : null}
-      {state.status === "success" ? <Notice tone="success">{state.message}</Notice> : null}
+      {state.status === "error" ? <Alert tone="danger">{state.message}</Alert> : null}
+      {state.status === "success" ? <Alert tone="success">{state.message}</Alert> : null}
 
       <Button type="submit" name="kind" value="inbound" disabled={pending}>
         Cliente envia mensagem

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import { Button, Notice } from "@/components/ui";
+import { Alert, Button } from "@/components/ui";
 import { sendReplyAction, type ComposerState } from "../actions";
 
 export function Composer({ conversationId }: { conversationId: string }) {
@@ -15,7 +15,7 @@ export function Composer({ conversationId }: { conversationId: string }) {
   return (
     <form ref={formRef} action={action} className="grid gap-2">
       <input type="hidden" name="conversationId" value={conversationId} />
-      {state.status === "error" ? <Notice tone="error">{state.message}</Notice> : null}
+      {state.status === "error" ? <Alert tone="danger">{state.message}</Alert> : null}
       <div className="flex items-end gap-2">
         <textarea
           name="body"

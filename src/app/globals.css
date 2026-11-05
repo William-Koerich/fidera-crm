@@ -19,6 +19,11 @@
   --color-success: #15803d;
   --color-warning: #b45309;
   --color-danger: #b91c1c;
+
+  --shadow-xs: 0 1px 1px 0 rgb(15 23 42 / 0.04);
+  --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.06);
+
+  --animate-toast-in: toast-in 160ms ease-out;
 }
 
 @theme inline {
@@ -26,7 +31,59 @@
   --font-mono: var(--font-geist-mono);
 }
 
-body {
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
-  -webkit-tap-highlight-color: transparent;
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: var(--font-geist-sans), system-ui, sans-serif;
+    font-feature-settings: "cv11";
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Visible keyboard focus on every interactive element. */
+  :focus-visible {
+    outline: 2px solid var(--color-info);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
+  }
+
+  ::selection {
+    background: var(--color-info-soft);
+    color: var(--color-text);
+  }
+
+  time,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

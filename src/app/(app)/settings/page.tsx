@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Button, Card, Skeleton } from "@/components/ui";
+import { Button, Panel, Skeleton } from "@/components/ui";
 import { canManage, requireMembership } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { signOutAction } from "../../login/actions";
@@ -50,7 +50,7 @@ async function Team() {
 
   return (
     <>
-      <Card title="Equipe">
+      <Panel title="Equipe">
         <ul className="divide-y divide-border">
           {(members ?? []).map((m) => {
             const isMe = m.user_id === me.user.id;
@@ -94,10 +94,10 @@ async function Team() {
             );
           })}
         </ul>
-      </Card>
+      </Panel>
 
       {manage ? (
-        <Card title="Convidar pessoa">
+        <Panel title="Convidar pessoa">
           <InviteForm />
           {invites && invites.length > 0 ? (
             <div className="mt-4 grid gap-2">
@@ -119,7 +119,7 @@ async function Team() {
               </ul>
             </div>
           ) : null}
-        </Card>
+        </Panel>
       ) : null}
     </>
   );
