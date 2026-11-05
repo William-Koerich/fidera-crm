@@ -5,6 +5,7 @@ import { canManage, requireMembership } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { signOutAction } from "../../login/actions";
 import { changeRoleAction, removeMemberAction, revokeInvitationAction } from "../org-actions";
+import { Channels } from "./channels";
 import { InviteForm } from "./invite-form";
 
 export const metadata: Metadata = { title: "Ajustes" };
@@ -15,6 +16,9 @@ export default function SettingsPage() {
   return (
     <main className="grid gap-4 p-4">
       <h1 className="text-xl font-semibold">Ajustes</h1>
+      <Suspense fallback={<Skeleton className="h-32" />}>
+        <Channels />
+      </Suspense>
       <Suspense fallback={<Skeleton className="h-48" />}>
         <Team />
       </Suspense>

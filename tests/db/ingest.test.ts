@@ -69,7 +69,8 @@ describe.skipIf(!hasDatabase())("ingest_events", () => {
 
   async function conversation(db: Db) {
     const { rows } = await db.query(
-      `select awaiting_reply, unread_count, last_inbound_at, last_outbound_at, reply_window_ends_at
+      `select awaiting_reply, unread_count, last_inbound_at, last_outbound_at, reply_window_ends_at,
+              last_message_preview
        from crm.conversations`,
     );
     return rows;
@@ -86,7 +87,7 @@ describe.skipIf(!hasDatabase())("ingest_events", () => {
       const ids = await db.query("select external_id from crm.contact_identities");
       expect(ids.rows).toEqual([{ external_id: "554899990000" }]);
       const [conv] = await conversation(db);
-      expect(conv).toMatchObject({ awaiting_reply: true, unread_count: 1 });
+      expect(conv).toMatchObject({ awaiting_reply: true, unread_count: 1, last_message_preview: "Oi" });
       expect((conv.reply_window_ends_at as Date).toISOString()).toBe("2026-11-05T12:00:00.000Z");
     }));
 
@@ -107,7 +108,7 @@ describe.skipIf(!hasDatabase())("ingest_events", () => {
       await ingest(db, inboundText({ from: "554899990000", body: "Tem horário?", id: "wamid.in", at: t0 }));
       await ingest(db, messageEcho({ to: "554899990000", body: "Tenho às 15h", id: "wamid.echo", at: at(5) }));
       const [conv] = await conversation(db);
-      expect(conv).toMatchObject({ awaiting_reply: false, unread_count: 1 });
+      expect(conv).toMatchObject({ awaiting_reply: false, unread_count: 1, last_message_preview: "Tenho às 15h" });
       const msgs = await db.query("select direction, origin, status from crm.messages order by occurred_at");
       expect(msgs.rows).toEqual([
         { direction: "inbound", origin: "customer", status: "received" },

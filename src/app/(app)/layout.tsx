@@ -1,10 +1,15 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui";
-import { NavLink } from "./nav-link";
+import { NavLinks, type NavItem } from "./nav-link";
 import { OrgHeader } from "./org-header";
 
 const showSimulator = (process.env.WHATSAPP_PROVIDER ?? "mock") === "mock";
+const NAV_ITEMS: NavItem[] = [
+  { href: "/inbox", label: "Inbox" },
+  ...(showSimulator ? [{ href: "/dev/simulator", label: "Simulador" }] : []),
+  { href: "/settings", label: "Ajustes" },
+];
 
 export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
@@ -24,11 +29,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
 
       <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto grid h-14 max-w-3xl grid-flow-col text-center text-sm">
-          <NavLink href="/inbox">Inbox</NavLink>
-          {showSimulator ? (
-            <NavLink href="/dev/simulator">Simulador</NavLink>
-          ) : null}
-          <NavLink href="/settings">Ajustes</NavLink>
+          <NavLinks items={NAV_ITEMS} />
         </div>
       </nav>
     </div>

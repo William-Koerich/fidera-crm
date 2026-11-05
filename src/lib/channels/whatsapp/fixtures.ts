@@ -178,7 +178,7 @@ export function contactStateSync(
   );
 }
 
-export function partnerRemoved(opts: { reason?: string; initiatedBy?: "USER" | "SYSTEM" } = {}) {
+export function partnerRemoved(opts: { reason?: string; initiatedBy?: "USER" | "SYSTEM"; wabaId?: string } = {}) {
   return {
     object: "whatsapp_business_account",
     entry: [
@@ -189,7 +189,7 @@ export function partnerRemoved(opts: { reason?: string; initiatedBy?: "USER" | "
           {
             value: {
               event: "PARTNER_REMOVED",
-              waba_info: { waba_id: FIXTURE_WABA_ID, owner_business_id: "400000000000001" },
+              waba_info: { waba_id: opts.wabaId ?? FIXTURE_WABA_ID, owner_business_id: "400000000000001" },
               disconnection_info: {
                 reason: opts.reason ?? "ACCOUNT_DISCONNECTED",
                 initiated_by: opts.initiatedBy ?? "USER",

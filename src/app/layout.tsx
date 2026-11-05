@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   title: { default: "Fidera", template: "%s · Fidera" },
   description: "WhatsApp e Instagram num só lugar, e a lista de quem chamar hoje.",
   appleWebApp: { capable: true, title: "Fidera", statusBarStyle: "default" },
+  icons: { icon: "/icons/icon.svg", apple: "/icons/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {

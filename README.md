@@ -30,3 +30,18 @@ The Supabase project is shared with other apps, so all CRM objects live in the
 `crm` schema (exposed to the Data API) and `crm_private` (helpers, not exposed).
 Migrations are applied by `scripts/migrate.mts`, which keeps its own history in
 `crm_private.schema_migrations` and does not touch `supabase_migrations`.
+
+## Trying the inbox without Meta (mock mode)
+
+1. In the Supabase dashboard, add `crm` to *Settings → Data API → Exposed schemas*,
+   and add `http://localhost:3000/**` to *Authentication → URL Configuration → Redirect URLs*.
+2. `npm run dev`, open http://localhost:3000, create an account and your business.
+3. *Ajustes → Conectar WhatsApp de teste*.
+4. *Simulador → Cliente envia mensagem*: the conversation shows up in the inbox
+   (Realtime), with the "Sem resposta" badge and the 24h window countdown.
+5. Reply from the conversation screen (goes through `MockChannelProvider`),
+   or simulate a reply from the phone (echo), a read receipt, a history import
+   or a disconnection (`PARTNER_REMOVED`).
+
+The simulator signs Cloud API shaped payloads and sends them through the same
+intake + processing code as `POST /api/webhooks/whatsapp`.

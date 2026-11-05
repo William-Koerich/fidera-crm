@@ -2,19 +2,46 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { Suspense } from "react";
 
-/** Bottom navigation item. The active item uses the brand color. */
-export function NavLink({ href, children }: { href: string; children: ReactNode }) {
+export interface NavItem {
+  href: string;
+  label: string;
+}
+
+const base = "grid place-items-center";
+
+function ActiveLinks({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
-  const active = pathname === href || pathname.startsWith(`${href}/`);
+  return items.map((item) => {
+    const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        aria-current={active ? "page" : undefined}
+        className={`${base} ${active ? "font-semibold text-brand" : "text-text-muted"}`}
+      >
+        {item.label}
+      </Link>
+    );
+  });
+}
+
+/**
+ * Bottom navigation. The active item uses the brand color. usePathname is
+ * request data on dynamic routes, so the static shell renders plain links.
+ */
+export function NavLinks({ items }: { items: NavItem[] }) {
   return (
-    <Link
-      href={href}
-      aria-current={active ? "page" : undefined}
-      className={`grid place-items-center ${active ? "font-semibold text-brand" : "text-text-muted"}`}
+    <Suspense
+      fallback={items.map((item) => (
+        <Link key={item.href} href={item.href} className={`${base} text-text-muted`}>
+          {item.label}
+        </Link>
+      ))}
     >
-      {children}
-    </Link>
+      <ActiveLinks items={items} />
+    </Suspense>
   );
 }

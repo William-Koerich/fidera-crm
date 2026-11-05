@@ -1,0 +1,156 @@
+import "server-only";
+import type { Tables } from "@/lib/supabase/database.types";
+import { createClient } from "@/lib/supabase/server";
+import { afterCursorFilter, encodeCursor, type Cursor } from "./cursor";
+
+export const CONVERSATIONS_PAGE_SIZE = 30;
+export const MESSAGES_PAGE_SIZE = 50;
+
+export type InboxFilter = "all" | "awaiting";
+
+export interface ConversationListItem {
+  id: string;
+  channel: Tables<"conversations">["channel"];
+  contactName: string | null;
+  contactPhone: string | null;
+  lastMessageAt: string | null;
+  lastMessagePreview: string | null;
+  awaitingReply: boolean;
+  unreadCount: number;
+  replyWindowEndsAt: string | null;
+}
+
+/** Conversations of the active organization, newest first, keyset-paginated. RLS applies. */
+export async function listConversations(opts: {
+  organizationId: string;
+  filter: InboxFilter;
+  cursor: Cursor | null;
+}): Promise<{ items: ConversationListItem[]; nextCursor: string | null }> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("conversations")
+    .select(
+      "id, channel, last_message_at, last_message_preview, awaiting_reply, unread_count, reply_window_ends_at, contacts(display_name, phone_normalized)",
+    )
+    .eq("organization_id", opts.organizationId)
+    .not("last_message_at", "is", null)
+    .order("last_message_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(CONVERSATIONS_PAGE_SIZE + 1);
+
+  if (opts.filter === "awaiting") query = query.eq("awaiting_reply", true);
+  if (opts.cursor) query = query.or(afterCursorFilter("last_message_at", opts.cursor));
+
+  const { data, error } = await query;
+  if (error) throw new Error("Could not load conversations");
+
+  const page = data.slice(0, CONVERSATIONS_PAGE_SIZE);
+  const last = page.at(-1);
+  return {
+    items: page.map((c) => ({
+      id: c.id,
+      channel: c.channel,
+      contactName: c.contacts?.display_name ?? null,
+      contactPhone: c.contacts?.phone_normalized ?? null,
+      lastMessageAt: c.last_message_at,
+      lastMessagePreview: c.last_message_preview,
+      awaitingReply: c.awaiting_reply,
+      unreadCount: c.unread_count,
+      replyWindowEndsAt: c.reply_window_ends_at,
+    })),
+    nextCursor:
+      data.length > CONVERSATIONS_PAGE_SIZE && last?.last_message_at
+        ? encodeCursor({ at: last.last_message_at, id: last.id })
+        : null,
+  };
+}
+
+export interface ConversationDetail {
+  id: string;
+  organizationId: string;
+  channel: Tables<"conversations">["channel"];
+  lastInboundAt: string | null;
+  replyWindowEndsAt: string | null;
+  contact: { id: string; name: string | null; phone: string | null };
+  account: { id: string; externalAccountId: string; provider: Tables<"channel_accounts">["provider"]; status: Tables<"channel_accounts">["status"] };
+  /** Channel identifier to send to (wa_id / IGSID). */
+  recipientExternalId: string | null;
+}
+
+export async function getConversation(id: string): Promise<ConversationDetail | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("conversations")
+    .select(
+      "id, organization_id, channel, last_inbound_at, reply_window_ends_at, contact_id, contacts(id, display_name, phone_normalized), channel_accounts(id, external_account_id, provider, status)",
+    )
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data || !data.contacts || !data.channel_accounts) return null;
+
+  const { data: identity } = await supabase
+    .from("contact_identities")
+    .select("external_id")
+    .eq("contact_id", data.contact_id)
+    .eq("channel", data.channel)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  return {
+    id: data.id,
+    organizationId: data.organization_id,
+    channel: data.channel,
+    lastInboundAt: data.last_inbound_at,
+    replyWindowEndsAt: data.reply_window_ends_at,
+    contact: { id: data.contacts.id, name: data.contacts.display_name, phone: data.contacts.phone_normalized },
+    account: {
+      id: data.channel_accounts.id,
+      externalAccountId: data.channel_accounts.external_account_id,
+      provider: data.channel_accounts.provider,
+      status: data.channel_accounts.status,
+    },
+    recipientExternalId: identity?.external_id ?? null,
+  };
+}
+
+export type MessageItem = Pick<
+  Tables<"messages">,
+  "id" | "direction" | "origin" | "type" | "body" | "status" | "occurred_at" | "media_path" | "error_code"
+>;
+
+/** Messages oldest-first for display; `before` pages backwards in time. */
+export async function listMessages(
+  conversationId: string,
+  before: Cursor | null,
+): Promise<{ items: MessageItem[]; olderCursor: string | null }> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("messages")
+    .select("id, direction, origin, type, body, status, occurred_at, media_path, error_code")
+    .eq("conversation_id", conversationId)
+    .order("occurred_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(MESSAGES_PAGE_SIZE + 1);
+  if (before) query = query.or(afterCursorFilter("occurred_at", before));
+
+  const { data, error } = await query;
+  if (error) throw new Error("Could not load messages");
+  const page = data.slice(0, MESSAGES_PAGE_SIZE);
+  const oldest = page.at(-1);
+  return {
+    items: page.reverse(),
+    olderCursor:
+      data.length > MESSAGES_PAGE_SIZE && oldest ? encodeCursor({ at: oldest.occurred_at, id: oldest.id }) : null,
+  };
+}
+
+export async function listChannelAccounts(organizationId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("channel_accounts")
+    .select("id, channel, provider, display_name, display_phone, status, disconnected_reason, history_sync_progress")
+    .eq("organization_id", organizationId)
+    .order("created_at");
+  return data ?? [];
+}
