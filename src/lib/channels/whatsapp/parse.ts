@@ -241,6 +241,7 @@ export function parseWhatsAppWebhook(payload: unknown): NormalizedEvent[] {
           events.push(...parseMessagesField(value, accountExternalId));
           break;
         case "smb_message_echoes":
+        case "message_echoes":
           events.push(...parseEchoes(value, accountExternalId));
           break;
         case "history":

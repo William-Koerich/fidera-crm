@@ -37,15 +37,17 @@ describe.skipIf(!hasDatabase())("channel tables isolation", () => {
 
   /** Creates account -> contact -> identity -> conversation -> message for an org. */
   async function seedOrg(db: Db, ownerId: string, orgId: string, tag: string) {
-    await actAs(db, ownerId);
     const q = async (sql: string, params: unknown[]) =>
       (await db.query<{ id: string }>(sql, params)).rows[0]!.id;
 
+    // Channel accounts are created by the server only.
+    await actAsAdmin(db);
     const account = await q(
       `insert into crm.channel_accounts (organization_id, channel, provider, external_account_id, status)
        values ($1, 'whatsapp', 'mock', $2, 'active') returning id`,
       [orgId, `phone-${tag}-${orgId}`],
     );
+    await actAs(db, ownerId);
     const contact = await q(
       `insert into crm.contacts (organization_id, display_name, phone_normalized, source)
        values ($1, $2, '5548999990000', 'whatsapp_inbound') returning id`,
@@ -206,6 +208,42 @@ describe.skipIf(!hasDatabase())("channel tables isolation", () => {
       expect((await db.query("select 1 from crm.usage_ledger")).rowCount).toBe(0);
       expect((await db.query("select 1 from crm.audit_log")).rowCount).toBe(0);
       expect((await db.query("delete from crm.contacts where id = $1", [s.a.contact])).rowCount).toBe(0);
+    }));
+
+  it("users cannot create or change channel accounts (webhook routing / secrets)", () =>
+    withRollback(db, async (db) => {
+      const s = await seed(db);
+      await actAs(db, s.ownerA);
+      expect(
+        await errorCode(
+          db,
+          `insert into crm.channel_accounts (organization_id, channel, provider, external_account_id)
+           values ($1, 'whatsapp', 'meta', 'squatted-phone-id')`,
+          [s.orgA],
+        ),
+      ).toBe(INSUFFICIENT_PRIVILEGE);
+      expect(
+        await errorCode(db, "update crm.channel_accounts set external_account_id = 'x' where id = $1", [s.a.account]),
+      ).toBe(INSUFFICIENT_PRIVILEGE);
+      expect(await errorCode(db, "select crm.get_channel_token('mock', 'x')")).toBe(INSUFFICIENT_PRIVILEGE);
+      // Owners can still remove their own account.
+      expect((await db.query("delete from crm.channel_accounts where id = $1", [s.a.account])).rowCount).toBe(1);
+    }));
+
+  it("channel tokens round-trip through Vault and are removed with the account", () =>
+    withRollback(db, async (db) => {
+      const s = await seed(db);
+      await actAsAdmin(db);
+      await db.query("select crm.set_channel_token($1, 'token-1')", [s.a.account]);
+      await db.query("select crm.set_channel_token($1, 'token-2')", [s.a.account]);
+      const { rows } = await db.query<{ t: string; secret: string }>(
+        `select crm.get_channel_token('mock', ca.external_account_id) as t, ca.token_secret_id as secret
+         from crm.channel_accounts ca where ca.id = $1`,
+        [s.a.account],
+      );
+      expect(rows[0]?.t).toBe("token-2");
+      await db.query("delete from crm.channel_accounts where id = $1", [s.a.account]);
+      expect((await db.query("select 1 from vault.secrets where id = $1", [rows[0]!.secret])).rowCount).toBe(0);
     }));
 
   it("external_message_id is unique per channel account", () =>

@@ -1,4 +1,4 @@
-export const CHANNEL_PROVIDERS = ["mock", "meta"] as const;
+export const CHANNEL_PROVIDERS = ["mock", "meta", "coexy"] as const;
 export type ChannelProviderName = (typeof CHANNEL_PROVIDERS)[number];
 
 /** Reads WHATSAPP_PROVIDER. Defaults to "mock" so the app works without a Meta account. */

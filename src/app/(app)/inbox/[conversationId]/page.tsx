@@ -94,7 +94,18 @@ async function Content({
                   outbound ? "rounded-br-sm bg-brand-soft text-text" : "rounded-bl-sm border border-border bg-surface"
                 }`}
               >
-                {m.type !== "text" ? <p className="text-xs font-medium text-text-muted">[{m.type}]</p> : null}
+                {m.mediaUrl && m.media_mime_type?.startsWith("image/") ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL
+                  <img src={m.mediaUrl} alt="Imagem recebida" className="mb-1 max-h-72 rounded-xl object-contain" />
+                ) : m.mediaUrl && m.media_mime_type?.startsWith("audio/") ? (
+                  <audio controls src={m.mediaUrl} className="mb-1 max-w-full" />
+                ) : m.mediaUrl ? (
+                  <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer" className="text-info underline">
+                    Abrir {m.type}
+                  </a>
+                ) : m.type !== "text" ? (
+                  <p className="text-xs font-medium text-text-muted">[{m.type}]</p>
+                ) : null}
                 {m.body ? <p className="whitespace-pre-wrap break-words">{m.body}</p> : null}
                 <p className="mt-1 text-right text-[11px] text-text-muted">
                   {formatTime(m.occurred_at)}

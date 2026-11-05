@@ -100,6 +100,8 @@ export interface SendMessageInput {
   to: string;
   type: "text";
   body: string;
+  /** Stable key so a retried send is not delivered twice (when the provider supports it). */
+  idempotencyKey?: string;
 }
 
 export type SendResult =
@@ -122,9 +124,16 @@ export interface ReplyWindow {
   humanAgentEndsAt: Date | null;
 }
 
+export interface DownloadedMedia {
+  data: ArrayBuffer;
+  mimeType: string;
+}
+
 export interface ChannelProvider {
-  readonly name: "mock" | "meta";
+  readonly name: "mock" | "meta" | "coexy";
   parseWebhook(payload: unknown): NormalizedEvent[];
   sendMessage(input: SendMessageInput): Promise<SendResult>;
   getReplyWindow(conversation: ReplyWindowConversation, now?: Date): ReplyWindow;
+  /** Downloads inbound media by the channel's media id (when supported). */
+  downloadMedia?(input: { accountExternalId: string; mediaId: string }): Promise<DownloadedMedia>;
 }

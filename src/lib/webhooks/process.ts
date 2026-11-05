@@ -3,6 +3,7 @@ import { getProviderByName } from "@/lib/channels";
 import type { Json } from "@/lib/supabase/database.types";
 import { createAdminClient, type AdminClient } from "@/lib/supabase/server";
 import { logEvent } from "@/lib/log";
+import { fetchPendingMedia } from "./media";
 
 /** History syncs can carry thousands of messages: ingest them in batches. */
 export const INGEST_BATCH_SIZE = 500;
@@ -79,6 +80,14 @@ export async function processWebhookEvents(
       const message = e instanceof Error ? e.message : "unknown error";
       await admin.rpc("complete_webhook_event", { p_id: event.id, p_error: message });
       logEvent("webhook.failed", { eventId: event.id, attempts: event.attempts, error: message }, "error");
+    }
+  }
+
+  if (processed > 0) {
+    try {
+      await fetchPendingMedia(admin);
+    } catch (e) {
+      logEvent("media.batch_failed", { error: e instanceof Error ? e.message : "unknown" }, "warn");
     }
   }
 

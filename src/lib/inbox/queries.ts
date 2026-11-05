@@ -1,6 +1,7 @@
 import "server-only";
 import type { Tables } from "@/lib/supabase/database.types";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { MEDIA_BUCKET, MEDIA_UNAVAILABLE } from "@/lib/webhooks/media";
 import { afterCursorFilter, encodeCursor, type Cursor } from "./cursor";
 
 export const CONVERSATIONS_PAGE_SIZE = 30;
@@ -116,8 +117,8 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
 
 export type MessageItem = Pick<
   Tables<"messages">,
-  "id" | "direction" | "origin" | "type" | "body" | "status" | "occurred_at" | "media_path" | "error_code"
->;
+  "id" | "direction" | "origin" | "type" | "body" | "status" | "occurred_at" | "media_path" | "media_mime_type" | "error_code"
+> & { mediaUrl: string | null };
 
 /** Messages oldest-first for display; `before` pages backwards in time. */
 export async function listMessages(
@@ -127,7 +128,7 @@ export async function listMessages(
   const supabase = await createClient();
   let query = supabase
     .from("messages")
-    .select("id, direction, origin, type, body, status, occurred_at, media_path, error_code")
+    .select("id, direction, origin, type, body, status, occurred_at, media_path, media_mime_type, error_code")
     .eq("conversation_id", conversationId)
     .order("occurred_at", { ascending: false })
     .order("id", { ascending: false })
@@ -138,8 +139,17 @@ export async function listMessages(
   if (error) throw new Error("Could not load messages");
   const page = data.slice(0, MESSAGES_PAGE_SIZE);
   const oldest = page.at(-1);
+
+  // Rows above were read with the user's client (RLS), so signing their media is safe.
+  const paths = page.map((m) => m.media_path).filter((p): p is string => !!p && p !== MEDIA_UNAVAILABLE);
+  const signed = new Map<string, string>();
+  if (paths.length > 0) {
+    const { data: urls } = await createAdminClient().storage.from(MEDIA_BUCKET).createSignedUrls(paths, 300);
+    for (const u of urls ?? []) if (u.path && u.signedUrl) signed.set(u.path, u.signedUrl);
+  }
+
   return {
-    items: page.reverse(),
+    items: page.reverse().map((m) => ({ ...m, mediaUrl: m.media_path ? (signed.get(m.media_path) ?? null) : null })),
     olderCursor:
       data.length > MESSAGES_PAGE_SIZE && oldest ? encodeCursor({ at: oldest.occurred_at, id: oldest.id }) : null,
   };

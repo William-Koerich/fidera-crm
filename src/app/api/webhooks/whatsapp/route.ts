@@ -1,9 +1,6 @@
-import { after, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { getWhatsAppProviderName } from "@/lib/env";
-import { logEvent } from "@/lib/log";
-import { processWebhookEvents } from "@/lib/webhooks/process";
-import { receiveWebhook } from "@/lib/webhooks/receive";
-import { supabaseEventStore, webhookSecret } from "@/lib/webhooks/store";
+import { handleWhatsAppWebhook } from "@/lib/webhooks/handler";
 
 export const maxDuration = 60;
 
@@ -22,38 +19,8 @@ export async function GET(request: NextRequest) {
   return new Response("Forbidden", { status: 403 });
 }
 
-/**
- * Receives WhatsApp webhooks: validate signature on the raw body, store once,
- * answer fast, process after the response. The pg_cron sweep retries anything
- * that fails or never got processed.
- */
+/** Direct Meta webhooks (X-Hub-Signature-256), or mock deliveries in mock mode. */
 export async function POST(request: NextRequest) {
-  const provider = getWhatsAppProviderName();
-  const rawBody = await request.text();
-
-  const result = await receiveWebhook(
-    {
-      provider,
-      channel: "whatsapp",
-      rawBody,
-      signature: request.headers.get("x-hub-signature-256"),
-      secret: webhookSecret(provider),
-    },
-    supabaseEventStore(),
-  );
-
-  logEvent("webhook.received", { provider, status: result.status, duplicate: result.duplicate });
-
-  if (result.eventId) {
-    const id = result.eventId;
-    after(async () => {
-      try {
-        await processWebhookEvents({ ids: [id] });
-      } catch (e) {
-        logEvent("webhook.after_failed", { eventId: id, error: e instanceof Error ? e.message : "unknown" }, "error");
-      }
-    });
-  }
-
-  return new Response(result.status === 200 ? "EVENT_RECEIVED" : "Rejected", { status: result.status });
+  const provider = getWhatsAppProviderName() === "mock" ? "mock" : "meta";
+  return handleWhatsAppWebhook(request, provider, "x-hub-signature-256");
 }

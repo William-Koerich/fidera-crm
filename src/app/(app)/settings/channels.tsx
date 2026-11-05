@@ -3,6 +3,7 @@ import { canManage, requireMembership } from "@/lib/auth";
 import { getWhatsAppProviderName } from "@/lib/env";
 import { listChannelAccounts } from "@/lib/inbox/queries";
 import { connectMockChannelAction } from "./channel-actions";
+import { CoexyConnect } from "./coexy-connect";
 
 const STATUS_LABEL = {
   pending: "Conectando",
@@ -15,7 +16,9 @@ export async function Channels() {
   const me = await requireMembership();
   const accounts = await listChannelAccounts(me.organizationId);
   const manage = canManage(me.role);
-  const mock = getWhatsAppProviderName() === "mock";
+  const providerName = getWhatsAppProviderName();
+  const mock = providerName === "mock";
+  const coexyAccounts = accounts.filter((a) => a.provider === "coexy");
 
   return (
     <Card title="Canais">
@@ -26,7 +29,7 @@ export async function Channels() {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">
                   {a.channel === "whatsapp" ? "WhatsApp" : "Instagram"} · {a.display_name ?? a.display_phone ?? "Conta"}
-                  {a.provider === "mock" ? " (teste)" : ""}
+                  {a.provider === "mock" ? " (teste)" : a.provider === "coexy" ? " · via Coexy" : ""}
                 </p>
                 <p className="text-xs text-text-muted">
                   {a.display_phone}
@@ -55,6 +58,13 @@ export async function Channels() {
             A conexão com o WhatsApp foi removida. Mensagens novas não chegam até reconectar.
           </Notice>
         </div>
+      ) : null}
+
+      {manage && providerName === "coexy" ? (
+        <CoexyConnect
+          hasPending={coexyAccounts.some((a) => a.status === "pending" || a.status === "disconnected")}
+          hasActive={coexyAccounts.some((a) => a.status === "active")}
+        />
       ) : null}
 
       {manage && mock ? (

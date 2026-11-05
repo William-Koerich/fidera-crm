@@ -1,5 +1,6 @@
 import "server-only";
 import { getProviderByName } from "@/lib/channels";
+import { isDisconnectionError } from "@/lib/channels/meta-provider";
 import { estimateSendCost } from "@/lib/billing/pricing";
 import { logEvent } from "@/lib/log";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
@@ -65,10 +66,28 @@ export async function sendReply(input: {
     to: conversation.recipientExternalId,
     type: "text",
     body,
+    idempotencyKey: pending.id,
   });
 
   if (!result.ok) {
     await supabase.from("messages").update({ status: "failed", error_code: result.errorCode }).eq("id", pending.id);
+    if (conversation.account.provider !== "mock" && isDisconnectionError(result.errorCode)) {
+      // The owner must reconnect: surface it in the inbox and settings.
+      const admin = createAdminClient();
+      await admin
+        .from("channel_accounts")
+        .update({ status: "disconnected", disconnected_reason: result.errorCode })
+        .eq("id", conversation.account.id);
+      await admin.from("audit_log").insert({
+        organization_id: conversation.organizationId,
+        actor_id: userId,
+        action: "channel_account.disconnected_on_send",
+        target_table: "channel_accounts",
+        target_id: conversation.account.id,
+        metadata: { error_code: result.errorCode },
+      });
+      return { ok: false, reason: "account_unavailable" };
+    }
     logEvent("message.send_failed", { conversationId: conversation.id, errorCode: result.errorCode }, "warn");
     return { ok: false, reason: "provider_error" };
   }
