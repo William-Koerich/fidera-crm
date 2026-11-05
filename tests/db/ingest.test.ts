@@ -67,11 +67,13 @@ describe.skipIf(!hasDatabase())("ingest_events", () => {
     return { owner, org, account: rows[0]!.id };
   }
 
-  async function conversation(db: Db) {
+  /** Rows are always scoped to the test organization: the shared database may hold other data. */
+  async function conversation(db: Db, org: string) {
     const { rows } = await db.query(
       `select awaiting_reply, unread_count, last_inbound_at, last_outbound_at, reply_window_ends_at,
               last_message_preview
-       from crm.conversations`,
+       from crm.conversations where organization_id = $1`,
+      [org],
     );
     return rows;
   }
@@ -82,34 +84,34 @@ describe.skipIf(!hasDatabase())("ingest_events", () => {
       const r = await ingest(db, inboundText({ from: "554899990000", name: "Ana", body: "Oi", id: "wamid.1", at: t0 }));
       expect(r).toMatchObject({ inserted: 1, duplicates: 0, skipped: 0, organization_ids: [s.org] });
 
-      const contacts = await db.query("select display_name, phone_normalized, source from crm.contacts");
+      const contacts = await db.query("select display_name, phone_normalized, source from crm.contacts where organization_id = $1", [s.org]);
       expect(contacts.rows).toEqual([{ display_name: "Ana", phone_normalized: "5548999990000", source: "whatsapp_inbound" }]);
-      const ids = await db.query("select external_id from crm.contact_identities");
+      const ids = await db.query("select external_id from crm.contact_identities where organization_id = $1", [s.org]);
       expect(ids.rows).toEqual([{ external_id: "554899990000" }]);
-      const [conv] = await conversation(db);
+      const [conv] = await conversation(db, s.org);
       expect(conv).toMatchObject({ awaiting_reply: true, unread_count: 1, last_message_preview: "Oi" });
       expect((conv.reply_window_ends_at as Date).toISOString()).toBe("2026-11-05T12:00:00.000Z");
     }));
 
   it("is idempotent: the same delivery twice stores one message", () =>
     withRollback(db, async (db) => {
-      await seed(db);
+      const s = await seed(db);
       const payload = inboundText({ from: "5548999990000", body: "Oi", id: "wamid.dup", at: t0 });
       await ingest(db, payload);
       const again = await ingest(db, payload);
       expect(again).toMatchObject({ inserted: 0, duplicates: 1 });
-      expect((await db.query("select 1 from crm.messages")).rowCount).toBe(1);
-      expect((await conversation(db))[0]).toMatchObject({ unread_count: 1 });
+      expect((await db.query("select 1 from crm.messages where organization_id = $1", [s.org])).rowCount).toBe(1);
+      expect((await conversation(db, s.org))[0]).toMatchObject({ unread_count: 1 });
     }));
 
   it("an echo from the business app answers the conversation", () =>
     withRollback(db, async (db) => {
-      await seed(db);
+      const s = await seed(db);
       await ingest(db, inboundText({ from: "554899990000", body: "Tem horário?", id: "wamid.in", at: t0 }));
       await ingest(db, messageEcho({ to: "554899990000", body: "Tenho às 15h", id: "wamid.echo", at: at(5) }));
-      const [conv] = await conversation(db);
+      const [conv] = await conversation(db, s.org);
       expect(conv).toMatchObject({ awaiting_reply: false, unread_count: 1, last_message_preview: "Tenho às 15h" });
-      const msgs = await db.query("select direction, origin, status from crm.messages order by occurred_at");
+      const msgs = await db.query("select direction, origin, status from crm.messages where organization_id = $1 order by occurred_at", [s.org]);
       expect(msgs.rows).toEqual([
         { direction: "inbound", origin: "customer", status: "received" },
         { direction: "outbound", origin: "business_app_echo", status: "sent" },
@@ -118,22 +120,22 @@ describe.skipIf(!hasDatabase())("ingest_events", () => {
 
   it("matches the same person with and without the 9th digit", () =>
     withRollback(db, async (db) => {
-      await seed(db);
+      const s = await seed(db);
       await ingest(db, contactStateSync({ phone: "+55 48 99999-0000", action: "add", fullName: "Ana Souza" }));
       await ingest(db, inboundText({ from: "554899990000", body: "Oi", id: "wamid.9", at: t0 }));
-      const contacts = await db.query("select display_name from crm.contacts");
+      const contacts = await db.query("select display_name from crm.contacts where organization_id = $1", [s.org]);
       expect(contacts.rows).toEqual([{ display_name: "Ana Souza" }]);
-      expect((await db.query("select 1 from crm.contact_identities")).rowCount).toBe(2);
+      expect((await db.query("select 1 from crm.contact_identities where organization_id = $1", [s.org])).rowCount).toBe(2);
     }));
 
   it("statuses only move forward", () =>
     withRollback(db, async (db) => {
-      await seed(db);
+      const s = await seed(db);
       await ingest(db, messageEcho({ to: "5548999990000", body: "Olá", id: "wamid.out", at: t0 }));
       await ingest(db, statusUpdate({ id: "wamid.out", to: "5548999990000", status: "read", at: at(2) }));
       const late = await ingest(db, statusUpdate({ id: "wamid.out", to: "5548999990000", status: "delivered", at: at(1) }));
       expect(late.statuses).toBe(0);
-      const { rows } = await db.query("select status from crm.messages");
+      const { rows } = await db.query("select status from crm.messages where organization_id = $1", [s.org]);
       expect(rows[0]?.status).toBe("read");
     }));
 
@@ -158,7 +160,7 @@ describe.skipIf(!hasDatabase())("ingest_events", () => {
         }),
       );
       expect(r.inserted).toBe(2);
-      expect((await conversation(db))[0]).toMatchObject({ unread_count: 0, awaiting_reply: false });
+      expect((await conversation(db, s.org))[0]).toMatchObject({ unread_count: 0, awaiting_reply: false });
       const acc = await db.query("select history_sync_progress from crm.channel_accounts where id = $1", [s.account]);
       expect(acc.rows[0]?.history_sync_progress).toBe(30);
     }));
