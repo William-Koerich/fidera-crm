@@ -83,7 +83,7 @@ export async function ConversationList({
             tone="warning"
             title="WhatsApp desconectado"
             action={
-              <ButtonLink href="/settings" variant="secondary" size="sm">
+              <ButtonLink href="/settings/canais" variant="secondary" size="sm">
                 Reconectar
               </ButtonLink>
             }
@@ -99,7 +99,7 @@ export async function ConversationList({
             icon="plug"
             title="Conecte o WhatsApp para começar"
             description="As conversas dos seus clientes aparecem aqui assim que o número estiver conectado. Você continua usando o WhatsApp Business no celular."
-            action={<ButtonLink href="/settings">Conectar WhatsApp</ButtonLink>}
+            action={<ButtonLink href="/settings/canais">Conectar WhatsApp</ButtonLink>}
           />
         ) : filter === "awaiting" ? (
           <EmptyState icon="check" title="Tudo respondido" description="Ninguém está esperando resposta agora." />
@@ -118,7 +118,7 @@ export async function ConversationList({
                   Simular uma mensagem
                 </ButtonLink>
               ) : !hasActiveChannel ? (
-                <ButtonLink href="/settings" variant="secondary">
+                <ButtonLink href="/settings/canais" variant="secondary">
                   Ir para Ajustes
                 </ButtonLink>
               ) : undefined

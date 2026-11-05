@@ -1,82 +1,91 @@
-import { Alert, Button, Panel } from "@/components/ui";
+import { Icon } from "@/components/icons";
+import { Alert, Badge, Button, Panel, type Tone } from "@/components/ui";
 import { canManage, requireMembership } from "@/lib/auth";
 import { getWhatsAppProviderName } from "@/lib/env";
 import { listChannelAccounts } from "@/lib/inbox/queries";
 import { connectMockChannelAction } from "./channel-actions";
 import { CoexyConnect } from "./coexy-connect";
 
-const STATUS_LABEL = {
-  pending: "Conectando",
-  active: "Conectado",
-  disconnected: "Desconectado",
-  error: "Com erro",
-} as const;
+const STATUS: Record<string, { label: string; tone: Tone }> = {
+  pending: { label: "Conectando", tone: "info" },
+  active: { label: "Conectado", tone: "success" },
+  disconnected: { label: "Desconectado", tone: "warning" },
+  error: { label: "Com erro", tone: "danger" },
+};
+
+const PROVIDER_LABEL = { mock: "Teste (simulado)", meta: "API oficial da Meta", coexy: "API oficial via Coexy" } as const;
 
 export async function Channels() {
   const me = await requireMembership();
-  const accounts = await listChannelAccounts(me.organizationId);
+  const accounts = (await listChannelAccounts(me.organizationId)).filter((a) => a.channel === "whatsapp");
   const manage = canManage(me.role);
-  const providerName = getWhatsAppProviderName();
-  const mock = providerName === "mock";
+  const provider = getWhatsAppProviderName();
   const coexyAccounts = accounts.filter((a) => a.provider === "coexy");
+  const disconnected = accounts.find((a) => a.status === "disconnected");
 
   return (
-    <Panel title="Canais">
-      {accounts.length > 0 ? (
-        <ul className="mb-3 grid gap-2">
-          {accounts.map((a) => (
-            <li key={a.id} className="flex items-center gap-2 text-sm">
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">
-                  {a.channel === "whatsapp" ? "WhatsApp" : "Instagram"} · {a.display_name ?? a.display_phone ?? "Conta"}
-                  {a.provider === "mock" ? " (teste)" : a.provider === "coexy" ? " · via Coexy" : ""}
-                </p>
-                <p className="text-xs text-text-muted">
-                  {a.display_phone}
-                  {a.history_sync_progress !== null && a.history_sync_progress < 100
-                    ? ` · Histórico: ${a.history_sync_progress}%`
-                    : ""}
-                </p>
-              </div>
-              <span
-                className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                  a.status === "active" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
-                }`}
-              >
-                {STATUS_LABEL[a.status]}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mb-3 text-sm text-text-muted">Nenhum canal conectado.</p>
-      )}
+    <Panel
+      title="WhatsApp"
+      description="O número que recebe as mensagens dos clientes e envia as respostas da inbox."
+    >
+      <div className="grid gap-4">
+        {accounts.length > 0 ? (
+          <ul className="divide-y divide-border rounded-lg border border-border">
+            {accounts.map((a) => {
+              const status = STATUS[a.status] ?? STATUS.pending!;
+              return (
+                <li key={a.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                  <span className="grid size-10 place-items-center rounded-full bg-success/10 text-success">
+                    <Icon name="phone" className="size-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{a.display_phone ?? a.display_name ?? "Número em conexão"}</p>
+                    <p className="truncate text-xs text-text-muted">
+                      {PROVIDER_LABEL[a.provider]}
+                      {a.history_sync_progress !== null && a.history_sync_progress < 100
+                        ? ` · Importando histórico: ${a.history_sync_progress}%`
+                        : ""}
+                    </p>
+                  </div>
+                  <Badge tone={status.tone}>{status.label}</Badge>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-sm text-text-muted">Nenhum número conectado ainda.</p>
+        )}
 
-      {accounts.some((a) => a.status === "disconnected") ? (
-        <div className="mb-3">
-          <Alert tone="warning">
-            A conexão com o WhatsApp foi removida. Mensagens novas não chegam até reconectar.
+        {disconnected ? (
+          <Alert tone="warning" title="A conexão foi removida">
+            Mensagens novas não chegam até você reconectar. Isso acontece quando o número é desconectado no celular ou
+            fica muito tempo sem uso. As conversas antigas continuam salvas.
           </Alert>
-        </div>
-      ) : null}
+        ) : null}
 
-      {manage && providerName === "coexy" ? (
-        <CoexyConnect
-          hasPending={coexyAccounts.some((a) => a.status === "pending" || a.status === "disconnected")}
-          hasActive={coexyAccounts.some((a) => a.status === "active")}
-        />
-      ) : null}
-
-      {manage && mock ? (
-        <form action={connectMockChannelAction}>
-          <Button type="submit" variant={accounts.length === 0 ? "primary" : "secondary"} className="w-full">
-            {accounts.some((a) => a.provider === "mock") ? "Reconectar WhatsApp de teste" : "Conectar WhatsApp de teste"}
-          </Button>
-          <p className="mt-2 text-xs text-text-muted">
-            Modo de desenvolvimento (WHATSAPP_PROVIDER=mock): use o Simulador para receber mensagens falsas.
-          </p>
-        </form>
-      ) : null}
+        {!manage ? (
+          <p className="text-sm text-text-muted">Apenas donos e administradores podem conectar ou trocar o número.</p>
+        ) : provider === "coexy" ? (
+          <CoexyConnect
+            hasPending={coexyAccounts.some((a) => a.status === "pending" || a.status === "disconnected")}
+            hasActive={coexyAccounts.some((a) => a.status === "active")}
+          />
+        ) : provider === "mock" ? (
+          <form action={connectMockChannelAction} className="grid gap-2 rounded-lg bg-background p-4">
+            <p className="text-sm font-medium">Ambiente de desenvolvimento</p>
+            <p className="text-sm text-text-muted">
+              Conecta um número simulado para testar a inbox sem conta na Meta. Use o Simulador para receber mensagens.
+            </p>
+            <div>
+              <Button type="submit" variant={accounts.length === 0 ? "primary" : "secondary"}>
+                {accounts.some((a) => a.provider === "mock") ? "Reconectar número de teste" : "Conectar número de teste"}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <p className="text-sm text-text-muted">O número da Meta é configurado pelo suporte. Fale com a gente para trocar.</p>
+        )}
+      </div>
     </Panel>
   );
 }

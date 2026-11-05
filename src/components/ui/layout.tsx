@@ -51,7 +51,7 @@ export function PageHeader({
 }) {
   return (
     <header className={cx("flex flex-wrap items-end gap-x-4 gap-y-3", className)}>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-72">
         {back ? (
           <Link
             href={back.href}

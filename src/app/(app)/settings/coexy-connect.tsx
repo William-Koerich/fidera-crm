@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Alert, Button } from "@/components/ui";
+import { Alert } from "@/components/ui/feedback";
+import { Button } from "@/components/ui/button";
 import { refreshCoexyChannelAction, startCoexyConnectionAction, type ChannelActionState } from "./channel-actions";
 
 export function CoexyConnect({ hasPending, hasActive }: { hasPending: boolean; hasActive: boolean }) {
@@ -15,18 +16,23 @@ export function CoexyConnect({ hasPending, hasActive }: { hasPending: boolean; h
   const state = checkState.status !== "idle" ? checkState : startState;
 
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-4">
       {!hasActive ? (
-        <div className="grid gap-2 rounded-xl bg-info-soft p-3 text-sm text-info">
-          <p className="font-medium">Antes de conectar o seu WhatsApp Business</p>
-          <ul className="list-disc space-y-1 pl-5">
-            <li>Você continua usando o WhatsApp Business no celular normalmente.</li>
-            <li>Listas de transmissão ficam desativadas no app enquanto o número estiver conectado.</li>
-            <li>Grupos não são sincronizados com a inbox.</li>
-            <li>Mensagens enviadas pelo celular aparecem aqui automaticamente.</li>
+        <div className="grid gap-3 rounded-lg border border-border bg-background p-4 text-sm">
+          <p className="font-medium text-text">O que muda ao conectar o seu WhatsApp Business</p>
+          <ul className="grid gap-1.5 text-text-muted">
+            <li>• Você continua usando o WhatsApp Business no celular normalmente.</li>
+            <li>• Mensagens enviadas pelo celular também aparecem aqui.</li>
+            <li>• Listas de transmissão ficam desativadas no app enquanto o número estiver conectado.</li>
+            <li>• Grupos não são sincronizados com a inbox.</li>
           </ul>
-          <label className="mt-1 flex items-center gap-2 text-text">
-            <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} />
+          <label className="flex min-h-11 items-center gap-3 text-text">
+            <input
+              type="checkbox"
+              className="size-5 rounded border-border accent-[var(--color-brand)]"
+              checked={accepted}
+              onChange={(e) => setAccepted(e.target.checked)}
+            />
             Entendi e quero conectar
           </label>
         </div>
@@ -35,20 +41,26 @@ export function CoexyConnect({ hasPending, hasActive }: { hasPending: boolean; h
       {state.status === "error" ? <Alert tone="danger">{state.message}</Alert> : null}
       {state.status === "success" ? <Alert tone="success">{state.message}</Alert> : null}
 
-      {!hasActive ? (
-        <form action={start}>
-          <Button type="submit" className="w-full" disabled={!accepted || starting}>
-            {starting ? "Abrindo..." : hasPending ? "Continuar conexão" : "Conectar WhatsApp Business"}
-          </Button>
-        </form>
-      ) : null}
-
-      {hasPending || hasActive ? (
-        <form action={check}>
-          <Button type="submit" variant="secondary" className="w-full" disabled={checking}>
-            {checking ? "Verificando..." : hasActive ? "Verificar conexão" : "Já conectei, verificar"}
-          </Button>
-        </form>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        {!hasActive ? (
+          <form action={start}>
+            <Button type="submit" block disabled={!accepted} loading={starting}>
+              {hasPending ? "Continuar conexão" : "Conectar WhatsApp Business"}
+            </Button>
+          </form>
+        ) : null}
+        {hasPending || hasActive ? (
+          <form action={check}>
+            <Button type="submit" variant="secondary" block loading={checking}>
+              {hasActive ? "Verificar conexão" : "Já conectei, verificar"}
+            </Button>
+          </form>
+        ) : null}
+      </div>
+      {hasPending && !hasActive ? (
+        <p className="text-sm text-text-muted">
+          Terminou a conexão na página do Coexy? Volte aqui e toque em “Já conectei, verificar”.
+        </p>
       ) : null}
     </div>
   );
