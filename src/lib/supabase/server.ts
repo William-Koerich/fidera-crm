@@ -2,12 +2,16 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { DB_SCHEMA, getSupabasePublicConfig } from "./config";
 import type { Database } from "./database.types";
 
 /** Per-request client acting as the signed-in user. RLS applies. */
 export async function createClient() {
-  // Read cookies first: it marks the render as request-time before any config check.
+  // Supabase auth checks token expiry with Date.now() and every query is
+  // per-user I/O: wait for a real request (also excludes it from prerenders
+  // that have cookies available, like runtime prefetching).
+  await connection();
   const cookieStore = await cookies();
   const { url, publishableKey } = getSupabasePublicConfig();
   return createServerClient<Database, typeof DB_SCHEMA>(url, publishableKey, {
