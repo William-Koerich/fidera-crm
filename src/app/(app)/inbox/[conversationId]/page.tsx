@@ -2,49 +2,72 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { Suspense } from "react";
-import { Skeleton } from "@/components/ui";
+import { Fragment, Suspense } from "react";
+import { Icon } from "@/components/icons";
+import { Avatar, ButtonAnchor, Skeleton } from "@/components/ui";
 import { requireMembership } from "@/lib/auth";
 import { decodeCursor } from "@/lib/inbox/cursor";
-import { formatPhone, formatTime, whatsAppLink } from "@/lib/inbox/format";
-import { getConversation, listMessages, type MessageItem } from "@/lib/inbox/queries";
+import { dayKey, formatDayLabel, formatPhone, whatsAppLink } from "@/lib/inbox/format";
+import { getConversation, listMessages } from "@/lib/inbox/queries";
+import { ConversationList, ListSkeleton, parseInboxParams } from "../conversation-list";
 import { RealtimeRefresh } from "../realtime-refresh";
 import { WindowBadge } from "../window-badge";
 import { Composer } from "./composer";
+import { ContactPanel } from "./contact-panel";
 import { MarkRead } from "./mark-read";
+import { DaySeparator, MessageBubble } from "./message-parts";
+import { ScrollToBottom } from "./scroll-to-bottom";
 
 export const metadata: Metadata = { title: "Conversa" };
 
+type Params = Promise<{ conversationId: string }>;
+type Search = Promise<Record<string, string | string[] | undefined>>;
+
 export default function ConversationPage({ params, searchParams }: PageProps<"/inbox/[conversationId]">) {
   return (
-    <Suspense fallback={<Skeleton className="m-4 h-96" />}>
-      <Content params={params} searchParams={searchParams} />
-    </Suspense>
+    <div className="flex flex-1 lg:h-dvh lg:overflow-hidden">
+      <section
+        aria-label="Conversas"
+        className="hidden w-[380px] shrink-0 overflow-y-auto border-r border-border bg-surface lg:block"
+      >
+        <Suspense fallback={<ListSkeleton />}>
+          <SideList params={params} searchParams={searchParams} />
+        </Suspense>
+      </section>
+      <Suspense fallback={<ConversationSkeleton />}>
+        <Conversation params={params} searchParams={searchParams} />
+      </Suspense>
+    </div>
   );
 }
 
-const ORIGIN_LABEL: Partial<Record<MessageItem["origin"], string>> = {
-  business_app_echo: "pelo celular",
-  history: "histórico",
-};
-
-const STATUS_LABEL: Partial<Record<MessageItem["status"], string>> = {
-  pending: "enviando",
-  sent: "enviada",
-  delivered: "entregue",
-  read: "lida",
-  failed: "falhou",
-};
-
-async function Content({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ conversationId: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+async function SideList({ params, searchParams }: { params: Params; searchParams: Search }) {
   const [{ conversationId }, query] = await Promise.all([params, searchParams]);
-  // The reply window is compared with "now": render at request time.
+  await connection();
+  const me = await requireMembership();
+  const { filter } = parseInboxParams(query);
+  return <ConversationList organizationId={me.organizationId} filter={filter} cursor={null} activeId={conversationId} />;
+}
+
+function ConversationSkeleton() {
+  return (
+    <div className="fixed inset-0 z-30 flex flex-col bg-background lg:static lg:z-auto lg:min-w-0 lg:flex-1">
+      <div className="flex h-16 items-center gap-3 border-b border-border bg-surface px-4">
+        <Skeleton className="size-8 rounded-full" />
+        <Skeleton className="h-4 w-40" />
+      </div>
+      <div className="flex-1 space-y-3 p-4">
+        <Skeleton className="h-12 w-2/3" />
+        <Skeleton className="ml-auto h-12 w-1/2" />
+        <Skeleton className="h-12 w-3/5" />
+      </div>
+    </div>
+  );
+}
+
+async function Conversation({ params, searchParams }: { params: Params; searchParams: Search }) {
+  const [{ conversationId }, query] = await Promise.all([params, searchParams]);
+  // The reply window and day labels are compared with "now": render at request time.
   await connection();
   await requireMembership();
   const conversation = await getConversation(conversationId);
@@ -52,99 +75,109 @@ async function Content({
 
   const before = typeof query.before === "string" ? decodeCursor(query.before) : null;
   const { items, olderCursor } = await listMessages(conversation.id, before);
-  const title = conversation.contact.name || formatPhone(conversation.contact.phone) || "Contato";
+  const { contact } = conversation;
+  const title = contact.name || formatPhone(contact.phone) || "Contato";
   const windowOpen = conversation.replyWindowEndsAt ? new Date(conversation.replyWindowEndsAt) > new Date() : false;
+  const backHref = query.filter === "awaiting" ? "/inbox?filter=awaiting" : "/inbox";
+  const connected = conversation.account.status === "active";
 
   return (
-    <div className="flex min-h-[calc(100dvh-7rem)] flex-col">
-      <RealtimeRefresh table="messages" filter={`conversation_id=eq.${conversation.id}`} />
-      <MarkRead conversationId={conversation.id} />
+    <>
+      <div className="fixed inset-0 z-30 flex flex-col bg-background lg:static lg:z-auto lg:min-w-0 lg:flex-1">
+        <RealtimeRefresh table="messages" filter={`conversation_id=eq.${conversation.id}`} />
+        <MarkRead conversationId={conversation.id} />
 
-      <header className="sticky top-14 z-[5] flex items-center gap-3 border-b border-border bg-surface px-4 py-3">
-        <Link href="/inbox" className="text-sm text-info" aria-label="Voltar para a inbox">
-          ←
-        </Link>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate font-semibold">{title}</h1>
-          <p className="truncate text-xs text-text-muted">
-            {formatPhone(conversation.contact.phone)} · {conversation.channel === "whatsapp" ? "WhatsApp" : "Instagram"}
-          </p>
-        </div>
-        <WindowBadge endsAt={conversation.replyWindowEndsAt} />
-      </header>
-
-      <div className="flex flex-1 flex-col gap-2 px-4 py-4">
-        {olderCursor ? (
+        <header className="flex min-h-16 items-center gap-2 border-b border-border bg-surface px-2 pt-[env(safe-area-inset-top)] sm:px-4">
           <Link
-            href={`/inbox/${conversation.id}?before=${olderCursor}`}
-            className="self-center py-1 text-sm text-info"
+            href={backHref}
+            aria-label="Voltar para a inbox"
+            className="grid size-11 shrink-0 place-items-center rounded-lg text-text-muted hover:bg-background hover:text-text lg:hidden"
           >
-            Ver mensagens anteriores
+            <Icon name="back" />
           </Link>
-        ) : null}
-        {before ? (
-          <Link href={`/inbox/${conversation.id}`} className="self-center py-1 text-sm text-info">
-            Voltar para as mais recentes
-          </Link>
-        ) : null}
-
-        {items.map((m) => {
-          const outbound = m.direction === "outbound";
-          return (
-            <div key={m.id} className={`flex ${outbound ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-                  outbound ? "rounded-br-sm bg-brand-soft text-text" : "rounded-bl-sm border border-border bg-surface"
-                }`}
-              >
-                {m.mediaUrl && m.media_mime_type?.startsWith("image/") ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL
-                  <img src={m.mediaUrl} alt="Imagem recebida" className="mb-1 max-h-72 rounded-xl object-contain" />
-                ) : m.mediaUrl && m.media_mime_type?.startsWith("audio/") ? (
-                  <audio controls src={m.mediaUrl} className="mb-1 max-w-full" />
-                ) : m.mediaUrl ? (
-                  <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer" className="text-info underline">
-                    Abrir {m.type}
-                  </a>
-                ) : m.type !== "text" ? (
-                  <p className="text-xs font-medium text-text-muted">[{m.type}]</p>
-                ) : null}
-                {m.body ? <p className="whitespace-pre-wrap break-words">{m.body}</p> : null}
-                <p className="mt-1 text-right text-[11px] text-text-muted">
-                  {formatTime(m.occurred_at)}
-                  {ORIGIN_LABEL[m.origin] ? ` · ${ORIGIN_LABEL[m.origin]}` : ""}
-                  {outbound && STATUS_LABEL[m.status] ? ` · ${STATUS_LABEL[m.status]}` : ""}
-                </p>
-                {m.status === "failed" ? <p className="text-xs text-danger">Não enviada</p> : null}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="sticky bottom-14 border-t border-border bg-surface px-4 py-3">
-        {windowOpen && conversation.account.status === "active" ? (
-          <Composer conversationId={conversation.id} />
-        ) : (
-          <div className="grid gap-2">
-            <p className="text-sm text-text-muted">
-              {conversation.account.status !== "active"
-                ? "Canal desconectado. Reconecte em Ajustes."
-                : "A janela de 24h está fechada. Responda pelo WhatsApp do celular, sem custo de API."}
+          <Avatar name={contact.name} phone={contact.phone} size="sm" />
+          <div className="min-w-0 flex-1 pl-1">
+            <h1 className="truncate text-sm font-semibold sm:text-base">{title}</h1>
+            <p className="truncate text-xs text-text-muted">
+              {contact.phone ? `${formatPhone(contact.phone)} · ` : ""}
+              {conversation.channel === "whatsapp" ? "WhatsApp" : "Instagram"}
             </p>
-            {conversation.contact.phone && conversation.channel === "whatsapp" ? (
-              <a
-                href={whatsAppLink(conversation.contact.phone)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-11 items-center justify-center rounded-xl bg-brand px-4 text-sm font-medium text-white"
-              >
-                Abrir no WhatsApp
-              </a>
-            ) : null}
           </div>
-        )}
+          <div className="shrink-0 sm:hidden">
+            <WindowBadge endsAt={conversation.replyWindowEndsAt} compact />
+          </div>
+          <div className="hidden shrink-0 sm:block">
+            <WindowBadge endsAt={conversation.replyWindowEndsAt} />
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto">
+          <div className="mx-auto flex max-w-3xl flex-col gap-1.5 px-3 py-4 sm:px-6">
+            {olderCursor ? (
+              <Link
+                href={`/inbox/${conversation.id}?before=${olderCursor}`}
+                className="inline-flex min-h-11 items-center self-center px-3 text-sm font-medium text-info hover:underline"
+              >
+                Ver mensagens anteriores
+              </Link>
+            ) : null}
+            {before ? (
+              <Link
+                href={`/inbox/${conversation.id}`}
+                className="inline-flex min-h-11 items-center self-center px-3 text-sm font-medium text-info hover:underline"
+              >
+                Voltar para as mais recentes
+              </Link>
+            ) : null}
+
+            {items.length === 0 ? (
+              <p className="py-10 text-center text-sm text-text-muted">Nenhuma mensagem nesta conversa ainda.</p>
+            ) : null}
+
+            {items.map((m, i) => {
+              const day = dayKey(new Date(m.occurred_at));
+              const prev = items[i - 1];
+              const newDay = !prev || dayKey(new Date(prev.occurred_at)) !== day;
+              return (
+                <Fragment key={m.id}>
+                  {newDay ? <DaySeparator label={formatDayLabel(m.occurred_at)} /> : null}
+                  <MessageBubble message={m} />
+                </Fragment>
+              );
+            })}
+            <ScrollToBottom token={items.at(-1)?.id} />
+          </div>
+        </div>
+
+        <footer className="border-t border-border bg-surface px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
+          <div className="mx-auto max-w-3xl">
+            {windowOpen && connected ? (
+              <Composer conversationId={conversation.id} />
+            ) : (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <p className="flex-1 text-sm text-text-muted">
+                  {!connected
+                    ? "O WhatsApp está desconectado. Reconecte em Ajustes para responder por aqui."
+                    : "A janela de 24h fechou. Responda pelo WhatsApp do celular: é gratuito e a mensagem aparece aqui."}
+                </p>
+                {contact.phone && conversation.channel === "whatsapp" ? (
+                  <ButtonAnchor href={whatsAppLink(contact.phone)} className="shrink-0">
+                    <Icon name="external" className="size-4" />
+                    Abrir no WhatsApp
+                  </ButtonAnchor>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </footer>
       </div>
-    </div>
+
+      <aside
+        aria-label="Detalhes do cliente"
+        className="hidden w-[300px] shrink-0 overflow-y-auto border-l border-border bg-surface xl:block"
+      >
+        <ContactPanel conversation={conversation} />
+      </aside>
+    </>
   );
 }

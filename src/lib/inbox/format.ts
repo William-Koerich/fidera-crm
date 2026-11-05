@@ -24,13 +24,49 @@ export function whatsAppLink(phoneNormalized: string, text?: string): string {
   return url.toString();
 }
 
-const timeFmt = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
-const dateFmt = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+const TZ = "America/Sao_Paulo";
+const timeFmt = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
+const dateFmt = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: TZ });
+const dayKeyFmt = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: TZ });
+const weekdayFmt = new Intl.DateTimeFormat("pt-BR", { weekday: "long", timeZone: TZ });
+const longDateFmt = new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "long", timeZone: TZ });
+const longDateYearFmt = new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "long", year: "numeric", timeZone: TZ });
 
-/** Time today, otherwise dd/mm (São Paulo time). */
+/** YYYY-MM-DD in São Paulo time. */
+export function dayKey(date: Date): string {
+  return dayKeyFmt.format(date);
+}
+
+/** Whole days between two São Paulo calendar dates (b - a). */
+function dayDiff(a: Date, b: Date): number {
+  return Math.round((Date.parse(dayKey(b)) - Date.parse(dayKey(a))) / 86_400_000);
+}
+
+/** Inbox list: "14:05" today, "Ontem", weekday within a week, else dd/mm. */
 export function formatShortDate(iso: string, now: Date = new Date()): string {
   const d = new Date(iso);
-  return dateFmt.format(d) === dateFmt.format(now) ? timeFmt.format(d) : dateFmt.format(d);
+  const diff = dayDiff(d, now);
+  if (diff <= 0) return timeFmt.format(d);
+  if (diff === 1) return "Ontem";
+  if (diff < 7) {
+    const w = weekdayFmt.format(d);
+    return w.charAt(0).toUpperCase() + w.slice(1).replace("-feira", "");
+  }
+  return dateFmt.format(d);
+}
+
+/** Conversation day separator: "Hoje", "Ontem", "3 de novembro" (year only if different). */
+export function formatDayLabel(iso: string, now: Date = new Date()): string {
+  const d = new Date(iso);
+  const diff = dayDiff(d, now);
+  if (diff <= 0) return "Hoje";
+  if (diff === 1) return "Ontem";
+  return dayKey(d).slice(0, 4) === dayKey(now).slice(0, 4) ? longDateFmt.format(d) : longDateYearFmt.format(d);
+}
+
+const fullFmt = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: TZ });
+export function formatDate(iso: string): string {
+  return fullFmt.format(new Date(iso));
 }
 
 export function formatTime(iso: string): string {

@@ -9,6 +9,7 @@ describe("initials", () => {
     ["  ", "5548999990000", "00"],
     [null, null, "?"],
     ["🙂 Bia", null, "B"],
+    ["Ana Souza (exemplo)", null, "AS"],
   ])("%s -> %s", (name, phone, expected) => {
     expect(initials(name, phone)).toBe(expected);
   });

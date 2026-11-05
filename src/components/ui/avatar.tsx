@@ -2,7 +2,8 @@ import { cx } from "./cx";
 
 /** Initials from a name ("Ana Souza" -> "AS"), or the last digits of a phone. */
 export function initials(name: string | null | undefined, phone?: string | null): string {
-  const clean = (name ?? "").replace(/[^\p{L}\s]/gu, " ").trim();
+  // Ignore notes in parentheses, e.g. "Ana Souza (cliente antiga)".
+  const clean = (name ?? "").replace(/\([^)]*\)/g, " ").replace(/[^\p{L}\s]/gu, " ").trim();
   if (clean) {
     const parts = clean.split(/\s+/);
     return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts.at(-1)?.[0] ?? "") : "")).toUpperCase();

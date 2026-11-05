@@ -19,6 +19,8 @@ export interface ConversationListItem {
   awaitingReply: boolean;
   unreadCount: number;
   replyWindowEndsAt: string | null;
+  /** The latest message was sent by the business (API or phone). */
+  lastFromUs: boolean;
 }
 
 /** Conversations of the active organization, newest first, keyset-paginated. RLS applies. */
@@ -31,7 +33,7 @@ export async function listConversations(opts: {
   let query = supabase
     .from("conversations")
     .select(
-      "id, channel, last_message_at, last_message_preview, awaiting_reply, unread_count, reply_window_ends_at, contacts(display_name, phone_normalized)",
+      "id, channel, last_message_at, last_message_preview, awaiting_reply, unread_count, reply_window_ends_at, last_inbound_at, last_outbound_at, contacts(display_name, phone_normalized)",
     )
     .eq("organization_id", opts.organizationId)
     .not("last_message_at", "is", null)
@@ -58,6 +60,7 @@ export async function listConversations(opts: {
       awaitingReply: c.awaiting_reply,
       unreadCount: c.unread_count,
       replyWindowEndsAt: c.reply_window_ends_at,
+      lastFromUs: !!c.last_outbound_at && (!c.last_inbound_at || c.last_outbound_at >= c.last_inbound_at),
     })),
     nextCursor:
       data.length > CONVERSATIONS_PAGE_SIZE && last?.last_message_at
@@ -72,7 +75,14 @@ export interface ConversationDetail {
   channel: Tables<"conversations">["channel"];
   lastInboundAt: string | null;
   replyWindowEndsAt: string | null;
-  contact: { id: string; name: string | null; phone: string | null };
+  contact: {
+    id: string;
+    name: string | null;
+    phone: string | null;
+    source: Tables<"contacts">["source"];
+    createdAt: string;
+    lastInteractionAt: string | null;
+  };
   account: { id: string; externalAccountId: string; provider: Tables<"channel_accounts">["provider"]; status: Tables<"channel_accounts">["status"] };
   /** Channel identifier to send to (wa_id / IGSID). */
   recipientExternalId: string | null;
@@ -83,7 +93,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   const { data, error } = await supabase
     .from("conversations")
     .select(
-      "id, organization_id, channel, last_inbound_at, reply_window_ends_at, contact_id, contacts(id, display_name, phone_normalized), channel_accounts(id, external_account_id, provider, status)",
+      "id, organization_id, channel, last_inbound_at, reply_window_ends_at, contact_id, contacts(id, display_name, phone_normalized, source, created_at, last_interaction_at), channel_accounts(id, external_account_id, provider, status)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -104,7 +114,14 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     channel: data.channel,
     lastInboundAt: data.last_inbound_at,
     replyWindowEndsAt: data.reply_window_ends_at,
-    contact: { id: data.contacts.id, name: data.contacts.display_name, phone: data.contacts.phone_normalized },
+    contact: {
+      id: data.contacts.id,
+      name: data.contacts.display_name,
+      phone: data.contacts.phone_normalized,
+      source: data.contacts.source,
+      createdAt: data.contacts.created_at,
+      lastInteractionAt: data.contacts.last_interaction_at,
+    },
     account: {
       id: data.channel_accounts.id,
       externalAccountId: data.channel_accounts.external_account_id,
