@@ -1,25 +1,40 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { AuthShell } from "@/components/auth-shell";
 import { Skeleton } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
+import { signOutAction } from "../login/actions";
 import { OnboardingForm } from "./onboarding-form";
 
 export const metadata: Metadata = { title: "Seu negócio" };
 
 export default function OnboardingPage() {
   return (
-    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-4 py-12">
-      <div className="grid gap-1">
-        <p className="text-sm font-medium text-info">Passo 1 de 2</p>
-        <h1 className="text-2xl font-semibold tracking-tight">Como se chama o seu negócio?</h1>
-        <p className="text-sm text-text-muted">
-          Depois você conecta o WhatsApp e convida a equipe.
-        </p>
-      </div>
-      <Suspense fallback={<Skeleton className="h-32" />}>
+    <AuthShell
+      eyebrow={
+        <ol className="flex flex-wrap items-center gap-2" aria-label="Etapas">
+          <li aria-current="step">1. Seu negócio</li>
+          <li aria-hidden className="text-text-muted">
+            →
+          </li>
+          <li className="text-text-muted">2. Conectar o WhatsApp</li>
+        </ol>
+      }
+      title="Como se chama o seu negócio?"
+      description="É o nome que a sua equipe vai ver. Você pode ter mais de um negócio na mesma conta."
+      footer={
+        <form action={signOutAction}>
+          Entrou com a conta errada?{" "}
+          <button type="submit" className="inline-flex min-h-11 items-center font-medium text-info hover:underline">
+            Sair
+          </button>
+        </form>
+      }
+    >
+      <Suspense fallback={<Skeleton className="h-28" />}>
         <Gate />
       </Suspense>
-    </main>
+    </AuthShell>
   );
 }
 

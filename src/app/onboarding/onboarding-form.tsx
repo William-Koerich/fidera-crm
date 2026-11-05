@@ -1,21 +1,32 @@
 "use client";
 
 import { useActionState } from "react";
-import { Alert, Button, Input } from "@/components/ui";
+import { Button } from "@/components/ui/button";
+import { Field, Input, fieldA11y } from "@/components/ui/field";
 import { createOrganizationAction, type FormState } from "../(app)/org-actions";
 
 export function OnboardingForm() {
   const [state, action, pending] = useActionState<FormState, FormData>(createOrganizationAction, { status: "idle" });
+  const error = state.status === "error" ? state.message : undefined;
   return (
     <form action={action} className="grid gap-4">
-      <label className="grid gap-1.5 text-sm font-medium text-text">
-        Nome do negócio
-        <Input name="name" placeholder="Ex.: Barbearia do Zé" minLength={2} maxLength={120} required />
-      </label>
-      {state.status === "error" ? <Alert tone="danger">{state.message}</Alert> : null}
-      <Button type="submit" disabled={pending}>
-        {pending ? "Criando..." : "Continuar"}
+      <Field id="org-name" label="Nome do negócio" error={error}>
+        <Input
+          {...fieldA11y("org-name", { error })}
+          name="name"
+          placeholder="Ex.: Studio Bella, Barbearia Central"
+          autoComplete="organization"
+          minLength={2}
+          maxLength={120}
+          required
+        />
+      </Field>
+      <Button type="submit" block loading={pending}>
+        Continuar
       </Button>
+      <p className="text-sm text-text-muted">
+        No próximo passo você conecta o WhatsApp Business. Nada muda no seu celular até você confirmar.
+      </p>
     </form>
   );
 }
