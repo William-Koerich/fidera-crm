@@ -21,12 +21,7 @@ export function supabaseEventStore(admin = createAdminClient()): WebhookEventSto
   };
 }
 
-export function webhookSecret(provider: "mock" | "meta" | "coexy"): string {
-  if (provider === "coexy") {
-    const secret = process.env.COEXY_WEBHOOK_SECRET;
-    if (!secret) throw new Error("Missing COEXY_WEBHOOK_SECRET.");
-    return secret;
-  }
+export function webhookSecret(provider: "mock" | "meta"): string {
   if (provider === "meta") {
     const secret = process.env.META_APP_SECRET;
     if (!secret) throw new Error("Missing META_APP_SECRET.");

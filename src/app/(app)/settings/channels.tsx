@@ -3,8 +3,7 @@ import { Alert, Badge, Button, Panel, type Tone } from "@/components/ui";
 import { canManage, requireMembership } from "@/lib/auth";
 import { getWhatsAppProviderName } from "@/lib/env";
 import { listChannelAccounts } from "@/lib/inbox/queries";
-import { connectMockChannelAction } from "./channel-actions";
-import { CoexyConnect } from "./coexy-connect";
+import { connectMetaTestNumberAction, connectMockChannelAction } from "./channel-actions";
 
 const STATUS: Record<string, { label: string; tone: Tone }> = {
   pending: { label: "Conectando", tone: "info" },
@@ -13,14 +12,13 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
   error: { label: "Com erro", tone: "danger" },
 };
 
-const PROVIDER_LABEL = { mock: "Teste (simulado)", meta: "API oficial da Meta", coexy: "API oficial via Coexy" } as const;
+const PROVIDER_LABEL = { mock: "Teste (simulado)", meta: "API oficial da Meta", coexy: "Integração removida" } as const;
 
 export async function Channels() {
   const me = await requireMembership();
   const accounts = (await listChannelAccounts(me.organizationId)).filter((a) => a.channel === "whatsapp");
   const manage = canManage(me.role);
   const provider = getWhatsAppProviderName();
-  const coexyAccounts = accounts.filter((a) => a.provider === "coexy");
   const disconnected = accounts.find((a) => a.status === "disconnected");
 
   return (
@@ -65,11 +63,6 @@ export async function Channels() {
 
         {!manage ? (
           <p className="text-sm text-text-muted">Apenas donos e administradores podem conectar ou trocar o número.</p>
-        ) : provider === "coexy" ? (
-          <CoexyConnect
-            hasPending={coexyAccounts.some((a) => a.status === "pending" || a.status === "disconnected")}
-            hasActive={coexyAccounts.some((a) => a.status === "active")}
-          />
         ) : provider === "mock" ? (
           <form action={connectMockChannelAction} className="grid gap-2 rounded-lg bg-background p-4">
             <p className="text-sm font-medium">Ambiente de desenvolvimento</p>
@@ -83,7 +76,18 @@ export async function Channels() {
             </div>
           </form>
         ) : (
-          <p className="text-sm text-text-muted">O número da Meta é configurado pelo suporte. Fale com a gente para trocar.</p>
+          <form action={connectMetaTestNumberAction} className="grid gap-2 rounded-lg bg-background p-4">
+            <p className="text-sm font-medium">Número de teste da Meta</p>
+            <p className="text-sm text-text-muted">
+              Usa o número gratuito do seu app de desenvolvedor da Meta (configurado no servidor). Ele conversa com até 5
+              números que você verificar no painel da Meta.
+            </p>
+            <div>
+              <Button type="submit" variant={accounts.length === 0 ? "primary" : "secondary"}>
+                {accounts.some((a) => a.provider === "meta") ? "Atualizar número de teste" : "Conectar número de teste"}
+              </Button>
+            </div>
+          </form>
         )}
       </div>
     </Panel>

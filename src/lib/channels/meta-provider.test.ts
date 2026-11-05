@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { CoexyChannelProvider, MetaChannelProvider, isDisconnectionError } from "./meta-provider";
+import { MetaChannelProvider, isDisconnectionError } from "./meta-provider";
 import { inboundText } from "./whatsapp/fixtures";
 
 const input = {
@@ -83,29 +83,16 @@ describe("MetaChannelProvider", () => {
     expect((fetchMock.mock.calls[1]![1]?.headers as Record<string, string>).Authorization).toBe("Bearer TOKEN");
   });
 
-  it("Coexy goes through the meta-proxy with the channel token and an idempotency key", async () => {
-    const fetchMock = vi.fn<typeof fetch>(async () => json(200, { messages: [{ id: "wamid.CX" }] }));
-    const coexy = new CoexyChannelProvider({ getAccessToken: async () => "CHANNEL_TOKEN", fetch: fetchMock });
-    const result = await coexy.sendMessage({ ...input, idempotencyKey: "msg-1" });
-    expect(result).toMatchObject({ ok: true, externalMessageId: "wamid.CX" });
-    const [url, init] = fetchMock.mock.calls[0]!;
-    expect(url).toBe("https://api.coexy.com.br/functions/v1/meta-proxy/200000000000001/messages");
-    expect((init?.headers as Record<string, string>).Authorization).toBe("Bearer CHANNEL_TOKEN");
-    expect(JSON.parse(String(init?.body)).idempotency_key).toBe("msg-1");
-  });
-
-  it("Coexy disconnection errors are not retryable and are detected", async () => {
-    const coexy = new CoexyChannelProvider({
-      getAccessToken: async () => "T",
-      fetch: async () => json(503, { code: "CHANNEL_DISCONNECTED", message: "reconnect via connect_url" }),
-    });
-    const result = await coexy.sendMessage(input);
-    expect(result).toMatchObject({ ok: false, errorCode: "CHANNEL_DISCONNECTED", retryable: false });
-    expect(isDisconnectionError("CHANNEL_DISCONNECTED")).toBe(true);
+  it("treats an invalid or expired token (190) as a disconnection", async () => {
+    const result = await provider(async () => json(401, { error: { code: 190, message: "Session expired" } })).sendMessage(
+      input,
+    );
+    expect(result).toMatchObject({ ok: false, errorCode: "190", retryable: false });
+    expect(isDisconnectionError("190")).toBe(true);
     expect(isDisconnectionError("131047")).toBe(false);
   });
 
-  it("Meta direct sends never include Coexy's idempotency_key", async () => {
+  it("never sends provider-specific extras like idempotency_key", async () => {
     const fetchMock = vi.fn<typeof fetch>(async () => json(200, { messages: [{ id: "wamid.M" }] }));
     await provider(fetchMock).sendMessage({ ...input, idempotencyKey: "msg-1" });
     expect(JSON.parse(String(fetchMock.mock.calls[0]![1]?.body))).not.toHaveProperty("idempotency_key");

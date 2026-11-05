@@ -49,21 +49,37 @@ intake + processing code as `POST /api/webhooks/whatsapp`.
 ## WhatsApp providers
 
 `WHATSAPP_PROVIDER` selects how WhatsApp is reached. Everything after the
-webhook (queue, ingestion, inbox) is the same for all of them.
+webhook (queue, ingestion, inbox) is the same for both.
 
-| Value | What it is | Webhook route | Signature header |
+| Value | What it is | Webhook route | Signature |
 | --- | --- | --- | --- |
-| `mock` (default) | In-memory provider + simulator, no account needed | `/api/webhooks/whatsapp` | `X-Hub-Signature-256` (`MOCK_WEBHOOK_SECRET`) |
-| `meta` | Cloud API directly (e.g. Meta's free test number) | `/api/webhooks/whatsapp` | `X-Hub-Signature-256` (`META_APP_SECRET`) |
-| `coexy` | Official Cloud API through Coexy, with WhatsApp Business app coexistence | `/api/webhooks/coexy` | `X-Coexy-Signature` (`COEXY_WEBHOOK_SECRET`) |
+| `mock` (default) | In-memory provider + simulator, no account needed | `/api/webhooks/whatsapp` | `X-Hub-Signature-256` with `MOCK_WEBHOOK_SECRET` |
+| `meta` | Official Cloud API, e.g. the free test number of a Meta developer app | `/api/webhooks/whatsapp` | `X-Hub-Signature-256` with `META_APP_SECRET` |
 
-### Coexy setup
+### Free testing with the Meta test number
 
-1. Deploy the app (the webhook needs a public https URL).
-2. Set `COEXY_API_KEY` (Coexy panel → Configurações → API Keys) and `WHATSAPP_PROVIDER=coexy`.
-3. Create the webhook once and save the printed secret as `COEXY_WEBHOOK_SECRET`:
-   `node --env-file=.env.local scripts/coexy-webhook.mts https://<your-app>`
-4. In the app: *Ajustes → Conectar WhatsApp Business*. The owner finishes the
-   connection on Coexy's page, comes back and taps *Já conectei, verificar*.
+No payment method is needed for the developer app's test number.
 
-Channel tokens are stored per account in Supabase Vault (`crm.set_channel_token`).
+1. Create a Meta developer account and an app with the WhatsApp product
+   (developers.facebook.com). In *WhatsApp → API Setup* copy the test
+   number's **Phone number ID**, the **WhatsApp Business Account ID**, and a
+   temporary access token, and add up to 5 recipient phone numbers.
+2. In `.env.local`:
+   ```bash
+   WHATSAPP_PROVIDER=meta
+   META_WHATSAPP_TOKEN=...            # access token (temporary or system user)
+   META_APP_SECRET=...                # App settings -> Basic -> App secret
+   WHATSAPP_WEBHOOK_VERIFY_TOKEN=...  # any random string
+   META_TEST_PHONE_NUMBER_ID=...
+   META_TEST_WABA_ID=...
+   META_TEST_DISPLAY_PHONE=+1 555 ...
+   ```
+3. Expose the app over https (deploy to Vercel, or a free tunnel such as
+   `cloudflared tunnel --url http://localhost:3000`) and, in *WhatsApp →
+   Configuration*, set the callback URL to `https://<host>/api/webhooks/whatsapp`
+   with the same verify token. Subscribe to the `messages` field.
+4. In the app: *Ajustes → Canais → Conectar número de teste*.
+5. From one of the verified phones, send a message to the test number. It shows
+   up in the inbox and opens the 24h window, so you can reply from the app.
+
+Channel tokens can also be stored per account in Supabase Vault (`crm.set_channel_token`).

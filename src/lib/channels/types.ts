@@ -130,7 +130,7 @@ export interface DownloadedMedia {
 }
 
 export interface ChannelProvider {
-  readonly name: "mock" | "meta" | "coexy";
+  readonly name: "mock" | "meta";
   parseWebhook(payload: unknown): NormalizedEvent[];
   sendMessage(input: SendMessageInput): Promise<SendResult>;
   getReplyWindow(conversation: ReplyWindowConversation, now?: Date): ReplyWindow;
