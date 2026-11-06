@@ -9,20 +9,45 @@ import { CopyButton } from "@/components/ui/inputs-client";
 import { Spinner } from "@/components/ui/spinner";
 import {
   checkChatProAction,
+  configureChatProWebhookAction,
   connectChatProAction,
   disconnectChatProAction,
   type ChatProState,
+  type ChatProWebhookState,
 } from "./channel-actions";
 
 const POLL_MS = 5_000;
 /** WhatsApp QR Codes expire quickly. */
 const QR_REFRESH_MS = 30_000;
 
-/** QR Code connection inside the CRM, with the webhook address to configure in ChatPro. */
-export function ChatProConnect({ webhookUrl, webhookIsPublic }: { webhookUrl: string; webhookIsPublic: boolean }) {
+const WEBHOOK_TEXT: Record<ChatProWebhookState["status"], { tone: "success" | "warning"; text: string }> = {
+  configured: { tone: "success", text: "Recebimento de mensagens configurado automaticamente." },
+  no_public_address: {
+    tone: "warning",
+    text: "Para receber mensagens, o app precisa de um endereço público com https. Publique o app e defina NEXT_PUBLIC_SITE_URL no servidor.",
+  },
+  no_panel_access: {
+    tone: "warning",
+    text: "Para configurar sozinho, preencha CHATPRO_PANEL_EMAIL e CHATPRO_PANEL_PASSWORD no servidor. Sem isso, use o endereço abaixo no ChatPro.",
+  },
+  failed: { tone: "warning", text: "Não foi possível configurar o recebimento de mensagens. Tente de novo." },
+};
+
+/** QR Code connection inside the CRM. The webhook is configured automatically when possible. */
+export function ChatProConnect({ webhookUrl }: { webhookUrl: string }) {
   const [state, setState] = useState<ChatProState>({ status: "idle" });
   const [starting, startConnect] = useTransition();
   const stateRef = useRef(state);
+  const [webhook, setWebhook] = useState<ChatProWebhookState | null>(null);
+  const [configuring, startConfigure] = useTransition();
+
+  const configureWebhook = useCallback(() => {
+    startConfigure(async () => setWebhook(await configureChatProWebhookAction()));
+  }, []);
+
+  useEffect(() => {
+    configureWebhook();
+  }, [configureWebhook]);
 
   useEffect(() => {
     stateRef.current = state;
@@ -94,25 +119,36 @@ export function ChatProConnect({ webhookUrl, webhookIsPublic }: { webhookUrl: st
         </div>
       ) : null}
 
-      <div className="grid gap-2 rounded-lg bg-background p-4">
-        <p className="text-sm font-medium">Webhook</p>
-        <p className="text-sm text-text-muted">
-          Este é o endereço que recebe as mensagens. Ele contém um código secreto: não compartilhe.
-        </p>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <label htmlFor="chatpro-webhook" className="sr-only">
-            Endereço do webhook
-          </label>
-          <Input id="chatpro-webhook" readOnly value={webhookUrl} onFocus={(e) => e.currentTarget.select()} />
-          <CopyButton value={webhookUrl} label="Copiar" className="shrink-0" />
-        </div>
-        {!webhookIsPublic ? (
-          <Alert tone="warning">
-            Este endereço só funciona neste computador. O ChatPro precisa de um endereço público com https: publique o app ou
-            use um túnel.
-          </Alert>
-        ) : null}
-      </div>
+      {webhook ? (
+        <Alert
+          tone={WEBHOOK_TEXT[webhook.status].tone}
+          action={
+            webhook.status === "failed" ? (
+              <Button variant="secondary" size="sm" onClick={configureWebhook} loading={configuring}>
+                Tentar de novo
+              </Button>
+            ) : undefined
+          }
+        >
+          {WEBHOOK_TEXT[webhook.status].text}
+        </Alert>
+      ) : null}
+
+      {webhook && webhook.status !== "configured" ? (
+        <details className="rounded-lg bg-background p-4">
+          <summary className="cursor-pointer text-sm font-medium">Configurar manualmente</summary>
+          <p className="mt-2 text-sm text-text-muted">
+            Endereço que recebe as mensagens. Ele contém um código secreto: não compartilhe.
+          </p>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <label htmlFor="chatpro-webhook" className="sr-only">
+              Endereço do webhook
+            </label>
+            <Input id="chatpro-webhook" readOnly value={webhookUrl} onFocus={(e) => e.currentTarget.select()} />
+            <CopyButton value={webhookUrl} label="Copiar" className="shrink-0" />
+          </div>
+        </details>
+      ) : null}
 
       {connected ? (
         <div>

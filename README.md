@@ -63,10 +63,13 @@ webhook (queue, ingestion, inbox) is the same for all of them.
 2. Set `WHATSAPP_PROVIDER=chatpro`, `CHATPRO_INSTANCE_ID`, `CHATPRO_TOKEN`,
    `CHATPRO_WEBHOOK_SECRET` (`openssl rand -hex 32`) and `CHATPRO_ORGANIZATION_ID`
    (*Ajustes -> Canais* shows the value for the current business).
-3. Point the instance's webhook at the app, once it has a public https address:
-   paste the address shown in *Ajustes -> Canais* into the ChatPro panel, or run
-   `CHATPRO_PANEL_EMAIL=... CHATPRO_PANEL_PASSWORD=... npm run chatpro:webhook -- https://<host>`.
+3. Set `CHATPRO_PANEL_EMAIL` and `CHATPRO_PANEL_PASSWORD`, and `NEXT_PUBLIC_SITE_URL`
+   with the public https address. *Ajustes -> Canais* then configures the webhook by
+   itself. Without them, it shows the address to paste in the ChatPro panel.
 4. In *Ajustes -> Canais*, tap *Mostrar QR Code* and scan it with the phone.
+
+`npm run chatpro:instances` shows the shape of the panel's instance list, with values
+masked. It only reads.
 
 ChatPro's docs show no webhook signature, so the secret in the URL is the only
 authentication: treat that address as a password. Replies are not limited to a

@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 import { canManage, requireMembership } from "@/lib/auth";
-import { getChatProConfig, getChatProProvider } from "@/lib/channels/chatpro/config";
+import { getChatProConfig, getChatProPanel, getChatProProvider, getChatProWebhookUrl } from "@/lib/channels/chatpro/config";
 import { contactFromJid } from "@/lib/channels/chatpro/parse";
 import { getWhatsAppProviderName } from "@/lib/env";
 import { formatPhone } from "@/lib/inbox/format";
@@ -134,6 +134,26 @@ function chatProActive(phone: string | null) {
     disconnected_reason: null,
     connected_at: new Date().toISOString(),
   } as const;
+}
+
+export interface ChatProWebhookState {
+  status: "configured" | "no_public_address" | "no_panel_access" | "failed";
+}
+
+/** Points the instance's webhook at this app, so nobody needs to open the ChatPro panel. */
+export async function configureChatProWebhookAction(): Promise<ChatProWebhookState> {
+  const { instanceId } = await requireChatPro();
+  const panel = getChatProPanel();
+  if (!panel) return { status: "no_panel_access" };
+  const { url, isPublic } = getChatProWebhookUrl();
+  if (!isPublic) return { status: "no_public_address" };
+  try {
+    await panel.setWebhook(instanceId, url);
+    return { status: "configured" };
+  } catch (e) {
+    logEvent("chatpro.webhook_failed", { error: e instanceof Error ? e.message : "unknown" }, "error");
+    return { status: "failed" };
+  }
 }
 
 /** Links the instance to the business and returns a QR Code, unless it is already connected. */

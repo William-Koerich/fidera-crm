@@ -1,33 +1,17 @@
 /**
- * One-time setup: points the ChatPro instance's webhook at this app.
+ * Points the ChatPro instance's webhook at this app. The CRM does this by
+ * itself in Ajustes -> Canais; this is only for setting it from the terminal.
  *
- * Usage (needs the public https address of the app):
- *   CHATPRO_PANEL_EMAIL=... CHATPRO_PANEL_PASSWORD=... npm run chatpro:webhook -- https://your-app
- *
- * Endpoints (Painel API): POST /endpoint.php?action=token { email, senha } -> { success, token }
- * and POST /endpoint.php?action=alterar_webhook { code, new_webhook } -> { success, message }.
- * The panel credentials are used only for this call and are not stored.
+ * Usage: npm run chatpro:webhook -- https://your-app
+ * (CHATPRO_PANEL_EMAIL, CHATPRO_PANEL_PASSWORD, CHATPRO_INSTANCE_ID and
+ * CHATPRO_WEBHOOK_SECRET in .env.local)
  */
-const PANEL_URL = "https://api.chatpro.com.br/painel/ws/endpoint.php";
+import { ChatProPanel } from "../src/lib/channels/chatpro/panel.ts";
 
 function required(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`Missing ${name}.`);
   return value;
-}
-
-async function panel(action: string, body: unknown, token?: string): Promise<{ success?: boolean; message?: string; token?: string }> {
-  const response = await fetch(`${PANEL_URL}?action=${action}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(30_000),
-  });
-  const json = (await response.json().catch(() => null)) as { success?: boolean; message?: string; token?: string } | null;
-  if (!response.ok || !json?.success) {
-    throw new Error(`ChatPro ${action} failed (${response.status}): ${json?.message ?? "no details"}`);
-  }
-  return json;
 }
 
 async function main(): Promise<void> {
@@ -36,19 +20,10 @@ async function main(): Promise<void> {
 
   const instanceId = required("CHATPRO_INSTANCE_ID");
   const secret = required("CHATPRO_WEBHOOK_SECRET");
-  const { token } = await panel("token", {
-    email: required("CHATPRO_PANEL_EMAIL"),
-    senha: required("CHATPRO_PANEL_PASSWORD"),
-  });
-  if (!token) throw new Error("ChatPro returned no panel token.");
-
-  await panel(
-    "alterar_webhook",
-    {
-      code: instanceId,
-      new_webhook: `${appUrl}/api/webhooks/chatpro/${encodeURIComponent(instanceId)}?token=${encodeURIComponent(secret)}`,
-    },
-    token,
+  const panel = new ChatProPanel({ email: required("CHATPRO_PANEL_EMAIL"), password: required("CHATPRO_PANEL_PASSWORD") });
+  await panel.setWebhook(
+    instanceId,
+    `${appUrl}/api/webhooks/chatpro/${encodeURIComponent(instanceId)}?token=${encodeURIComponent(secret)}`,
   );
   console.log(`Webhook configured: ${appUrl}/api/webhooks/chatpro/${instanceId}?token=***`);
 }

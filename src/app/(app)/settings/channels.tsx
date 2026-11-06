@@ -1,7 +1,6 @@
 import { Icon } from "@/components/icons";
 import { Alert, Badge, Button, Panel, type Tone } from "@/components/ui";
-import { getChatProConfig } from "@/lib/channels/chatpro/config";
-import { getOrigin } from "@/lib/urls";
+import { getChatProConfig, getChatProWebhookUrl } from "@/lib/channels/chatpro/config";
 import { canManage, requireMembership } from "@/lib/auth";
 import { getWhatsAppProviderName } from "@/lib/env";
 import { listChannelAccounts } from "@/lib/inbox/queries";
@@ -33,15 +32,13 @@ async function chatProSection(organizationId: string) {
       </Alert>
     );
   }
-  const origin = await getOrigin();
-  const webhookUrl = `${origin}/api/webhooks/chatpro/${encodeURIComponent(config.instanceId)}?token=${encodeURIComponent(config.webhookSecret)}`;
   return (
     <div className="grid gap-4">
       <Alert tone="warning" title="Conexão por QR Code, fora da API oficial da Meta">
         O WhatsApp pode restringir ou bloquear o número, principalmente com envio em massa. Use para conversas com os seus
         clientes. O celular precisa continuar com o WhatsApp instalado e conectado.
       </Alert>
-      <ChatProConnect webhookUrl={webhookUrl} webhookIsPublic={origin.startsWith("https://")} />
+      <ChatProConnect webhookUrl={getChatProWebhookUrl().url} />
     </div>
   );
 }
