@@ -17,14 +17,16 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
 
 const PROVIDER_LABEL = { mock: "Teste (simulado)", meta: "API oficial da Meta", coexy: "Integração removida", chatpro: "ChatPro (QR Code)" } as const;
 
-function removalWarning(conversations: number): string {
+function removalWarning(conversations: number, provider: string): string {
+  const session =
+    provider === "chatpro" ? " A conexão com o WhatsApp também é encerrada: para voltar, será preciso ler o QR Code de novo." : "";
   const what =
     conversations === 0
       ? "Este número não tem conversas salvas."
       : conversations === 1
         ? "A conversa deste número e as mensagens dela serão apagadas do Fidera."
         : `As ${conversations} conversas deste número e as mensagens delas serão apagadas do Fidera.`;
-  return `${what} Não dá para desfazer. Os contatos continuam salvos, e o WhatsApp no celular não perde nenhuma mensagem.`;
+  return `${what} Não dá para desfazer. Os contatos continuam salvos, e o WhatsApp no celular não perde nenhuma mensagem.${session}`;
 }
 
 async function chatProSection(organizationId: string) {
@@ -91,7 +93,7 @@ export async function Channels() {
                     <ConfirmDialog
                       trigger="Remover"
                       title="Remover este número?"
-                      description={removalWarning(conversationCounts.get(a.id) ?? 0)}
+                      description={removalWarning(conversationCounts.get(a.id) ?? 0, a.provider)}
                       confirmLabel="Remover número"
                       action={removeChannelAccountAction}
                       fields={{ accountId: a.id }}

@@ -146,30 +146,73 @@ function parseAck(data: Obj, instanceId: string): NormalizedEvent[] {
   ];
 }
 
-function parseChatMessage(data: Obj, instanceId: string): NormalizedEvent[] {
+/**
+ * ChatPro Chat names message kinds in `type` (receveid_image_message, video_preview...,
+ * spelled as ChatPro sends it). Session bookkeeping rows are not messages: null.
+ */
+function chatMessageType(data: Obj, url: string | null, mime: string | null): MessageType | null {
+  const kind = str(data.type) ?? "";
+  if (kind.includes("session")) return null;
+  if (kind.includes("image")) return "image";
+  if (kind.includes("audio")) return "audio";
+  if (kind.includes("video")) return "video";
+  if (kind.includes("document")) return "document";
+  if (kind.includes("vcard")) return "contacts";
+  return (url ? typeFromMime(mime) : null) ?? "text";
+}
+
+function chatMessageEvent(
+  data: Obj,
+  instanceId: string,
+  history: { profileName: string | null } | null,
+): NormalizedMessageEvent | null {
   const externalMessageId = str(data.id);
   const occurredAt = toDate(data.ts_receive);
   const fromMe = data.from_me === true;
-  const contact = contactFromJid(data.number, null);
-  if (!externalMessageId || !occurredAt || !contact || data.ignore === true) return [];
+  const contact = contactFromJid(data.number, history?.profileName ?? null);
+  if (!externalMessageId || !occurredAt || !contact) return null;
+  if (data.ignore === true || data.delete_message === true || str(data.deleted_at)) return null;
+
   const mime = str(data.file_type);
   const url = httpsUrl(data.url);
-  return [
-    {
-      kind: "message",
-      channel: "whatsapp",
-      accountExternalId: instanceId,
-      direction: fromMe ? "outbound" : "inbound",
-      origin: fromMe ? "business_app_echo" : "customer",
-      contact,
-      externalMessageId,
-      type: (url ? typeFromMime(mime) : null) ?? "text",
-      body: str(data.message),
-      mediaExternalId: url,
-      mediaMimeType: mime,
-      occurredAt,
-    },
-  ];
+  const type = chatMessageType(data, url, mime);
+  if (!type) return null;
+  const isMedia = type === "image" || type === "audio" || type === "video" || type === "document";
+  const body = str(data.message);
+  if (type === "text" && !body) return null;
+
+  return {
+    kind: "message",
+    channel: "whatsapp",
+    accountExternalId: instanceId,
+    direction: fromMe ? "outbound" : "inbound",
+    // History must not count as unread or pretend it just arrived.
+    origin: history ? "history" : fromMe ? "business_app_echo" : "customer",
+    contact,
+    externalMessageId,
+    type,
+    body,
+    mediaExternalId: isMedia ? url : null,
+    mediaMimeType: isMedia ? mime : null,
+    occurredAt,
+  };
+}
+
+function parseChatMessage(data: Obj, instanceId: string): NormalizedEvent[] {
+  const event = chatMessageEvent(data, instanceId, null);
+  return event ? [event] : [];
+}
+
+/** Messages from ChatPro Chat's messages/getAll, as history. Same fields as the webhook. */
+export function parseChatProHistory(
+  messages: unknown[],
+  instanceId: string,
+  profileName: string | null,
+): NormalizedMessageEvent[] {
+  return messages
+    .filter(isObj)
+    .map((m) => chatMessageEvent(m, instanceId, { profileName }))
+    .filter((e): e is NormalizedMessageEvent => e !== null);
 }
 
 export function parseChatProWebhook(payload: unknown): NormalizedEvent[] {

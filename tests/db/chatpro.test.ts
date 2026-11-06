@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { parseChatProWebhook } from "@/lib/channels/chatpro/parse";
+import { parseChatProHistory, parseChatProWebhook } from "@/lib/channels/chatpro/parse";
 import { actAsAdmin, connect, createOrg, createUser, hasDatabase, withRollback, type Db } from "./helpers";
 
 const instanceId = "chatpro-test-instance";
@@ -66,6 +66,37 @@ describe.skipIf(!hasDatabase())("ChatPro ingestion", () => {
         { direction: "inbound", status: "received" },
         { direction: "outbound", status: "read" },
       ]);
+    }));
+
+  it("imported history shows the conversation without counting as unread", () =>
+    withRollback(db, async (db) => {
+      await actAsAdmin(db);
+      const owner = await createUser(db, "owner");
+      const org = await createOrg(db, owner, "Salão");
+      await actAsAdmin(db);
+      await db.query(
+        `insert into crm.channel_accounts (organization_id, channel, provider, external_account_id, status)
+         values ($1, 'whatsapp', 'chatpro', $2, 'active')`,
+        [org, instanceId],
+      );
+      const events = parseChatProHistory(
+        [
+          { id: "H2", from_me: false, number: "554899990000@s.whatsapp.net", message: "Tudo bem?", ts_receive: "2026-11-06T18:18:00.000Z", type: "receveid_message" },
+          { id: "H1", from_me: true, number: "554899990000@s.whatsapp.net", message: "Olá", ts_receive: "2026-11-06T18:17:00.000Z", type: "send_message" },
+        ],
+        instanceId,
+        "Ana",
+      );
+      const run = () => db.query<{ r: { inserted: number; duplicates: number } }>("select crm.ingest_events('chatpro', $1::jsonb) as r", [JSON.stringify(events)]);
+
+      expect((await run()).rows[0]!.r).toMatchObject({ inserted: 2 });
+      expect((await run()).rows[0]!.r).toMatchObject({ inserted: 0, duplicates: 2 });
+      const conv = await db.query(
+        `select c.unread_count, c.awaiting_reply, ct.display_name from crm.conversations c
+         join crm.contacts ct on ct.id = c.contact_id where c.organization_id = $1`,
+        [org],
+      );
+      expect(conv.rows).toEqual([{ unread_count: 0, awaiting_reply: true, display_name: "Ana" }]);
     }));
 
   it("skips events for an instance that is not connected to any business", () =>

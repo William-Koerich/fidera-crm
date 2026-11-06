@@ -47,6 +47,23 @@ export interface ChatProStatus {
   wid: string | null;
 }
 
+const PAGE_SIZE = 100;
+const MAX_SESSIONS = 1_000;
+const MAX_MESSAGE_OFFSET = 100;
+
+/** ChatPro Chat answered 429. It sends no Retry-After, so callers wait and try again. */
+export class ChatProRateLimitError extends Error {
+  constructor() {
+    super("ChatPro rate limit");
+    this.name = "ChatProRateLimitError";
+  }
+}
+
+export interface ChatProSession {
+  id: string;
+  leadId: string | null;
+}
+
 type Json = Record<string, unknown>;
 const isObj = (v: unknown): v is Json => typeof v === "object" && v !== null && !Array.isArray(v);
 const text = (v: unknown): string | null => (typeof v === "string" && v.length > 0 ? v : null);
@@ -132,14 +149,61 @@ export class ChatProChannelProvider implements ChannelProvider {
   }
 
   private async chat(path: string, payload: Json): Promise<{ ok: boolean; status: number; body: Json }> {
+    const { ok, status, data } = await this.chatJson(path, payload);
+    return { ok, status, body: isObj(data) ? data : {} };
+  }
+
+  private async chatJson(path: string, payload: Json): Promise<{ ok: boolean; status: number; data: unknown }> {
     const response = await this.fetchImpl(`${this.chatBaseUrl}/${path}`, {
       method: "POST",
       headers: { "instance-token": this.options.chatToken, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(15_000),
     });
-    const body: unknown = await response.json().catch(() => ({}));
-    return { ok: response.ok, status: response.status, body: isObj(body) ? body : {} };
+    return { ok: response.ok, status: response.status, data: await response.json().catch(() => ({})) };
+  }
+
+  /** Read call that returns a list, one page. */
+  private async chatPage(path: string, payload: Json): Promise<unknown[]> {
+    const { ok, status, data } = await this.chatJson(path, payload);
+    if (status === 429) throw new ChatProRateLimitError();
+    if (!ok || !Array.isArray(data)) throw new Error(`ChatPro ${path} failed (${status})`);
+    return data;
+  }
+
+  /** 1:1 WhatsApp conversations ChatPro Chat holds for this instance. */
+  async listSessions(instanceId: string): Promise<ChatProSession[]> {
+    const sessions: ChatProSession[] = [];
+    for (let offset = 0; offset < MAX_SESSIONS; offset += PAGE_SIZE) {
+      const page = await this.chatPage("sessions/list", { instanceId, limit: PAGE_SIZE, offset });
+      for (const s of page) {
+        const id = isObj(s) ? text(s.id) : null;
+        if (id && isObj(s) && s.group !== true && s.provider === "whatsapp") {
+          sessions.push({ id, leadId: text(s.lead_id) });
+        }
+      }
+      if (page.length < PAGE_SIZE) break;
+    }
+    return sessions;
+  }
+
+  /** Latest messages of a session, newest first. ChatPro documents an offset of at most 100. */
+  async getSessionMessages(instanceId: string, sessionId: string): Promise<unknown[]> {
+    const messages: unknown[] = [];
+    for (let offset = 0; offset <= MAX_MESSAGE_OFFSET; offset += PAGE_SIZE) {
+      const page = await this.chatPage("messages/getAll", { instanceId, sessionId, limit: PAGE_SIZE, offset });
+      messages.push(...page);
+      if (page.length < PAGE_SIZE) break;
+    }
+    return messages;
+  }
+
+  /** Name of a contact, when ChatPro knows one. A missing name never blocks an import. */
+  async getLeadName(instanceId: string, leadId: string): Promise<string | null> {
+    const { status, data } = await this.chatJson("leads/findById", { instanceId, leadId });
+    if (status === 429) throw new ChatProRateLimitError();
+    if (!isObj(data)) return null;
+    return text(data.nome_personalizado) ?? text(data.contact_name) ?? text(data.name) ?? text(data.push_name);
   }
 
   async getStatus(instanceId: string): Promise<ChatProStatus> {

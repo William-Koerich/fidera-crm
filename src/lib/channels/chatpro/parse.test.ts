@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contactFromJid, parseChatProWebhook } from "./parse";
+import { contactFromJid, parseChatProHistory, parseChatProWebhook } from "./parse";
 
 const instanceId = "chatpro-abc";
 const wrap = (event: unknown) => ({ instanceId, event });
@@ -153,5 +153,65 @@ describe("contactFromJid", () => {
   it("handles device suffixes and privacy ids", () => {
     expect(contactFromJid("5511999999999:12@s.whatsapp.net", null)?.externalId).toBe("5511999999999");
     expect(contactFromJid("123456@lid", null)).toEqual({ externalId: "123456", phoneNormalized: null, profileName: null });
+  });
+});
+
+describe("parseChatProHistory", () => {
+  const row = (over: Record<string, unknown>) => ({
+    id: "M1",
+    from_me: false,
+    number: "5548999990000@s.whatsapp.net",
+    message: "Oi",
+    ts_receive: "2026-11-06T18:17:00.000Z",
+    type: "receveid_message",
+    url: "",
+    file_type: null,
+    ...over,
+  });
+
+  it("marks messages as history in both directions, with the lead's name", () => {
+    const [inbound, outbound] = parseChatProHistory(
+      [row({}), row({ id: "M2", from_me: true, type: "send_message" })],
+      "inst",
+      "Ana",
+    );
+    expect(inbound).toMatchObject({ origin: "history", direction: "inbound", type: "text", body: "Oi" });
+    expect(inbound?.contact.profileName).toBe("Ana");
+    expect(outbound).toMatchObject({ origin: "history", direction: "outbound" });
+  });
+
+  it("reads the media kind from the type even without a mime type", () => {
+    const events = parseChatProHistory(
+      [
+        row({ id: "A", type: "receveid_audio_message_preview", url: "https://files.example/a", message: "" }),
+        row({ id: "V", type: "video_preview", url: "https://files.example/v", file_type: "video/mp4" }),
+        row({ id: "I", type: "send_image_message", url: "https://files.example/i", message: "" }),
+        row({ id: "C", type: "receveid_vcard", url: "", message: "" }),
+      ],
+      "inst",
+      null,
+    );
+    expect(events.map((e) => e.type)).toEqual(["audio", "video", "image", "contacts"]);
+    expect(events[0]?.mediaExternalId).toBe("https://files.example/a");
+    expect(events[3]?.mediaExternalId).toBeNull();
+  });
+
+  it("skips session rows, deleted, ignored, empty and group messages", () => {
+    expect(
+      parseChatProHistory(
+        [
+          row({ type: "create_session" }),
+          row({ type: "transfer_session" }),
+          row({ delete_message: true }),
+          row({ deleted_at: "2026-11-06T18:18:00.000Z" }),
+          row({ ignore: true }),
+          row({ message: "" }),
+          row({ number: "120363@g.us" }),
+          "not an object",
+        ],
+        "inst",
+        null,
+      ),
+    ).toEqual([]);
   });
 });

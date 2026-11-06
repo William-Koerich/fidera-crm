@@ -3,12 +3,14 @@
 import { refresh } from "next/cache";
 import { canManage, requireMembership } from "@/lib/auth";
 import { getChatProConfig, getChatProPanel, getChatProProvider, getChatProWebhookUrl } from "@/lib/channels/chatpro/config";
-import { contactFromJid } from "@/lib/channels/chatpro/parse";
+import { contactFromJid, parseChatProHistory } from "@/lib/channels/chatpro/parse";
+import { ChatProRateLimitError, type ChatProSession } from "@/lib/channels/chatpro/provider";
 import { getWhatsAppProviderName } from "@/lib/env";
 import { formatPhone } from "@/lib/inbox/format";
 import { logEvent } from "@/lib/log";
-import type { TablesInsert } from "@/lib/supabase/database.types";
+import type { Json, TablesInsert } from "@/lib/supabase/database.types";
 import { createAdminClient } from "@/lib/supabase/server";
+import { fetchPendingMedia } from "@/lib/webhooks/media";
 
 /**
  * Channel accounts are written only by the server (they route webhooks and
@@ -212,6 +214,59 @@ export async function checkChatProAction(): Promise<ChatProState> {
   } catch (e) {
     logEvent("chatpro.check_failed", { error: e instanceof Error ? e.message : "unknown" }, "warn");
     return { status: "error", message: "Não foi possível consultar o ChatPro agora." };
+  }
+}
+
+export type ChatProSessionList =
+  | { status: "ok"; sessions: ChatProSession[] }
+  | { status: "rate_limited" | "error"; sessions: [] };
+
+/** First step of the import: which conversations ChatPro holds. */
+export async function listChatProSessionsAction(): Promise<ChatProSessionList> {
+  try {
+    const { instanceId, provider } = await requireChatPro();
+    return { status: "ok", sessions: await provider.listSessions(instanceId) };
+  } catch (e) {
+    if (e instanceof ChatProRateLimitError) return { status: "rate_limited", sessions: [] };
+    logEvent("chatpro.import_failed", { error: e instanceof Error ? e.message : "unknown" }, "error");
+    return { status: "error", sessions: [] };
+  }
+}
+
+export interface ChatProSessionImport {
+  status: "ok" | "rate_limited" | "error";
+  inserted: number;
+}
+
+/**
+ * Imports one conversation. The screen drives one call at a time, so ChatPro's
+ * rate limit and the server's time limit never cut a long import. Running it
+ * again is safe: messages are unique per account and external id.
+ */
+export async function importChatProSessionAction(session: ChatProSession): Promise<ChatProSessionImport> {
+  try {
+    const { instanceId, provider } = await requireChatPro();
+    const messages = await provider.getSessionMessages(instanceId, String(session.id));
+    const name = session.leadId ? await provider.getLeadName(instanceId, String(session.leadId)) : null;
+    const events = parseChatProHistory(messages, instanceId, name);
+    if (events.length === 0) return { status: "ok", inserted: 0 };
+
+    const admin = createAdminClient();
+    const { data, error } = await admin.rpc("ingest_events", {
+      p_provider: "chatpro",
+      p_events: JSON.parse(JSON.stringify(events)) as Json,
+    });
+    if (error) throw new Error(`ingest_events: ${error.message}`);
+    const inserted = (data as unknown as { inserted: number }).inserted;
+    if (inserted > 0) {
+      await fetchPendingMedia(admin, 5).catch(() => 0);
+      refresh();
+    }
+    return { status: "ok", inserted };
+  } catch (e) {
+    if (e instanceof ChatProRateLimitError) return { status: "rate_limited", inserted: 0 };
+    logEvent("chatpro.import_failed", { error: e instanceof Error ? e.message : "unknown" }, "error");
+    return { status: "error", inserted: 0 };
   }
 }
 

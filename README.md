@@ -73,6 +73,10 @@ calls `messages/sendMessage`, a route ChatPro support indicated and the public d
    itself. Without them, it shows the address to paste in the ChatPro panel.
 4. In *Ajustes -> Canais*, tap *Mostrar QR Code* and scan it with the phone.
 
+*Importar mensagens* in the same screen brings the 1:1 conversations ChatPro Chat holds
+into the inbox, one at a time because of its rate limit (429 with no Retry-After). Only
+what ChatPro stored comes in, up to 200 messages per conversation.
+
 `npm run chatpro:instances` shows the shape of the panel's instance list, with values
 masked. It only reads.
 

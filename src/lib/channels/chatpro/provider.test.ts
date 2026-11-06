@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ChatProChannelProvider } from "./provider";
+import { ChatProChannelProvider, ChatProRateLimitError } from "./provider";
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -100,6 +100,36 @@ describe("ChatProChannelProvider", () => {
         throw new TypeError("fetch failed");
       }).sendMessage(input),
     ).toMatchObject({ errorCode: "network_error", retryable: true });
+  });
+
+  it("lists only 1:1 WhatsApp sessions", async () => {
+    const sessions = await provider(async () =>
+      json(201, [
+        { id: "s1", lead_id: "l1", group: false, provider: "whatsapp" },
+        { id: "s2", lead_id: "l2", group: true, provider: "whatsapp" },
+        { id: "s3", lead_id: "l3", group: false, provider: "chatpro" },
+      ]),
+    ).listSessions("i");
+    expect(sessions).toEqual([{ id: "s1", leadId: "l1" }]);
+  });
+
+  it("pages session messages up to the documented offset", async () => {
+    const full = Array.from({ length: 100 }, (_, i) => ({ id: `m${i}` }));
+    const fetchMock = vi.fn<typeof fetch>(async () => json(201, full));
+    expect(await provider(fetchMock).getSessionMessages("i", "s1")).toHaveLength(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("signals the rate limit apart from other failures", async () => {
+    await expect(provider(async () => json(429, {})).listSessions("i")).rejects.toBeInstanceOf(ChatProRateLimitError);
+    await expect(provider(async () => json(429, {})).getLeadName("i", "l")).rejects.toBeInstanceOf(ChatProRateLimitError);
+    await expect(provider(async () => json(401, {})).getSessionMessages("i", "s")).rejects.toThrow("failed (401)");
+  });
+
+  it("prefers the name set by hand for a lead", async () => {
+    const name = provider(async () => json(201, { nome_personalizado: "Ana", push_name: "Aninha" }));
+    expect(await name.getLeadName("i", "l")).toBe("Ana");
+    expect(await provider(async () => json(201, { name: null })).getLeadName("i", "l")).toBeNull();
   });
 
   it("has no 24h reply window", () => {
