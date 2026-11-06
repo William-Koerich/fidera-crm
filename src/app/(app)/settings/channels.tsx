@@ -1,10 +1,11 @@
 import { Icon } from "@/components/icons";
 import { Alert, Badge, Button, Panel, type Tone } from "@/components/ui";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { getChatProConfig, getChatProWebhookUrl } from "@/lib/channels/chatpro/config";
 import { canManage, requireMembership } from "@/lib/auth";
 import { getWhatsAppProviderName } from "@/lib/env";
-import { listChannelAccounts } from "@/lib/inbox/queries";
-import { connectMetaNumberAction, connectMockChannelAction } from "./channel-actions";
+import { countConversations, listChannelAccounts } from "@/lib/inbox/queries";
+import { connectMetaNumberAction, connectMockChannelAction, removeChannelAccountAction } from "./channel-actions";
 import { ChatProConnect } from "./chatpro-connect";
 
 const STATUS: Record<string, { label: string; tone: Tone }> = {
@@ -15,6 +16,16 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
 };
 
 const PROVIDER_LABEL = { mock: "Teste (simulado)", meta: "API oficial da Meta", coexy: "Integração removida", chatpro: "ChatPro (QR Code)" } as const;
+
+function removalWarning(conversations: number): string {
+  const what =
+    conversations === 0
+      ? "Este número não tem conversas salvas."
+      : conversations === 1
+        ? "A conversa deste número e as mensagens dela serão apagadas do Fidera."
+        : `As ${conversations} conversas deste número e as mensagens delas serão apagadas do Fidera.`;
+  return `${what} Não dá para desfazer. Os contatos continuam salvos, e o WhatsApp no celular não perde nenhuma mensagem.`;
+}
 
 async function chatProSection(organizationId: string) {
   const config = getChatProConfig();
@@ -49,6 +60,7 @@ export async function Channels() {
   const manage = canManage(me.role);
   const provider = getWhatsAppProviderName();
   const disconnected = accounts.find((a) => a.status === "disconnected");
+  const conversationCounts = manage ? await countConversations(accounts.map((a) => a.id)) : new Map<string, number>();
 
   return (
     <Panel
@@ -75,6 +87,16 @@ export async function Channels() {
                     </p>
                   </div>
                   <Badge tone={status.tone}>{status.label}</Badge>
+                  {manage ? (
+                    <ConfirmDialog
+                      trigger="Remover"
+                      title="Remover este número?"
+                      description={removalWarning(conversationCounts.get(a.id) ?? 0)}
+                      confirmLabel="Remover número"
+                      action={removeChannelAccountAction}
+                      fields={{ accountId: a.id }}
+                    />
+                  ) : null}
                 </li>
               );
             })}

@@ -239,3 +239,40 @@ export async function disconnectChatProAction(): Promise<ChatProState> {
     return { status: "error", message: "Não foi possível desconectar agora. Tente de novo." };
   }
 }
+
+/**
+ * Removes a number from this business. Its conversations and messages go with
+ * it (foreign keys cascade) and its token leaves Vault. A connected ChatPro
+ * session is closed first so the phone does not stay linked.
+ */
+export async function removeChannelAccountAction(formData: FormData): Promise<void> {
+  const me = await requireManager();
+  const admin = createAdminClient();
+  const { data: account } = await admin
+    .from("channel_accounts")
+    .select("id, provider, external_account_id")
+    .eq("id", String(formData.get("accountId") ?? ""))
+    .eq("organization_id", me.organizationId)
+    .maybeSingle();
+  if (!account) return;
+
+  if (account.provider === "chatpro") {
+    await getChatProProvider()
+      .disconnect(account.external_account_id)
+      .catch((e: unknown) => {
+        logEvent("chatpro.disconnect_failed", { error: e instanceof Error ? e.message : "unknown" }, "warn");
+      });
+  }
+
+  const { error } = await admin.from("channel_accounts").delete().eq("id", account.id);
+  if (error) throw new Error(`Could not remove channel account (${error.code})`);
+  await admin.from("audit_log").insert({
+    organization_id: me.organizationId,
+    actor_id: me.user.id,
+    action: "channel_account.removed",
+    target_table: "channel_accounts",
+    target_id: account.id,
+    metadata: { provider: account.provider },
+  });
+  refresh();
+}

@@ -175,6 +175,21 @@ export async function listMessages(
   };
 }
 
+/** How many conversations each channel account holds (shown before removing one). */
+export async function countConversations(accountIds: string[]): Promise<Map<string, number>> {
+  const supabase = await createClient();
+  const counts = await Promise.all(
+    accountIds.map(async (id) => {
+      const { count } = await supabase
+        .from("conversations")
+        .select("id", { count: "exact", head: true })
+        .eq("channel_account_id", id);
+      return [id, count ?? 0] as const;
+    }),
+  );
+  return new Map(counts);
+}
+
 export async function listChannelAccounts(organizationId: string) {
   const supabase = await createClient();
   const { data } = await supabase

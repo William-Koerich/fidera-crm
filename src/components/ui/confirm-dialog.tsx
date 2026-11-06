@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useId, useRef, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { Button, type ButtonVariant } from "./button";
 
@@ -39,6 +39,7 @@ export function ConfirmDialog({
   fields: Record<string, string>;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   return (
     <>
       <Button variant={triggerVariant} size="sm" className={triggerClassName} onClick={() => ref.current?.showModal()}>
@@ -46,7 +47,7 @@ export function ConfirmDialog({
       </Button>
       <dialog
         ref={ref}
-        aria-labelledby="confirm-title"
+        aria-labelledby={titleId}
         className="m-auto w-[calc(100%-2rem)] max-w-md rounded-xl border border-border bg-surface p-0 text-text shadow-xl backdrop:bg-text/40"
         onClick={(e) => {
           if (e.target === ref.current) ref.current?.close();
@@ -63,7 +64,7 @@ export function ConfirmDialog({
             <input key={name} type="hidden" name={name} value={value} />
           ))}
           <div>
-            <h2 id="confirm-title" className="text-base font-semibold">
+            <h2 id={titleId} className="text-base font-semibold">
               {title}
             </h2>
             <div className="mt-1.5 text-sm text-text-muted">{description}</div>

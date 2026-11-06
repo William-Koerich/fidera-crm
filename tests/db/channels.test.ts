@@ -230,6 +230,22 @@ describe.skipIf(!hasDatabase())("channel tables isolation", () => {
       expect((await db.query("delete from crm.channel_accounts where id = $1", [s.a.account])).rowCount).toBe(1);
     }));
 
+  it("removing an account deletes its conversations and messages but keeps the contact", () =>
+    withRollback(db, async (db) => {
+      const s = await seed(db);
+      await actAsAdmin(db);
+      await db.query("delete from crm.channel_accounts where id = $1", [s.a.account]);
+      const left = await db.query(
+        `select (select count(*)::int from crm.conversations where organization_id = $1) as conversations,
+                (select count(*)::int from crm.messages where organization_id = $1) as messages,
+                (select count(*)::int from crm.contacts where organization_id = $1) as contacts`,
+        [s.orgA],
+      );
+      expect(left.rows[0]).toEqual({ conversations: 0, messages: 0, contacts: 1 });
+      const other = await db.query("select count(*)::int as n from crm.messages where organization_id = $1", [s.orgB]);
+      expect(other.rows[0]?.n).toBe(1);
+    }));
+
   it("channel tokens round-trip through Vault and are removed with the account", () =>
     withRollback(db, async (db) => {
       const s = await seed(db);
