@@ -2,6 +2,7 @@ import "server-only";
 import { getProviderByName } from "@/lib/channels";
 import type { Json } from "@/lib/supabase/database.types";
 import { createAdminClient, type AdminClient } from "@/lib/supabase/server";
+import { refreshStaleProfiles } from "@/lib/contacts/profile-sync";
 import { logEvent } from "@/lib/log";
 import { runAutoReplies } from "@/lib/replies/auto-reply";
 import { supabaseAutoReplyStore } from "@/lib/replies/auto-reply-store";
@@ -83,6 +84,9 @@ export async function processWebhookEvents(
         onOutcome: (outcome) => logEvent("auto_reply.outcome", { eventId: event.id, outcome }, outcome === "sent" ? "info" : "warn"),
         onError: (e) =>
           logEvent("auto_reply.failed", { eventId: event.id, error: e instanceof Error ? e.message : "unknown" }, "error"),
+      });
+      await refreshStaleProfiles(admin, event.provider, normalized).catch((e: unknown) => {
+        logEvent("contact.profile_failed", { eventId: event.id, error: e instanceof Error ? e.message : "unknown" }, "warn");
       });
     } catch (e) {
       failed += 1;

@@ -152,6 +152,11 @@ describe("contactFromJid", () => {
 
   it("handles device suffixes and privacy ids", () => {
     expect(contactFromJid("5511999999999:12@s.whatsapp.net", null)?.externalId).toBe("5511999999999");
+    expect(contactFromJid("123456789012345678@s.whatsapp.net", null)).toEqual({
+      externalId: "123456789012345678",
+      phoneNormalized: null,
+      profileName: null,
+    });
     expect(contactFromJid("123456@lid", null)).toEqual({ externalId: "123456", phoneNormalized: null, profileName: null });
   });
 });

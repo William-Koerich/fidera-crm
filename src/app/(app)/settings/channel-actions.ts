@@ -3,6 +3,7 @@
 import { refresh } from "next/cache";
 import { canManage, requireMembership } from "@/lib/auth";
 import { getChatProConfig, getChatProPanel, getChatProProvider, getChatProWebhookUrl } from "@/lib/channels/chatpro/config";
+import { refreshStaleProfiles, syncContactProfile } from "@/lib/contacts/profile-sync";
 import { contactFromJid, parseChatProHistory } from "@/lib/channels/chatpro/parse";
 import { ChatProRateLimitError, type ChatProSession } from "@/lib/channels/chatpro/provider";
 import { getWhatsAppProviderName } from "@/lib/env";
@@ -258,6 +259,9 @@ export async function importChatProSessionAction(session: ChatProSession): Promi
     });
     if (error) throw new Error(`ingest_events: ${error.message}`);
     const inserted = (data as unknown as { inserted: number }).inserted;
+    await refreshStaleProfiles(admin, "chatpro", events).catch((e: unknown) => {
+      logEvent("contact.profile_failed", { error: e instanceof Error ? e.message : "unknown" }, "warn");
+    });
     if (inserted > 0) {
       await fetchPendingMedia(admin, 5).catch(() => 0);
       refresh();
@@ -267,6 +271,46 @@ export async function importChatProSessionAction(session: ChatProSession): Promi
     if (e instanceof ChatProRateLimitError) return { status: "rate_limited", inserted: 0 };
     logEvent("chatpro.import_failed", { error: e instanceof Error ? e.message : "unknown" }, "error");
     return { status: "error", inserted: 0 };
+  }
+}
+
+/** Contacts of this business reachable on WhatsApp, for the screen to update one at a time. */
+export async function listContactsForProfileSyncAction(): Promise<string[]> {
+  const { me } = await requireChatPro();
+  const { data, error } = await createAdminClient()
+    .from("contact_identities")
+    .select("contact_id")
+    .eq("organization_id", me.organizationId)
+    .eq("channel", "whatsapp");
+  if (error) throw new Error(`Could not list contacts (${error.code})`);
+  return [...new Set(data.map((i) => i.contact_id))];
+}
+
+export async function syncContactProfileAction(contactId: string): Promise<"ok" | "rate_limited" | "error"> {
+  try {
+    const { me, instanceId } = await requireChatPro();
+    const admin = createAdminClient();
+    const { data: identity } = await admin
+      .from("contact_identities")
+      .select("external_id")
+      .eq("organization_id", me.organizationId)
+      .eq("channel", "whatsapp")
+      .eq("contact_id", String(contactId))
+      .limit(1)
+      .maybeSingle();
+    if (!identity) return "error";
+    await syncContactProfile(admin, "chatpro", {
+      accountExternalId: instanceId,
+      organizationId: me.organizationId,
+      contactId: String(contactId),
+      externalId: identity.external_id,
+    });
+    refresh();
+    return "ok";
+  } catch (e) {
+    if (e instanceof ChatProRateLimitError) return "rate_limited";
+    logEvent("contact.profile_failed", { error: e instanceof Error ? e.message : "unknown" }, "warn");
+    return "error";
   }
 }
 

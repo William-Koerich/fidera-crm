@@ -77,6 +77,12 @@ calls `messages/sendMessage`, a route ChatPro support indicated and the public d
 into the inbox, one at a time because of its rate limit (429 with no Retry-After). Only
 what ChatPro stored comes in, up to 200 messages per conversation.
 
+Contact names and photos come from `get_profile`, then the ChatPro Chat lead: on new
+messages (at most weekly per contact), during imports, and from *Atualizar nomes e fotos*.
+The name saved on the phone wins over the person's own. Photos are copied to the private
+bucket and served by `/api/contacts/<id>/avatar`, which checks access through RLS. Privacy
+ids (more than 15 digits, reported as if they were phones) have no name or photo to fetch.
+
 `npm run chatpro:instances` shows the shape of the panel's instance list, with values
 masked. It only reads.
 

@@ -19,6 +19,8 @@ import type { DeliveryStatus, MessageType, NormalizedContact, NormalizedEvent, N
 
 type Obj = Record<string, unknown>;
 
+const MAX_PHONE_DIGITS = 15;
+
 export interface ChatProEnvelope {
   instanceId: string;
   event: unknown;
@@ -40,7 +42,8 @@ export function contactFromJid(jid: unknown, profileName: string | null): Normal
   const user = userPart.split(":")[0]!;
   if (!/^\d+$/.test(user)) return null;
   if (domain === "s.whatsapp.net" || domain === "c.us") {
-    return { externalId: user, phoneNormalized: normalizePhone(user), profileName };
+    // ChatPro also reports privacy ids under this domain: no phone has more than 15 digits.
+    return { externalId: user, phoneNormalized: user.length > MAX_PHONE_DIGITS ? null : normalizePhone(user), profileName };
   }
   // Privacy ids carry no phone number but still identify the person.
   if (domain === "lid") return { externalId: user, phoneNormalized: null, profileName };

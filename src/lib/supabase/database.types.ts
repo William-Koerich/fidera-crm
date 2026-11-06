@@ -30,9 +30,9 @@ export type Database = {
         Relationships: [{ foreignKeyName: "contact_identities_organization_id_contact_id_fkey"; columns: ["organization_id", "contact_id"]; isOneToOne: false; referencedRelation: "contacts"; referencedColumns: ["organization_id", "id"] }];
       };
       contacts: {
-        Row: { id: string; organization_id: string; display_name: string | null; phone_normalized: string | null; source: Database["crm"]["Enums"]["contact_source"]; source_detail: string | null; last_interaction_at: string | null; created_at: string; updated_at: string };
-        Insert: { id?: string; organization_id: string; display_name?: string | null; phone_normalized?: string | null; source: Database["crm"]["Enums"]["contact_source"]; source_detail?: string | null; last_interaction_at?: string | null; created_at?: string; updated_at?: string };
-        Update: { id?: string; organization_id?: string; display_name?: string | null; phone_normalized?: string | null; source?: Database["crm"]["Enums"]["contact_source"]; source_detail?: string | null; last_interaction_at?: string | null; created_at?: string; updated_at?: string };
+        Row: { id: string; organization_id: string; display_name: string | null; phone_normalized: string | null; source: Database["crm"]["Enums"]["contact_source"]; source_detail: string | null; last_interaction_at: string | null; created_at: string; updated_at: string; avatar_path: string | null; profile_synced_at: string | null };
+        Insert: { id?: string; organization_id: string; display_name?: string | null; phone_normalized?: string | null; source: Database["crm"]["Enums"]["contact_source"]; source_detail?: string | null; last_interaction_at?: string | null; created_at?: string; updated_at?: string; avatar_path?: string | null; profile_synced_at?: string | null };
+        Update: { id?: string; organization_id?: string; display_name?: string | null; phone_normalized?: string | null; source?: Database["crm"]["Enums"]["contact_source"]; source_detail?: string | null; last_interaction_at?: string | null; created_at?: string; updated_at?: string; avatar_path?: string | null; profile_synced_at?: string | null };
         Relationships: [{ foreignKeyName: "contacts_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
       conversations: {

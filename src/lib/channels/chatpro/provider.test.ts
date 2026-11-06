@@ -132,6 +132,55 @@ describe("ChatProChannelProvider", () => {
     expect(await provider(async () => json(201, { name: null })).getLeadName("i", "l")).toBeNull();
   });
 
+  it("reads the profile and skips the lead lookup when it has everything", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () =>
+      json(200, { name: "Ana Souza", pushname: "Ana ✨", imgUrl: "https://pps.whatsapp.net/a.jpg" }),
+    );
+    expect(await provider(fetchMock).getContactProfile("i", "5511999999999")).toEqual({
+      savedName: "Ana Souza",
+      publicName: "Ana ✨",
+      imageUrl: "https://pps.whatsapp.net/a.jpg",
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[0]![0]).toBe("https://oci.chatpro.com.br/i/api/v1/get_profile");
+  });
+
+  it("fills missing profile fields from the lead", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async (url) =>
+      String(url).includes("findByPhoneNumber")
+        ? json(201, { name: "Ana", eul: "https://pps.whatsapp.net/b.jpg" })
+        : json(200, { jid: "x" }),
+    );
+    expect(await provider(fetchMock).getContactProfile("i", "5511999999999")).toEqual({
+      savedName: null,
+      publicName: "Ana",
+      imageUrl: "https://pps.whatsapp.net/b.jpg",
+    });
+  });
+
+  it("knows nothing about privacy ids or numbers both services reject", async () => {
+    const never = vi.fn<typeof fetch>();
+    expect(await provider(never).getContactProfile("i", "123456789012345678")).toBeNull();
+    expect(never).not.toHaveBeenCalled();
+    expect(await provider(async () => json(400, {})).getContactProfile("i", "5511999999999")).toBeNull();
+  });
+
+  it("signals the rate limit on profile lookups", async () => {
+    await expect(provider(async () => json(429, {})).getContactProfile("i", "5511999999999")).rejects.toBeInstanceOf(
+      ChatProRateLimitError,
+    );
+  });
+
+  it("downloads photos only from WhatsApp's host, as images of a sane size", async () => {
+    const image = (bytes: number, type = "image/jpeg") =>
+      vi.fn<typeof fetch>(async () => new Response(new Uint8Array(bytes), { status: 200, headers: { "content-type": type } }));
+    expect((await provider(image(10)).downloadContactPhoto("https://pps.whatsapp.net/a")).mimeType).toBe("image/jpeg");
+    await expect(provider(image(10)).downloadContactPhoto("https://evil.example/whatsapp.net")).rejects.toThrow("unexpected host");
+    await expect(provider(image(10)).downloadContactPhoto("http://pps.whatsapp.net/a")).rejects.toThrow("unexpected host");
+    await expect(provider(image(10, "text/html")).downloadContactPhoto("https://pps.whatsapp.net/a")).rejects.toThrow("not an image");
+    await expect(provider(image(3 * 1024 * 1024)).downloadContactPhoto("https://pps.whatsapp.net/a")).rejects.toThrow("too large");
+  });
+
   it("has no 24h reply window", () => {
     expect(provider(vi.fn()).getReplyWindow()).toMatchObject({ isOpen: true, endsAt: null });
   });

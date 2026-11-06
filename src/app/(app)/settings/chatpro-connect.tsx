@@ -16,6 +16,7 @@ import {
   type ChatProWebhookState,
 } from "./channel-actions";
 import { ChatProImport } from "./chatpro-import";
+import { ChatProProfiles } from "./chatpro-profiles";
 
 const POLL_MS = 5_000;
 /** WhatsApp QR Codes expire quickly. */
@@ -152,6 +153,7 @@ export function ChatProConnect({ webhookUrl }: { webhookUrl: string }) {
       ) : null}
 
       {connected ? <ChatProImport /> : null}
+      {connected ? <ChatProProfiles /> : null}
 
       {connected ? (
         <div>

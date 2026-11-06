@@ -101,7 +101,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
           >
             <Icon name="back" />
           </Link>
-          <Avatar name={contact.name} phone={contact.phone} size="sm" />
+          <Avatar name={contact.name} phone={contact.phone} src={contact.avatarUrl} size="sm" />
           <div className="min-w-0 flex-1 pl-1">
             <h1 className="truncate text-sm font-semibold sm:text-base">{title}</h1>
             <p className="truncate text-xs text-text-muted">

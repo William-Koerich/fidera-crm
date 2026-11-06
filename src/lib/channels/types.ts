@@ -129,6 +129,14 @@ export interface DownloadedMedia {
   mimeType: string;
 }
 
+export interface ContactProfile {
+  /** Name the business saved for this person on the phone. */
+  savedName: string | null;
+  /** Name the person set for themselves. */
+  publicName: string | null;
+  imageUrl: string | null;
+}
+
 export interface ChannelProvider {
   readonly name: "mock" | "meta" | "chatpro";
   parseWebhook(payload: unknown): NormalizedEvent[];
@@ -136,4 +144,7 @@ export interface ChannelProvider {
   getReplyWindow(conversation: ReplyWindowConversation, now?: Date): ReplyWindow;
   /** Downloads inbound media by the channel's media id (when supported). */
   downloadMedia?(input: { accountExternalId: string; mediaId: string }): Promise<DownloadedMedia>;
+  /** Null when the channel does not know this person. */
+  getContactProfile?(accountExternalId: string, externalId: string): Promise<ContactProfile | null>;
+  downloadContactPhoto?(url: string): Promise<DownloadedMedia>;
 }

@@ -15,11 +15,14 @@ export function initials(name: string | null | undefined, phone?: string | null)
 export function Avatar({
   name,
   phone,
+  src,
   size = "md",
   className,
 }: {
   name?: string | null;
   phone?: string | null;
+  /** Photo drawn over the initials, which remain visible if it fails to load. */
+  src?: string | null;
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
@@ -27,7 +30,7 @@ export function Avatar({
     <span
       aria-hidden
       className={cx(
-        "grid shrink-0 place-items-center rounded-full bg-background font-semibold text-text-muted ring-1 ring-border",
+        "relative grid shrink-0 place-items-center overflow-hidden rounded-full bg-background font-semibold text-text-muted ring-1 ring-border",
         size === "sm" && "size-8 text-xs",
         size === "md" && "size-10 text-sm",
         size === "lg" && "size-14 text-base",
@@ -35,6 +38,10 @@ export function Avatar({
       )}
     >
       {initials(name, phone)}
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element -- private route, already small
+        <img src={src} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+      ) : null}
     </span>
   );
 }

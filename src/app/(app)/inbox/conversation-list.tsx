@@ -141,7 +141,7 @@ export async function ConversationList({
                     active ? "bg-info-soft" : "hover:bg-background active:bg-background",
                   )}
                 >
-                  <Avatar name={c.contactName} phone={c.contactPhone} />
+                  <Avatar name={c.contactName} phone={c.contactPhone} src={c.contactAvatarUrl} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline gap-2">
                       <p className={cx("truncate text-sm", unread ? "font-semibold text-text" : "font-medium text-text")}>

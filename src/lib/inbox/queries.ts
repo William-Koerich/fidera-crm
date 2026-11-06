@@ -14,6 +14,7 @@ export interface ConversationListItem {
   channel: Tables<"conversations">["channel"];
   contactName: string | null;
   contactPhone: string | null;
+  contactAvatarUrl: string | null;
   lastMessageAt: string | null;
   lastMessagePreview: string | null;
   awaitingReply: boolean;
@@ -21,6 +22,12 @@ export interface ConversationListItem {
   replyWindowEndsAt: string | null;
   /** The latest message was sent by the business (API or phone). */
   lastFromUs: boolean;
+}
+
+/** The version in the query string makes the browser fetch a photo again after each sync. */
+function contactAvatarUrl(contact: { id: string; avatar_path: string | null; profile_synced_at: string | null }): string | null {
+  if (!contact.avatar_path) return null;
+  return `/api/contacts/${contact.id}/avatar?v=${encodeURIComponent(contact.profile_synced_at ?? "")}`;
 }
 
 /** Conversations of the active organization, newest first, keyset-paginated. RLS applies. */
@@ -33,7 +40,7 @@ export async function listConversations(opts: {
   let query = supabase
     .from("conversations")
     .select(
-      "id, channel, last_message_at, last_message_preview, awaiting_reply, unread_count, reply_window_ends_at, last_inbound_at, last_outbound_at, contacts(display_name, phone_normalized), channel_accounts(provider)",
+      "id, channel, last_message_at, last_message_preview, awaiting_reply, unread_count, reply_window_ends_at, last_inbound_at, last_outbound_at, contacts(id, display_name, phone_normalized, avatar_path, profile_synced_at), channel_accounts(provider)",
     )
     .eq("organization_id", opts.organizationId)
     .not("last_message_at", "is", null)
@@ -55,6 +62,7 @@ export async function listConversations(opts: {
       channel: c.channel,
       contactName: c.contacts?.display_name ?? null,
       contactPhone: c.contacts?.phone_normalized ?? null,
+      contactAvatarUrl: c.contacts ? contactAvatarUrl(c.contacts) : null,
       lastMessageAt: c.last_message_at,
       lastMessagePreview: c.last_message_preview,
       awaitingReply: c.awaiting_reply,
@@ -84,6 +92,7 @@ export interface ConversationDetail {
     source: Tables<"contacts">["source"];
     createdAt: string;
     lastInteractionAt: string | null;
+    avatarUrl: string | null;
   };
   account: { id: string; externalAccountId: string; provider: Tables<"channel_accounts">["provider"]; status: Tables<"channel_accounts">["status"] };
   /** Channel identifier to send to (wa_id / IGSID). */
@@ -95,7 +104,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   const { data, error } = await supabase
     .from("conversations")
     .select(
-      "id, organization_id, channel, last_inbound_at, reply_window_ends_at, contact_id, contacts(id, display_name, phone_normalized, source, created_at, last_interaction_at), channel_accounts(id, external_account_id, provider, status)",
+      "id, organization_id, channel, last_inbound_at, reply_window_ends_at, contact_id, contacts(id, display_name, phone_normalized, source, created_at, last_interaction_at, avatar_path, profile_synced_at), channel_accounts(id, external_account_id, provider, status)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -124,6 +133,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
       source: data.contacts.source,
       createdAt: data.contacts.created_at,
       lastInteractionAt: data.contacts.last_interaction_at,
+      avatarUrl: contactAvatarUrl(data.contacts),
     },
     account: {
       id: data.channel_accounts.id,

@@ -6,6 +6,8 @@
  * - status: GET -> { connected, info: { Wid, Pushname } }.
  * - generate_qrcode: GET -> { qr (base64), status, error }.
  * - remove_session: GET -> disconnects the phone.
+ * - get_profile: POST { number } -> { name, pushname, imgUrl }. 400 for unknown numbers;
+ *   200 with no fields when the session holds nothing about the person.
  *
  * Messages (ChatPro Chat): https://sparks.chatpro.com.br, header instance-token.
  * - sessions/getOrCreateByNumber: POST { instanceId, number, provider } -> { id, ... }.
@@ -19,6 +21,7 @@
  */
 import type {
   ChannelProvider,
+  ContactProfile,
   DownloadedMedia,
   NormalizedEvent,
   ReplyWindow,
@@ -50,6 +53,8 @@ export interface ChatProStatus {
 const PAGE_SIZE = 100;
 const MAX_SESSIONS = 1_000;
 const MAX_MESSAGE_OFFSET = 100;
+const MAX_PHONE_DIGITS = 15;
+const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
 
 /** ChatPro Chat answered 429. It sends no Retry-After, so callers wait and try again. */
 export class ChatProRateLimitError extends Error {
@@ -225,6 +230,53 @@ export class ChatProChannelProvider implements ChannelProvider {
   async disconnect(instanceId: string): Promise<void> {
     const response = await this.call(instanceId, "remove_session");
     if (!response.ok) throw new Error(`ChatPro disconnect failed (${response.status})`);
+  }
+
+  /**
+   * Name and photo of a person. get_profile knows what the connected phone knows;
+   * the ChatPro Chat lead fills in what is missing. Privacy ids (no real number) are
+   * unknown to both.
+   */
+  async getContactProfile(instanceId: string, externalId: string): Promise<ContactProfile | null> {
+    if (externalId.length > MAX_PHONE_DIGITS) return null;
+
+    const response = await this.call(instanceId, "get_profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ number: externalId }),
+    });
+    if (response.status === 429) throw new ChatProRateLimitError();
+    const body: unknown = response.ok ? await response.json().catch(() => ({})) : {};
+    const profile = isObj(body) ? body : {};
+    const savedName = text(profile.name);
+    const publicName = text(profile.pushname) ?? text(profile.verifiedName);
+    const imageUrl = text(profile.imgUrl) ?? text(profile.eurl);
+    if (savedName && imageUrl) return { savedName, publicName, imageUrl };
+
+    const lead = this.options.chatToken
+      ? await this.chatJson("leads/findByPhoneNumber", { instanceId, phoneNumber: externalId })
+      : null;
+    if (lead?.status === 429) throw new ChatProRateLimitError();
+    const found = lead?.ok && isObj(lead.data) ? lead.data : {};
+    const merged = {
+      savedName: savedName ?? text(found.nome_personalizado) ?? text(found.contact_name),
+      publicName: publicName ?? text(found.name) ?? text(found.push_name),
+      imageUrl: imageUrl ?? text(found.eul),
+    };
+    return response.ok || lead?.ok ? merged : null;
+  }
+
+  /** Only WhatsApp's own image host: the address comes from a third party's response. */
+  async downloadContactPhoto(url: string): Promise<DownloadedMedia> {
+    const { protocol, hostname } = new URL(url);
+    if (protocol !== "https:" || !hostname.endsWith(".whatsapp.net")) throw new Error("Refusing photo from an unexpected host");
+    const file = await this.fetchImpl(url, { redirect: "error", signal: AbortSignal.timeout(15_000) });
+    if (!file.ok) throw new Error(`photo download failed (${file.status})`);
+    const mimeType = file.headers.get("content-type") ?? "";
+    if (!mimeType.startsWith("image/")) throw new Error("Photo is not an image");
+    const data = await file.arrayBuffer();
+    if (data.byteLength > MAX_PHOTO_BYTES) throw new Error("Photo is too large");
+    return { data, mimeType };
   }
 
   /** Webhooks carry a direct file URL as the media id. The instance token is not sent to that host. */

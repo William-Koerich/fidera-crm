@@ -20,7 +20,7 @@ export function ContactPanel({ conversation }: { conversation: ConversationDetai
   return (
     <div className="grid gap-6 p-5">
       <div className="flex flex-col items-center text-center">
-        <Avatar name={contact.name} phone={contact.phone} size="lg" />
+        <Avatar name={contact.name} phone={contact.phone} src={contact.avatarUrl} size="lg" />
         <h2 className="mt-3 text-base font-semibold">{name}</h2>
         {contact.phone ? <p className="text-sm text-text-muted tabular">{formatPhone(contact.phone)}</p> : null}
         <div className="mt-2">
