@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Icon } from "@/components/icons";
-import { Alert, Avatar, ButtonLink, EmptyState, Skeleton, TabLinks, cx } from "@/components/ui";
+import { Alert, Avatar, ButtonLink, EmptyState, Input, Skeleton, TabLinks, cx } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { getWhatsAppProviderName } from "@/lib/env";
 import { decodeCursor } from "@/lib/inbox/cursor";
@@ -11,7 +11,8 @@ import { WindowBadge } from "./window-badge";
 
 export function parseInboxParams(params: Record<string, string | string[] | undefined>) {
   return {
-    filter: (params.filter === "awaiting" || params.filter === "mine" ? params.filter : "all") as InboxFilter,
+    filter: (params.filter === "awaiting" || params.filter === "mine" || params.filter === "closed" ? params.filter : "all") as InboxFilter,
+    search: typeof params.q === "string" && params.q.trim().length >= 2 ? params.q.trim().slice(0, 100) : null,
     cursor: typeof params.cursor === "string" ? params.cursor : null,
   };
 }
@@ -47,15 +48,17 @@ export async function ConversationList({
   filter,
   cursor,
   activeId,
+  search,
 }: {
   organizationId: string;
   filter: InboxFilter;
   cursor: string | null;
   activeId?: string;
+  search?: string | null;
 }) {
   const user = await requireUser();
   const [{ items, nextCursor }, accounts] = await Promise.all([
-    listConversations({ organizationId, filter, cursor: decodeCursor(cursor), userId: user.id }),
+    listConversations({ organizationId, filter, cursor: decodeCursor(cursor), userId: user.id, search }),
     listChannelAccounts(organizationId),
   ]);
   const disconnected = accounts.find((a) => a.status === "disconnected");
@@ -68,14 +71,29 @@ export async function ConversationList({
 
       <div className="sticky top-14 z-10 border-b border-border bg-surface/95 px-4 pt-4 pb-3 backdrop-blur lg:top-0">
         <h1 className="text-xl font-semibold tracking-tight">Inbox</h1>
+        <form action="/inbox" role="search" className="mt-3">
+          <label htmlFor="inbox-search" className="sr-only">
+            Buscar por nome, número ou mensagem
+          </label>
+          <Input
+            id="inbox-search"
+            type="search"
+            name="q"
+            defaultValue={search ?? ""}
+            minLength={2}
+            maxLength={100}
+            placeholder="Buscar nome, número ou mensagem"
+          />
+        </form>
         <TabLinks
           className="mt-3"
           label="Filtrar conversas"
-          active={filter}
+          active={search ? "" : filter}
           items={[
             { key: "all", label: "Todas", href: hrefFor("all") },
             { key: "awaiting", label: "Sem resposta", href: hrefFor("awaiting") },
             { key: "mine", label: "Minhas", href: hrefFor("mine") },
+            { key: "closed", label: "Finalizadas", href: hrefFor("closed") },
           ]}
         />
       </div>
@@ -97,7 +115,9 @@ export async function ConversationList({
       ) : null}
 
       {items.length === 0 ? (
-        accounts.length === 0 ? (
+        search ? (
+          <EmptyState icon="message" title="Nada encontrado" description="Tente outro nome, número ou trecho da mensagem." />
+        ) : accounts.length === 0 ? (
           <EmptyState
             icon="plug"
             title="Conecte o WhatsApp para começar"
@@ -106,6 +126,8 @@ export async function ConversationList({
           />
         ) : filter === "awaiting" ? (
           <EmptyState icon="check" title="Tudo respondido" description="Ninguém está esperando resposta agora." />
+        ) : filter === "closed" ? (
+          <EmptyState icon="check" title="Nenhuma conversa finalizada" description="As conversas que a equipe finalizar aparecem aqui." />
         ) : filter === "mine" ? (
           <EmptyState
             icon="user"

@@ -33,7 +33,9 @@ import type {
   SendMessageInput,
   SendResult,
 } from "../types";
+import { findId, isObj, text, type Json } from "./json";
 import { parseChatProWebhook } from "./parse";
+import { ChatProTeamSync } from "./team";
 
 export const CHATPRO_API_URL = "https://oci.chatpro.com.br";
 export const CHATPRO_CHAT_URL = "https://sparks.chatpro.com.br";
@@ -74,16 +76,6 @@ export interface ChatProSession {
   leadId: string | null;
 }
 
-type Json = Record<string, unknown>;
-const isObj = (v: unknown): v is Json => typeof v === "object" && v !== null && !Array.isArray(v);
-const text = (v: unknown): string | null => (typeof v === "string" && v.length > 0 ? v : null);
-
-/** The id at the top of the body or under one of the usual wrappers. */
-function findId(body: Json): string | null {
-  const nested = [body.message, body.data, body.session, body.key, body.resposeMessage, body.responseMessage];
-  return text(body.id) ?? text(body.messageId) ?? text(body.message_id) ?? nested.map((n) => (isObj(n) ? text(n.id) : null)).find(Boolean) ?? null;
-}
-
 const sendError = (status: number, body: Json): SendResult => ({
   ok: false,
   errorCode: status === 401 ? "chatpro_unauthorized" : `http_${status}`,
@@ -98,12 +90,14 @@ export class ChatProChannelProvider implements ChannelProvider {
   private readonly baseUrl: string;
   private readonly chatBaseUrl: string;
   private readonly now: () => Date;
+  readonly team: ChatProTeamSync;
 
   constructor(private readonly options: ChatProOptions) {
     this.fetchImpl = options.fetch ?? fetch;
     this.baseUrl = (options.baseUrl ?? CHATPRO_API_URL).replace(/\/$/, "");
     this.chatBaseUrl = (options.chatBaseUrl ?? CHATPRO_CHAT_URL).replace(/\/$/, "");
     this.now = options.now ?? (() => new Date());
+    this.team = new ChatProTeamSync({ chatToken: options.chatToken, baseUrl: this.chatBaseUrl, fetch: this.fetchImpl });
   }
 
   parseWebhook(payload: unknown): NormalizedEvent[] {

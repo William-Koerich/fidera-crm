@@ -102,6 +102,15 @@ authentication: treat that address as a password. Replies are not limited to a
   own echoes never trigger them. Import the conversations before enabling the greeting:
   a contact with no conversation in the CRM counts as new.
 
+### Team inbox
+
+*Ajustes -> Atendimento* manages finishing reasons, departments and labels. The CRM is the
+record and mirrors each change on ChatPro Chat, with a notice on screen when ChatPro does not
+follow. Links to ChatPro records live in `external_id`. Finishing reasons and departments can
+be imported from ChatPro; labels cannot, since it has no route to list them. Its docs say
+`departments/create`, but the route that exists is `departments/createDepartment`. Internal
+notes are mirrored as session comments and never sent to the customer.
+
 ### Free testing with the Meta test number
 
 No payment method is needed for the developer app's test number.

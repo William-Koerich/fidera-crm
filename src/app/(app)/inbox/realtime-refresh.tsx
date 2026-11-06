@@ -13,7 +13,7 @@ export function RealtimeRefresh({
   filter,
   onChange,
 }: {
-  table: "conversations" | "messages";
+  table: "conversations" | "messages" | "conversation_notes";
   filter: string;
   onChange?: () => void;
 }) {

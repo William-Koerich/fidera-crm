@@ -121,7 +121,7 @@ async function deliver(
   }
   await supabase
     .from("conversations")
-    .update({ last_outbound_at: now.toISOString(), last_message_at: now.toISOString(), awaiting_reply: false, unread_count: 0 })
+    .update({ last_outbound_at: now.toISOString(), last_message_at: now.toISOString(), awaiting_reply: false, unread_count: 0, status: "open", closed_at: null, closed_by: null, ending_id: null })
     .eq("id", conversation.id);
 
   await recordSendUsage(admin, {

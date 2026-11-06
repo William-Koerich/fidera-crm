@@ -8,16 +8,23 @@ import { Avatar, Skeleton } from "@/components/ui";
 import { requireMembership } from "@/lib/auth";
 import { decodeCursor } from "@/lib/inbox/cursor";
 import { dayKey, formatDayLabel, formatPhone } from "@/lib/inbox/format";
-import { getConversation, listMessages, listTeamMembers } from "@/lib/inbox/queries";
+import {
+  getConversation,
+  listContactLabelIds,
+  listInboxOptions,
+  listMessages,
+  listNotes,
+  listTeamMembers,
+} from "@/lib/inbox/queries";
 import { listQuickReplies } from "@/lib/replies/queries";
 import { ConversationList, ListSkeleton, parseInboxParams } from "../conversation-list";
 import { RealtimeRefresh } from "../realtime-refresh";
 import { WindowBadge } from "../window-badge";
-import { AssigneeSelect } from "./assignee-select";
 import { Composer } from "./composer";
 import { ContactPanel } from "./contact-panel";
+import { ConversationBar } from "./conversation-bar";
 import { MarkRead } from "./mark-read";
-import { DaySeparator, MessageBubble } from "./message-parts";
+import { DaySeparator, MessageBubble, NoteBubble } from "./message-parts";
 import { ScrollToBottom } from "./scroll-to-bottom";
 
 export const metadata: Metadata = { title: "Conversa" };
@@ -76,23 +83,37 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
   if (!conversation) notFound();
 
   const before = typeof query.before === "string" ? decodeCursor(query.before) : null;
-  const [{ items, olderCursor }, quickReplies, members] = await Promise.all([
+  const [{ items, olderCursor }, quickReplies, members, options, contactLabelIds] = await Promise.all([
     listMessages(conversation.id, before),
     listQuickReplies(me.organizationId),
     listTeamMembers(conversation.organizationId),
+    listInboxOptions(conversation.organizationId),
+    listContactLabelIds(conversation.contact.id),
   ]);
+  const notes = await listNotes(
+    conversation.id,
+    olderCursor ? (items[0]?.occurred_at ?? null) : null,
+    before ? (items.at(-1)?.occurred_at ?? null) : null,
+  );
+  const authorOf = (id: string | null) => members.find((m) => m.id === id)?.email ?? "Ex-integrante da equipe";
+  const timeline = [
+    ...items.map((message) => ({ at: message.occurred_at, message, note: null })),
+    ...notes.map((note) => ({ at: note.createdAt, message: null, note })),
+  ].sort((a, b) => a.at.localeCompare(b.at));
   const { contact } = conversation;
   const title = contact.name || formatPhone(contact.phone) || "Contato";
   const windowOpen =
     !conversation.hasReplyWindow ||
     (conversation.replyWindowEndsAt ? new Date(conversation.replyWindowEndsAt) > new Date() : false);
-  const backHref = query.filter === "awaiting" || query.filter === "mine" ? `/inbox?filter=${query.filter}` : "/inbox";
+  const backHref =
+    query.filter === "awaiting" || query.filter === "mine" || query.filter === "closed" ? `/inbox?filter=${query.filter}` : "/inbox";
   const connected = conversation.account.status === "active";
 
   return (
     <>
       <div className="fixed inset-0 z-30 flex flex-col bg-background lg:static lg:z-auto lg:min-w-0 lg:flex-1">
         <RealtimeRefresh table="messages" filter={`conversation_id=eq.${conversation.id}`} />
+        <RealtimeRefresh table="conversation_notes" filter={`conversation_id=eq.${conversation.id}`} />
         <MarkRead conversationId={conversation.id} />
 
         <header className="flex min-h-16 items-center gap-2 border-b border-border bg-surface px-2 pt-[env(safe-area-inset-top)] sm:px-4">
@@ -119,12 +140,18 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
           </div>
         </header>
 
-        <AssigneeSelect
+        <ConversationBar
           key={conversation.id}
           conversationId={conversation.id}
+          status={conversation.status}
           assignedTo={conversation.assignedTo}
+          departmentId={conversation.departmentId}
+          contactLabelIds={contactLabelIds}
           members={members}
           currentUserId={me.user.id}
+          departments={options.departments}
+          endings={options.endings}
+          labels={options.labels}
         />
 
         <div className="flex-1 overflow-y-auto">
@@ -146,22 +173,23 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
               </Link>
             ) : null}
 
-            {items.length === 0 ? (
+            {timeline.length === 0 ? (
               <p className="py-10 text-center text-sm text-text-muted">Nenhuma mensagem nesta conversa ainda.</p>
             ) : null}
 
-            {items.map((m, i) => {
-              const day = dayKey(new Date(m.occurred_at));
-              const prev = items[i - 1];
-              const newDay = !prev || dayKey(new Date(prev.occurred_at)) !== day;
+            {timeline.map((entry, i) => {
+              const day = dayKey(new Date(entry.at));
+              const prev = timeline[i - 1];
+              const newDay = !prev || dayKey(new Date(prev.at)) !== day;
               return (
-                <Fragment key={m.id}>
-                  {newDay ? <DaySeparator label={formatDayLabel(m.occurred_at)} /> : null}
-                  <MessageBubble message={m} />
+                <Fragment key={entry.message?.id ?? entry.note?.id}>
+                  {newDay ? <DaySeparator label={formatDayLabel(entry.at)} /> : null}
+                  {entry.message ? <MessageBubble message={entry.message} /> : null}
+                  {entry.note ? <NoteBubble body={entry.note.body} at={entry.note.createdAt} author={authorOf(entry.note.authorId)} /> : null}
                 </Fragment>
               );
             })}
-            <ScrollToBottom token={items.at(-1)?.id} />
+            <ScrollToBottom token={timeline.at(-1)?.message?.id ?? timeline.at(-1)?.note?.id} />
           </div>
         </div>
 

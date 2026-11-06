@@ -33,9 +33,9 @@ export function AssigneeSelect({
   }
 
   return (
-    <div className="border-b border-border bg-surface px-3 py-2 sm:px-4">
+    <div>
       <div className="flex items-center gap-3">
-        <label htmlFor="conversation-assignee" className="shrink-0 text-sm text-text-muted">
+        <label htmlFor="conversation-assignee" className="w-24 shrink-0 text-sm text-text-muted">
           Responsável
         </label>
         <div className="min-w-0 flex-1 sm:max-w-xs">

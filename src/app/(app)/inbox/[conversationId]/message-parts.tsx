@@ -25,6 +25,19 @@ export function DaySeparator({ label }: { label: string }) {
   );
 }
 
+/** Seen only by the team: never sent to the customer. */
+export function NoteBubble({ body, at, author }: { body: string; at: string; author: string }) {
+  return (
+    <div className="mx-auto w-full max-w-[85%] rounded-xl border border-warning/30 bg-warning/10 px-3.5 py-2 text-[15px] leading-snug sm:max-w-[70%] sm:text-sm">
+      <p className="text-xs font-medium text-warning">Nota interna · o cliente não vê</p>
+      <p className="mt-0.5 whitespace-pre-wrap break-words">{body}</p>
+      <p className="mt-1 text-right text-[11px] text-text-muted">
+        {author} · <time dateTime={at}>{formatTime(at)}</time>
+      </p>
+    </div>
+  );
+}
+
 export function MessageBubble({ message: m }: { message: MessageItem }) {
   const outbound = m.direction === "outbound";
   const status = outbound ? STATUS[m.status] : undefined;

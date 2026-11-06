@@ -115,6 +115,28 @@ export interface SendMediaInput {
   idempotencyKey?: string;
 }
 
+/** A record on the provider's side. */
+export interface ExternalRecord {
+  id: string;
+  name: string;
+}
+
+/**
+ * Mirrors how the team organizes conversations on the provider's own system. The
+ * CRM is the record: these report failure instead of throwing.
+ */
+export interface ChannelTeamSync {
+  listEndings(accountExternalId: string): Promise<ExternalRecord[] | null>;
+  createEnding(accountExternalId: string, name: string): Promise<string | null>;
+  finishConversation(input: { accountExternalId: string; to: string; endingExternalId: string }): Promise<boolean>;
+  listDepartments(accountExternalId: string): Promise<ExternalRecord[] | null>;
+  createDepartment(accountExternalId: string, name: string): Promise<string | null>;
+  assignDepartment(input: { accountExternalId: string; to: string; departmentExternalId: string }): Promise<boolean>;
+  createLabel(accountExternalId: string, name: string, color: string): Promise<string | null>;
+  setContactLabel(input: { accountExternalId: string; to: string; labelExternalId: string; on: boolean }): Promise<boolean>;
+  addNote(input: { accountExternalId: string; to: string; body: string; authorEmail: string | null }): Promise<boolean>;
+}
+
 export type AssignResult = "assigned" | "no_matching_user" | "failed";
 
 export type SendResult =
@@ -159,6 +181,8 @@ export interface ChannelProvider {
    * people by e-mail. The CRM remains the record of who is responsible.
    */
   assignConversation?(input: { accountExternalId: string; to: string; assigneeEmail: string }): Promise<AssignResult>;
+  /** Absent when the provider has no team features to mirror. */
+  team?: ChannelTeamSync;
   /** Sends a file. Providers without it do not offer attachments in the inbox. */
   sendMedia?(input: SendMediaInput): Promise<SendResult>;
   getReplyWindow(conversation: ReplyWindowConversation, now?: Date): ReplyWindow;

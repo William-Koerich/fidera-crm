@@ -29,23 +29,53 @@ export type Database = {
         Update: { id?: string; organization_id?: string; contact_id?: string; channel?: Database["crm"]["Enums"]["channel"]; external_id?: string; phone_normalized?: string | null; profile_name?: string | null; created_at?: string; updated_at?: string };
         Relationships: [{ foreignKeyName: "contact_identities_organization_id_contact_id_fkey"; columns: ["organization_id", "contact_id"]; isOneToOne: false; referencedRelation: "contacts"; referencedColumns: ["organization_id", "id"] }];
       };
+      contact_labels: {
+        Row: { organization_id: string; contact_id: string; label_id: string; created_at: string };
+        Insert: { organization_id: string; contact_id: string; label_id: string; created_at?: string };
+        Update: { organization_id?: string; contact_id?: string; label_id?: string; created_at?: string };
+        Relationships: [{ foreignKeyName: "contact_labels_organization_id_contact_id_fkey"; columns: ["organization_id", "contact_id"]; isOneToOne: false; referencedRelation: "contacts"; referencedColumns: ["organization_id", "id"] }, { foreignKeyName: "contact_labels_organization_id_label_id_fkey"; columns: ["organization_id", "label_id"]; isOneToOne: false; referencedRelation: "labels"; referencedColumns: ["organization_id", "id"] }];
+      };
       contacts: {
         Row: { id: string; organization_id: string; display_name: string | null; phone_normalized: string | null; source: Database["crm"]["Enums"]["contact_source"]; source_detail: string | null; last_interaction_at: string | null; created_at: string; updated_at: string; avatar_path: string | null; profile_synced_at: string | null };
         Insert: { id?: string; organization_id: string; display_name?: string | null; phone_normalized?: string | null; source: Database["crm"]["Enums"]["contact_source"]; source_detail?: string | null; last_interaction_at?: string | null; created_at?: string; updated_at?: string; avatar_path?: string | null; profile_synced_at?: string | null };
         Update: { id?: string; organization_id?: string; display_name?: string | null; phone_normalized?: string | null; source?: Database["crm"]["Enums"]["contact_source"]; source_detail?: string | null; last_interaction_at?: string | null; created_at?: string; updated_at?: string; avatar_path?: string | null; profile_synced_at?: string | null };
         Relationships: [{ foreignKeyName: "contacts_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
+      conversation_notes: {
+        Row: { id: string; organization_id: string; conversation_id: string; author_id: string | null; body: string; created_at: string };
+        Insert: { id?: string; organization_id: string; conversation_id: string; author_id?: string | null; body: string; created_at?: string };
+        Update: { id?: string; organization_id?: string; conversation_id?: string; author_id?: string | null; body?: string; created_at?: string };
+        Relationships: [{ foreignKeyName: "conversation_notes_organization_id_conversation_id_fkey"; columns: ["organization_id", "conversation_id"]; isOneToOne: false; referencedRelation: "conversations"; referencedColumns: ["organization_id", "id"] }];
+      };
       conversations: {
-        Row: { id: string; organization_id: string; contact_id: string; channel_account_id: string; channel: Database["crm"]["Enums"]["channel"]; assigned_to: string | null; last_inbound_at: string | null; last_outbound_at: string | null; last_message_at: string | null; reply_window_ends_at: string | null; awaiting_reply: boolean; unread_count: number; created_at: string; updated_at: string; last_message_preview: string | null; greeted_at: string | null; last_away_reply_at: string | null };
-        Insert: { id?: string; organization_id: string; contact_id: string; channel_account_id: string; channel: Database["crm"]["Enums"]["channel"]; assigned_to?: string | null; last_inbound_at?: string | null; last_outbound_at?: string | null; last_message_at?: string | null; reply_window_ends_at?: string | null; awaiting_reply?: boolean; unread_count?: number; created_at?: string; updated_at?: string; last_message_preview?: string | null; greeted_at?: string | null; last_away_reply_at?: string | null };
-        Update: { id?: string; organization_id?: string; contact_id?: string; channel_account_id?: string; channel?: Database["crm"]["Enums"]["channel"]; assigned_to?: string | null; last_inbound_at?: string | null; last_outbound_at?: string | null; last_message_at?: string | null; reply_window_ends_at?: string | null; awaiting_reply?: boolean; unread_count?: number; created_at?: string; updated_at?: string; last_message_preview?: string | null; greeted_at?: string | null; last_away_reply_at?: string | null };
-        Relationships: [{ foreignKeyName: "conversations_organization_id_channel_account_id_fkey"; columns: ["organization_id", "channel_account_id"]; isOneToOne: false; referencedRelation: "channel_accounts"; referencedColumns: ["organization_id", "id"] }, { foreignKeyName: "conversations_organization_id_contact_id_fkey"; columns: ["organization_id", "contact_id"]; isOneToOne: false; referencedRelation: "contacts"; referencedColumns: ["organization_id", "id"] }];
+        Row: { id: string; organization_id: string; contact_id: string; channel_account_id: string; channel: Database["crm"]["Enums"]["channel"]; assigned_to: string | null; last_inbound_at: string | null; last_outbound_at: string | null; last_message_at: string | null; reply_window_ends_at: string | null; awaiting_reply: boolean; unread_count: number; created_at: string; updated_at: string; last_message_preview: string | null; greeted_at: string | null; last_away_reply_at: string | null; status: string; closed_at: string | null; closed_by: string | null; ending_id: string | null; department_id: string | null };
+        Insert: { id?: string; organization_id: string; contact_id: string; channel_account_id: string; channel: Database["crm"]["Enums"]["channel"]; assigned_to?: string | null; last_inbound_at?: string | null; last_outbound_at?: string | null; last_message_at?: string | null; reply_window_ends_at?: string | null; awaiting_reply?: boolean; unread_count?: number; created_at?: string; updated_at?: string; last_message_preview?: string | null; greeted_at?: string | null; last_away_reply_at?: string | null; status?: string; closed_at?: string | null; closed_by?: string | null; ending_id?: string | null; department_id?: string | null };
+        Update: { id?: string; organization_id?: string; contact_id?: string; channel_account_id?: string; channel?: Database["crm"]["Enums"]["channel"]; assigned_to?: string | null; last_inbound_at?: string | null; last_outbound_at?: string | null; last_message_at?: string | null; reply_window_ends_at?: string | null; awaiting_reply?: boolean; unread_count?: number; created_at?: string; updated_at?: string; last_message_preview?: string | null; greeted_at?: string | null; last_away_reply_at?: string | null; status?: string; closed_at?: string | null; closed_by?: string | null; ending_id?: string | null; department_id?: string | null };
+        Relationships: [{ foreignKeyName: "conversations_organization_id_channel_account_id_fkey"; columns: ["organization_id", "channel_account_id"]; isOneToOne: false; referencedRelation: "channel_accounts"; referencedColumns: ["organization_id", "id"] }, { foreignKeyName: "conversations_organization_id_contact_id_fkey"; columns: ["organization_id", "contact_id"]; isOneToOne: false; referencedRelation: "contacts"; referencedColumns: ["organization_id", "id"] }, { foreignKeyName: "conversations_organization_id_department_id_fkey"; columns: ["organization_id", "department_id"]; isOneToOne: false; referencedRelation: "departments"; referencedColumns: ["organization_id", "id"] }, { foreignKeyName: "conversations_organization_id_ending_id_fkey"; columns: ["organization_id", "ending_id"]; isOneToOne: false; referencedRelation: "ending_reasons"; referencedColumns: ["organization_id", "id"] }];
+      };
+      departments: {
+        Row: { id: string; organization_id: string; name: string; external_id: string | null; created_at: string };
+        Insert: { id?: string; organization_id: string; name: string; external_id?: string | null; created_at?: string };
+        Update: { id?: string; organization_id?: string; name?: string; external_id?: string | null; created_at?: string };
+        Relationships: [{ foreignKeyName: "departments_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
+      };
+      ending_reasons: {
+        Row: { id: string; organization_id: string; name: string; external_id: string | null; created_at: string };
+        Insert: { id?: string; organization_id: string; name: string; external_id?: string | null; created_at?: string };
+        Update: { id?: string; organization_id?: string; name?: string; external_id?: string | null; created_at?: string };
+        Relationships: [{ foreignKeyName: "ending_reasons_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
       invitations: {
         Row: { id: string; organization_id: string; email: string; role: Database["crm"]["Enums"]["membership_role"]; token_hash: string; invited_by: string | null; expires_at: string; accepted_at: string | null; accepted_by: string | null; created_at: string };
         Insert: { id?: string; organization_id: string; email: string; role?: Database["crm"]["Enums"]["membership_role"]; token_hash: string; invited_by?: string | null; expires_at?: string; accepted_at?: string | null; accepted_by?: string | null; created_at?: string };
         Update: { id?: string; organization_id?: string; email?: string; role?: Database["crm"]["Enums"]["membership_role"]; token_hash?: string; invited_by?: string | null; expires_at?: string; accepted_at?: string | null; accepted_by?: string | null; created_at?: string };
         Relationships: [{ foreignKeyName: "invitations_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
+      };
+      labels: {
+        Row: { id: string; organization_id: string; name: string; color: string; external_id: string | null; created_at: string };
+        Insert: { id?: string; organization_id: string; name: string; color: string; external_id?: string | null; created_at?: string };
+        Update: { id?: string; organization_id?: string; name?: string; color?: string; external_id?: string | null; created_at?: string };
+        Relationships: [{ foreignKeyName: "labels_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
       memberships: {
         Row: { organization_id: string; user_id: string; role: Database["crm"]["Enums"]["membership_role"]; created_at: string };
@@ -93,6 +123,7 @@ export type Database = {
       get_channel_token: { Args: { p_provider: Database["crm"]["Enums"]["channel_provider"]; p_external_account_id: string }; Returns: string };
       ingest_events: { Args: { p_provider: Database["crm"]["Enums"]["channel_provider"]; p_events: Json }; Returns: Json };
       list_members: { Args: { org_id: string }; Returns: { user_id: string; email: string; role: Database["crm"]["Enums"]["membership_role"]; created_at: string }[] };
+      search_conversations: { Args: { p_org: string; p_query: string; p_limit?: number }; Returns: string[] };
       set_channel_token: { Args: { p_account_id: string; p_token: string }; Returns: undefined };
     };
     Enums: {

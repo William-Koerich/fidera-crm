@@ -8,6 +8,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { ATTACHMENT_ACCEPT, attachmentProblem } from "@/lib/inbox/attachments";
 import { filterQuickReplies, slashQuery, type QuickReply } from "@/lib/replies/quick-replies";
 import { getBrowserClient } from "@/lib/supabase/client";
+import { addNoteAction } from "../team-actions";
 import { prepareAttachmentAction, sendAttachmentAction, sendReplyAction, type ComposerState } from "../actions";
 
 const LIST_ID = "composer-quick-replies";
@@ -38,9 +39,10 @@ export function Composer({
   const [fileError, setFileError] = useState<string | null>(null);
   const [sendingFile, startSendingFile] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [noteMode, setNoteMode] = useState(false);
   const busy = pending || sendingFile;
 
-  const query = slashQuery(text);
+  const query = noteMode ? null : slashQuery(text);
   const matches = query === null || dismissed ? [] : filterQuickReplies(quickReplies, query);
   const open = matches.length > 0;
   const active = Math.min(highlight, matches.length - 1);
@@ -95,10 +97,32 @@ export function Composer({
     });
   }
 
+  function submitNote() {
+    setFileError(null);
+    startSendingFile(async () => {
+      const result = await addNoteAction(conversationId, text).catch(() => null);
+      if (!result) {
+        setFileError("Não foi possível salvar a nota. Tente de novo.");
+        return;
+      }
+      if (result.status === "error") {
+        setFileError(result.notice ?? "Não foi possível salvar a nota. Tente de novo.");
+        return;
+      }
+      setText("");
+      setFileError(result.notice ?? null);
+      inputRef.current?.focus();
+    });
+  }
+
   function onSubmit(e: FormEvent<HTMLFormElement>) {
-    if (!file) return;
-    e.preventDefault();
-    submitFile(file);
+    if (noteMode) {
+      e.preventDefault();
+      submitNote();
+    } else if (file) {
+      e.preventDefault();
+      submitFile(file);
+    }
   }
 
   function choose(reply: QuickReply) {
@@ -174,8 +198,15 @@ export function Composer({
             ))}
           </ul>
         ) : null}
-        <div className="flex items-end gap-1 rounded-2xl border border-border bg-surface p-1.5 pl-3.5 shadow-xs focus-within:border-info focus-within:ring-3 focus-within:ring-info/15">
-          {canSendFiles ? (
+        <div
+          className={cx(
+            "flex items-end gap-1 rounded-2xl border p-1.5 pl-3.5 shadow-xs focus-within:ring-3",
+            noteMode
+              ? "border-warning/40 bg-warning/10 focus-within:border-warning focus-within:ring-warning/15"
+              : "border-border bg-surface focus-within:border-info focus-within:ring-info/15",
+          )}
+        >
+          {canSendFiles && !noteMode ? (
             <>
               <input
                 ref={fileRef}
@@ -207,7 +238,7 @@ export function Composer({
             name="body"
             rows={1}
             maxLength={4096}
-            required={!file}
+            required={!file || noteMode}
             value={text}
             onChange={(e) => {
               setText(e.target.value);
@@ -219,7 +250,7 @@ export function Composer({
             aria-controls={LIST_ID}
             aria-autocomplete="list"
             aria-activedescendant={open ? `${LIST_ID}-${matches[active]!.id}` : undefined}
-            placeholder={file ? "Escreva uma legenda (opcional)" : "Escreva uma resposta"}
+            placeholder={noteMode ? "Nota para a equipe. O cliente não vê." : file ? "Escreva uma legenda (opcional)" : "Escreva uma resposta"}
             aria-describedby="composer-hint"
             className="max-h-40 min-h-9 flex-1 resize-none bg-transparent py-2 text-base text-text [field-sizing:content] placeholder:text-text-muted/70 focus:outline-none sm:text-sm"
             onKeyDown={onKeyDown}
@@ -227,17 +258,31 @@ export function Composer({
           <button
             type="submit"
             disabled={busy}
-            aria-label={file ? "Enviar arquivo" : "Enviar mensagem"}
+            aria-label={noteMode ? "Salvar nota" : file ? "Enviar arquivo" : "Enviar mensagem"}
             className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand text-white transition-colors hover:bg-brand-hover disabled:opacity-60 sm:size-10"
           >
             {busy ? <Spinner className="size-4" /> : <Icon name="send" className="size-[18px]" />}
           </button>
         </div>
       </div>
-      <p id="composer-hint" className="hidden px-1 text-xs text-text-muted sm:block">
-        Ctrl + Enter para enviar.{quickReplies.length > 0 ? " Digite / para respostas rápidas." : ""} A mensagem sai pelo
-        número conectado.
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 px-1">
+        <p id="composer-hint" className="hidden text-xs text-text-muted sm:block">
+          {noteMode ? "Ctrl + Enter para salvar. Só a equipe vê." : `Ctrl + Enter para enviar.${quickReplies.length > 0 ? " Digite / para respostas rápidas." : ""}`}
+        </p>
+        <button
+          type="button"
+          aria-pressed={noteMode}
+          onClick={() => {
+            setNoteMode((on) => !on);
+            setFile(null);
+            setFileError(null);
+            inputRef.current?.focus();
+          }}
+          className="ml-auto inline-flex min-h-11 items-center text-sm font-medium text-info hover:underline sm:min-h-0"
+        >
+          {noteMode ? "Voltar para mensagem" : "Nota interna"}
+        </button>
+      </div>
     </form>
   );
 }

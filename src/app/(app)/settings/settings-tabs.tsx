@@ -7,6 +7,7 @@ import { TabLinks } from "@/components/ui/layout";
 const TABS = [
   { key: "canais", label: "Canais", href: "/settings/canais" },
   { key: "respostas", label: "Respostas", href: "/settings/respostas" },
+  { key: "atendimento", label: "Atendimento", href: "/settings/atendimento" },
   { key: "equipe", label: "Equipe", href: "/settings/equipe" },
   { key: "conta", label: "Minha conta", href: "/settings/conta" },
 ];

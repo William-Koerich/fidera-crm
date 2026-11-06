@@ -10,7 +10,7 @@ import { afterCursorFilter, encodeCursor, type Cursor } from "./cursor";
 export const CONVERSATIONS_PAGE_SIZE = 30;
 export const MESSAGES_PAGE_SIZE = 50;
 
-export type InboxFilter = "all" | "awaiting" | "mine";
+export type InboxFilter = "all" | "awaiting" | "mine" | "closed";
 
 export interface ConversationListItem {
   id: string;
@@ -40,6 +40,8 @@ export async function listConversations(opts: {
   cursor: Cursor | null;
   /** The signed-in person, for the "mine" filter. */
   userId: string;
+  /** Search text: looks through open and finished conversations alike. */
+  search?: string | null;
 }): Promise<{ items: ConversationListItem[]; nextCursor: string | null }> {
   const supabase = await createClient();
   let query = supabase
@@ -53,6 +55,16 @@ export async function listConversations(opts: {
     .order("id", { ascending: false })
     .limit(CONVERSATIONS_PAGE_SIZE + 1);
 
+  if (opts.search) {
+    const { data: ids, error: searchError } = await supabase.rpc("search_conversations", {
+      p_org: opts.organizationId,
+      p_query: opts.search,
+    });
+    if (searchError) throw new Error("Could not search conversations");
+    query = query.in("id", (ids ?? []) as unknown as string[]);
+  } else {
+    query = query.eq("status", opts.filter === "closed" ? "closed" : "open");
+  }
   if (opts.filter === "awaiting") query = query.eq("awaiting_reply", true);
   if (opts.filter === "mine") query = query.eq("assigned_to", opts.userId);
   if (opts.cursor) query = query.or(afterCursorFilter("last_message_at", opts.cursor));
@@ -93,6 +105,8 @@ export interface ConversationDetail {
   hasReplyWindow: boolean;
   /** Team member responsible for this conversation. */
   assignedTo: string | null;
+  status: "open" | "closed";
+  departmentId: string | null;
   /** Whether this channel's provider sends files. */
   canSendFiles: boolean;
   contact: {
@@ -114,7 +128,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   const { data, error } = await supabase
     .from("conversations")
     .select(
-      "id, organization_id, channel, assigned_to, last_inbound_at, reply_window_ends_at, contact_id, contacts(id, display_name, phone_normalized, source, created_at, last_interaction_at, avatar_path, profile_synced_at), channel_accounts(id, external_account_id, provider, status)",
+      "id, organization_id, channel, assigned_to, status, department_id, last_inbound_at, reply_window_ends_at, contact_id, contacts(id, display_name, phone_normalized, source, created_at, last_interaction_at, avatar_path, profile_synced_at), channel_accounts(id, external_account_id, provider, status)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -137,6 +151,8 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     replyWindowEndsAt: data.channel_accounts.provider === "chatpro" ? null : data.reply_window_ends_at,
     hasReplyWindow: data.channel_accounts.provider !== "chatpro",
     assignedTo: data.assigned_to,
+    status: data.status === "closed" ? "closed" : "open",
+    departmentId: data.department_id,
     canSendFiles: !!getProviderByName(data.channel_accounts.provider).sendMedia,
     contact: {
       id: data.contacts.id,
@@ -167,6 +183,64 @@ export async function listTeamMembers(organizationId: string): Promise<TeamMembe
   const { data, error } = await supabase.rpc("list_members", { org_id: organizationId });
   if (error) throw new Error(`Could not load the team (${error.code})`);
   return data.map((m) => ({ id: m.user_id, email: m.email }));
+}
+
+export interface InboxOption {
+  id: string;
+  name: string;
+  /** The provider's id for this record, when it exists there. */
+  externalId: string | null;
+  color?: string;
+}
+
+/** What the team can choose from while handling a conversation. RLS applies. */
+export async function listInboxOptions(organizationId: string): Promise<{
+  endings: InboxOption[];
+  departments: InboxOption[];
+  labels: InboxOption[];
+}> {
+  const supabase = await createClient();
+  const [endings, departments, labels] = await Promise.all([
+    supabase.from("ending_reasons").select("id, name, external_id").eq("organization_id", organizationId).order("name"),
+    supabase.from("departments").select("id, name, external_id").eq("organization_id", organizationId).order("name"),
+    supabase.from("labels").select("id, name, external_id, color").eq("organization_id", organizationId).order("name"),
+  ]);
+  if (endings.error || departments.error || labels.error) throw new Error("Could not load the inbox options");
+  const option = (r: { id: string; name: string; external_id: string | null }): InboxOption => ({
+    id: r.id,
+    name: r.name,
+    externalId: r.external_id,
+  });
+  return {
+    endings: endings.data.map(option),
+    departments: departments.data.map(option),
+    labels: labels.data.map((r) => ({ ...option(r), color: r.color })),
+  };
+}
+
+export async function listContactLabelIds(contactId: string): Promise<string[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("contact_labels").select("label_id").eq("contact_id", contactId);
+  if (error) throw new Error("Could not load the contact's labels");
+  return data.map((l) => l.label_id);
+}
+
+export interface NoteItem {
+  id: string;
+  body: string;
+  createdAt: string;
+  authorId: string | null;
+}
+
+/** Notes in the same period as the messages on screen, so paging keeps them in place. */
+export async function listNotes(conversationId: string, from: string | null, to: string | null): Promise<NoteItem[]> {
+  const supabase = await createClient();
+  let query = supabase.from("conversation_notes").select("id, body, created_at, author_id").eq("conversation_id", conversationId);
+  if (from) query = query.gte("created_at", from);
+  if (to) query = query.lte("created_at", to);
+  const { data, error } = await query.order("created_at").limit(200);
+  if (error) throw new Error("Could not load the notes");
+  return data.map((n) => ({ id: n.id, body: n.body, createdAt: n.created_at, authorId: n.author_id }));
 }
 
 export type MessageItem = Pick<
