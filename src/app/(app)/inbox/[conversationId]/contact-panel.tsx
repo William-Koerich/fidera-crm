@@ -1,5 +1,5 @@
-import { Avatar, ButtonAnchor, DescriptionList } from "@/components/ui";
-import { formatDate, formatPhone, formatShortDate, whatsAppLink } from "@/lib/inbox/format";
+import { Avatar, DescriptionList } from "@/components/ui";
+import { formatDate, formatPhone, formatShortDate } from "@/lib/inbox/format";
 import type { ConversationDetail } from "@/lib/inbox/queries";
 import { WindowBadge } from "../window-badge";
 
@@ -39,12 +39,6 @@ export function ContactPanel({ conversation }: { conversation: ConversationDetai
           },
         ]}
       />
-
-      {contact.phone && conversation.channel === "whatsapp" ? (
-        <ButtonAnchor href={whatsAppLink(contact.phone)} variant="secondary" block>
-          Abrir no WhatsApp
-        </ButtonAnchor>
-      ) : null}
 
       <p className="text-xs text-text-muted">
         Visitas, serviços e lembretes de retorno deste cliente vão aparecer aqui quando esses recursos forem lançados.

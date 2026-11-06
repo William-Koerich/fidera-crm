@@ -4,10 +4,10 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Fragment, Suspense } from "react";
 import { Icon } from "@/components/icons";
-import { Avatar, ButtonAnchor, Skeleton } from "@/components/ui";
+import { Avatar, Skeleton } from "@/components/ui";
 import { requireMembership } from "@/lib/auth";
 import { decodeCursor } from "@/lib/inbox/cursor";
-import { dayKey, formatDayLabel, formatPhone, whatsAppLink } from "@/lib/inbox/format";
+import { dayKey, formatDayLabel, formatPhone } from "@/lib/inbox/format";
 import { getConversation, listMessages } from "@/lib/inbox/queries";
 import { ConversationList, ListSkeleton, parseInboxParams } from "../conversation-list";
 import { RealtimeRefresh } from "../realtime-refresh";
@@ -154,19 +154,11 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
             {windowOpen && connected ? (
               <Composer conversationId={conversation.id} />
             ) : (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <p className="flex-1 text-sm text-text-muted">
-                  {!connected
-                    ? "O WhatsApp está desconectado. Reconecte em Ajustes para responder por aqui."
-                    : "A janela de 24h fechou. Responda pelo WhatsApp do celular: é gratuito e a mensagem aparece aqui."}
-                </p>
-                {contact.phone && conversation.channel === "whatsapp" ? (
-                  <ButtonAnchor href={whatsAppLink(contact.phone)} className="shrink-0">
-                    <Icon name="external" className="size-4" />
-                    Abrir no WhatsApp
-                  </ButtonAnchor>
-                ) : null}
-              </div>
+              <p className="text-sm text-text-muted">
+                {!connected
+                  ? "O WhatsApp está desconectado. Reconecte em Ajustes para responder por aqui."
+                  : "A janela de 24h fechou. Você poderá responder quando o cliente mandar uma nova mensagem."}
+              </p>
             )}
           </div>
         </footer>

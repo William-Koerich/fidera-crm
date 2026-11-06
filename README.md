@@ -70,16 +70,31 @@ No payment method is needed for the developer app's test number.
    META_WHATSAPP_TOKEN=...            # access token (temporary or system user)
    META_APP_SECRET=...                # App settings -> Basic -> App secret
    WHATSAPP_WEBHOOK_VERIFY_TOKEN=...  # any random string
-   META_TEST_PHONE_NUMBER_ID=...
-   META_TEST_WABA_ID=...
-   META_TEST_DISPLAY_PHONE=+1 555 ...
+   META_PHONE_NUMBER_ID=...
+   META_WABA_ID=...
+   META_DISPLAY_PHONE=+1 555 ...
    ```
 3. Expose the app over https (deploy to Vercel, or a free tunnel such as
    `cloudflared tunnel --url http://localhost:3000`) and, in *WhatsApp →
    Configuration*, set the callback URL to `https://<host>/api/webhooks/whatsapp`
    with the same verify token. Subscribe to the `messages` field.
-4. In the app: *Ajustes → Canais → Conectar número de teste*.
+4. In the app: *Ajustes → Canais → Conectar número*.
 5. From one of the verified phones, send a message to the test number. It shows
    up in the inbox and opens the 24h window, so you can reply from the app.
+
+### Real number on Cloud API (no WhatsApp app on the phone)
+
+The number lives only on Cloud API and replies go out through Fidera. Use a
+number that is not in the regular WhatsApp app. Numbers are registered without
+coexistence, which needs a Meta Tech Provider or Solution Partner.
+
+1. In WhatsApp Manager, add the number and verify it with the SMS or voice code.
+2. Create a system user token and fill in the variables above with the real
+   number's IDs.
+3. Register the number and subscribe the app (run once):
+   `META_REGISTER_PIN=<6 digits> npm run meta:setup`
+4. Set the webhook as in step 3 above, then connect it in *Ajustes → Canais*.
+
+Replies only work inside the 24h window: template messages are not implemented yet.
 
 Channel tokens can also be stored per account in Supabase Vault (`crm.set_channel_token`).

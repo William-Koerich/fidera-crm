@@ -25,7 +25,7 @@ export function OnboardingForm() {
         Continuar
       </Button>
       <p className="text-sm text-text-muted">
-        No próximo passo você conecta o WhatsApp Business. Nada muda no seu celular até você confirmar.
+        No próximo passo você conecta o número de WhatsApp do negócio.
       </p>
     </form>
   );

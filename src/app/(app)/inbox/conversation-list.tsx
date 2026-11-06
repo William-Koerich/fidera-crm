@@ -98,7 +98,7 @@ export async function ConversationList({
           <EmptyState
             icon="plug"
             title="Conecte o WhatsApp para começar"
-            description="As conversas dos seus clientes aparecem aqui assim que o número estiver conectado. Você continua usando o WhatsApp Business no celular."
+            description="As conversas dos seus clientes aparecem aqui assim que o número estiver conectado."
             action={<ButtonLink href="/settings/canais">Conectar WhatsApp</ButtonLink>}
           />
         ) : filter === "awaiting" ? (

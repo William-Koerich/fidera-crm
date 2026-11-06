@@ -40,15 +40,15 @@ export async function connectMockChannelAction(): Promise<void> {
 }
 
 /**
- * WHATSAPP_PROVIDER=meta: links the free Meta test number (configured in env)
- * to this business. The access token stays in META_WHATSAPP_TOKEN on the
- * server (or in Vault later), never in the browser.
+ * WHATSAPP_PROVIDER=meta: links the number configured in env (real or the Meta
+ * test number) to this business. The access token stays in META_WHATSAPP_TOKEN
+ * on the server (or in Vault later), never in the browser.
  */
-export async function connectMetaTestNumberAction(): Promise<void> {
+export async function connectMetaNumberAction(): Promise<void> {
   const me = await requireManager();
   if (getWhatsAppProviderName() !== "meta") return;
-  const phoneNumberId = process.env.META_TEST_PHONE_NUMBER_ID;
-  if (!phoneNumberId) throw new Error("Missing META_TEST_PHONE_NUMBER_ID.");
+  const phoneNumberId = process.env.META_PHONE_NUMBER_ID;
+  if (!phoneNumberId) throw new Error("Missing META_PHONE_NUMBER_ID.");
   await createAdminClient()
     .from("channel_accounts")
     .upsert(
@@ -57,9 +57,9 @@ export async function connectMetaTestNumberAction(): Promise<void> {
         channel: "whatsapp",
         provider: "meta",
         external_account_id: phoneNumberId,
-        external_business_id: process.env.META_TEST_WABA_ID ?? null,
-        display_name: "Número de teste da Meta",
-        display_phone: process.env.META_TEST_DISPLAY_PHONE ?? null,
+        external_business_id: process.env.META_WABA_ID ?? null,
+        display_name: "WhatsApp do negócio",
+        display_phone: process.env.META_DISPLAY_PHONE ?? null,
         status: "active",
         disconnected_reason: null,
         connected_at: new Date().toISOString(),

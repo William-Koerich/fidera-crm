@@ -16,8 +16,8 @@ const POINTS: { icon: IconName; title: string; text: string }[] = [
   },
   {
     icon: "phone",
-    title: "Continue usando o seu celular",
-    text: "O WhatsApp Business segue funcionando no celular. O que você responde por lá também aparece aqui.",
+    title: "Responda de qualquer aparelho",
+    text: "O número do negócio fica na API oficial do WhatsApp, e a equipe responde por aqui, sem depender de um único celular.",
   },
 ];
 

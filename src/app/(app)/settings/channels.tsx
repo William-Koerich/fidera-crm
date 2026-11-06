@@ -3,7 +3,7 @@ import { Alert, Badge, Button, Panel, type Tone } from "@/components/ui";
 import { canManage, requireMembership } from "@/lib/auth";
 import { getWhatsAppProviderName } from "@/lib/env";
 import { listChannelAccounts } from "@/lib/inbox/queries";
-import { connectMetaTestNumberAction, connectMockChannelAction } from "./channel-actions";
+import { connectMetaNumberAction, connectMockChannelAction } from "./channel-actions";
 
 const STATUS: Record<string, { label: string; tone: Tone }> = {
   pending: { label: "Conectando", tone: "info" },
@@ -56,8 +56,8 @@ export async function Channels() {
 
         {disconnected ? (
           <Alert tone="warning" title="A conexão foi removida">
-            Mensagens novas não chegam até você reconectar. Isso acontece quando o número é desconectado no celular ou
-            fica muito tempo sem uso. As conversas antigas continuam salvas.
+            Mensagens novas não chegam até você reconectar. Isso acontece quando o acesso à API da Meta expira ou o
+            número é removido da conta. As conversas antigas continuam salvas.
           </Alert>
         ) : null}
 
@@ -76,15 +76,15 @@ export async function Channels() {
             </div>
           </form>
         ) : (
-          <form action={connectMetaTestNumberAction} className="grid gap-2 rounded-lg bg-background p-4">
-            <p className="text-sm font-medium">Número de teste da Meta</p>
+          <form action={connectMetaNumberAction} className="grid gap-2 rounded-lg bg-background p-4">
+            <p className="text-sm font-medium">Número configurado na Meta</p>
             <p className="text-sm text-text-muted">
-              Usa o número gratuito do seu app de desenvolvedor da Meta (configurado no servidor). Ele conversa com até 5
-              números que você verificar no painel da Meta.
+              Liga a este negócio o número configurado no servidor. Ele funciona só pela API oficial: não fica em nenhum app
+              WhatsApp no celular, e as respostas saem por aqui.
             </p>
             <div>
               <Button type="submit" variant={accounts.length === 0 ? "primary" : "secondary"}>
-                {accounts.some((a) => a.provider === "meta") ? "Atualizar número de teste" : "Conectar número de teste"}
+                {accounts.some((a) => a.provider === "meta") ? "Atualizar número" : "Conectar número"}
               </Button>
             </div>
           </form>
