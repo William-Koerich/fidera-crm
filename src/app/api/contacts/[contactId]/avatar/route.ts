@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { isStoragePathOf } from "@/lib/inbox/attachments";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { MEDIA_BUCKET } from "@/lib/webhooks/media";
 
@@ -10,8 +11,10 @@ import { MEDIA_BUCKET } from "@/lib/webhooks/media";
 export async function GET(_request: NextRequest, { params }: RouteContext<"/api/contacts/[contactId]/avatar">) {
   const { contactId } = await params;
   const supabase = await createClient();
-  const { data: contact } = await supabase.from("contacts").select("avatar_path").eq("id", contactId).maybeSingle();
-  if (!contact?.avatar_path) return new Response(null, { status: 404 });
+  const { data: contact } = await supabase.from("contacts").select("avatar_path, organization_id").eq("id", contactId).maybeSingle();
+  if (!contact?.avatar_path || !isStoragePathOf(contact.avatar_path, contact.organization_id)) {
+    return new Response(null, { status: 404 });
+  }
 
   const { data: file } = await createAdminClient().storage.from(MEDIA_BUCKET).download(contact.avatar_path);
   if (!file) return new Response(null, { status: 404 });

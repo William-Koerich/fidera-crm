@@ -104,6 +104,17 @@ export interface SendMessageInput {
   idempotencyKey?: string;
 }
 
+export interface SendMediaInput {
+  channel: Channel;
+  accountExternalId: string;
+  to: string;
+  /** Address the provider downloads the file from. */
+  url: string;
+  mimeType: string;
+  caption?: string;
+  idempotencyKey?: string;
+}
+
 export type SendResult =
   | { ok: true; externalMessageId: string; acceptedAt: Date }
   | { ok: false; errorCode: string; errorMessage: string; retryable: boolean };
@@ -141,6 +152,8 @@ export interface ChannelProvider {
   readonly name: "mock" | "meta" | "chatpro";
   parseWebhook(payload: unknown): NormalizedEvent[];
   sendMessage(input: SendMessageInput): Promise<SendResult>;
+  /** Sends a file. Providers without it do not offer attachments in the inbox. */
+  sendMedia?(input: SendMediaInput): Promise<SendResult>;
   getReplyWindow(conversation: ReplyWindowConversation, now?: Date): ReplyWindow;
   /** Downloads inbound media by the channel's media id (when supported). */
   downloadMedia?(input: { accountExternalId: string; mediaId: string }): Promise<DownloadedMedia>;

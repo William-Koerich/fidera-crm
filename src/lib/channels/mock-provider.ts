@@ -5,6 +5,7 @@ import type {
   NormalizedEvent,
   ReplyWindow,
   ReplyWindowConversation,
+  SendMediaInput,
   SendMessageInput,
   SendResult,
 } from "./types";
@@ -28,6 +29,7 @@ export interface MockChannelProviderOptions extends ReplyWindowOptions {
 export class MockChannelProvider implements ChannelProvider {
   readonly name = "mock" as const;
   readonly sent: SentMockMessage[] = [];
+  readonly sentMedia: SendMediaInput[] = [];
   private nextFailure: { errorCode: string; errorMessage: string; retryable: boolean } | null = null;
   private readonly now: () => Date;
 
@@ -55,6 +57,16 @@ export class MockChannelProvider implements ChannelProvider {
     };
     this.sent.push(sent);
     return { ok: true, externalMessageId: sent.externalMessageId, acceptedAt: sent.acceptedAt };
+  }
+
+  async sendMedia(input: SendMediaInput): Promise<SendResult> {
+    if (this.nextFailure) {
+      const failure = this.nextFailure;
+      this.nextFailure = null;
+      return { ok: false, ...failure };
+    }
+    this.sentMedia.push(input);
+    return { ok: true, externalMessageId: `mock.${randomUUID()}`, acceptedAt: this.now() };
   }
 
   getReplyWindow(conversation: ReplyWindowConversation, now: Date = this.now()): ReplyWindow {

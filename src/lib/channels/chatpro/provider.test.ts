@@ -52,6 +52,34 @@ describe("ChatProChannelProvider", () => {
     });
   });
 
+  it("sends a file by address inside the session, with its caption", async () => {
+    const fetchMock = sendFlow(json(201, { id: "3EB1" }));
+    const result = await provider(fetchMock).sendMedia({
+      channel: "whatsapp",
+      accountExternalId: "chatpro-abc",
+      to: "5511999999999",
+      url: "https://files.example/a.jpg?token=x",
+      mimeType: "image/jpeg",
+      caption: "Olha o corte",
+    });
+    expect(result).toMatchObject({ ok: true, externalMessageId: "3EB1" });
+    const [url, init] = fetchMock.mock.calls[1]!;
+    expect(url).toBe("https://sparks.chatpro.com.br/messages/sendFileFromUrl");
+    expect(JSON.parse(String(init?.body))).toEqual({
+      instanceId: "chatpro-abc",
+      provider: "whatsapp",
+      sessionId: "session-1",
+      url: "https://files.example/a.jpg?token=x",
+      caption: "Olha o corte",
+    });
+  });
+
+  it("leaves the caption out when there is none", async () => {
+    const fetchMock = sendFlow(json(201, { id: "3EB2" }));
+    await provider(fetchMock).sendMedia({ channel: "whatsapp", accountExternalId: "i", to: "5511", url: "https://f/a", mimeType: "image/png" });
+    expect(JSON.parse(String(fetchMock.mock.calls[1]![1]?.body))).not.toHaveProperty("caption");
+  });
+
   it("does not send when the session cannot be opened", async () => {
     const fetchMock = vi.fn<typeof fetch>(async () => json(201, {}));
     expect(await provider(fetchMock).sendMessage(input)).toMatchObject({ ok: false, errorCode: "chatpro_no_session" });

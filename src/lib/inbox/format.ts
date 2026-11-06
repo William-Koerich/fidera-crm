@@ -1,3 +1,25 @@
+const MEDIA_LABELS: Record<string, string> = {
+  image: "Imagem",
+  audio: "Áudio",
+  video: "Vídeo",
+  document: "Documento",
+  sticker: "Figurinha",
+  location: "Localização",
+  contacts: "Contato",
+  reaction: "Reação",
+  template: "Modelo",
+  interactive: "Mensagem interativa",
+  unsupported: "Mensagem",
+};
+
+/** The database stores previews as "[image] caption": this is what people should read. */
+export function previewText(preview: string | null): string | null {
+  const match = preview ? /^\[([a-z]+)\](?: (.*))?$/s.exec(preview) : null;
+  const label = match ? MEDIA_LABELS[match[1]!] : undefined;
+  if (!match || !label) return preview;
+  return match[2] ? `${label}: ${match[2]}` : label;
+}
+
 /** "3h 20min", "12min", "menos de 1min" for a remaining duration in ms. */
 export function formatRemaining(ms: number): string {
   if (ms <= 0) return "encerrada";

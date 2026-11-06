@@ -44,6 +44,8 @@ export function MessageBubble({ message: m }: { message: MessageItem }) {
           <img src={m.mediaUrl} alt="Imagem enviada na conversa" className="-mx-1 mb-1.5 max-h-72 rounded-xl object-contain" />
         ) : m.mediaUrl && m.media_mime_type?.startsWith("audio/") ? (
           <audio controls src={m.mediaUrl} className="mb-1.5 max-w-full" />
+        ) : m.mediaUrl && m.media_mime_type?.startsWith("video/") ? (
+          <video controls src={m.mediaUrl} className="-mx-1 mb-1.5 max-h-72 max-w-full rounded-xl" />
         ) : m.mediaUrl ? (
           <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium text-info underline">
             <Icon name="external" className="size-4" />

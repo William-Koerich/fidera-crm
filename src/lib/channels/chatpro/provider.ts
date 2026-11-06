@@ -15,6 +15,7 @@
  *   support pointed to this route; the public docs omit it and the send_message they
  *   list belongs to the bulk-sending API. Its success body was not documented, hence
  *   the tolerant id lookup below.
+ * - messages/sendFileFromUrl: POST { instanceId, sessionId, url, provider, caption }.
  *
  * The number is linked by QR Code and is not on Meta's Cloud API, so there is
  * no 24h reply window here.
@@ -25,6 +26,7 @@ import type {
   DownloadedMedia,
   NormalizedEvent,
   ReplyWindow,
+  SendMediaInput,
   SendMessageInput,
   SendResult,
 } from "../types";
@@ -125,22 +127,45 @@ export class ChatProChannelProvider implements ChannelProvider {
     if (input.channel !== "whatsapp") {
       return { ok: false, errorCode: "unsupported_channel", errorMessage: "Only WhatsApp is supported", retryable: false };
     }
+    return this.sendInSession(input.accountExternalId, input.to, input.idempotencyKey, (sessionId) => [
+      "messages/sendMessage",
+      { sessionId, message: input.body },
+    ]);
+  }
+
+  async sendMedia(input: SendMediaInput): Promise<SendResult> {
+    if (input.channel !== "whatsapp") {
+      return { ok: false, errorCode: "unsupported_channel", errorMessage: "Only WhatsApp is supported", retryable: false };
+    }
+    return this.sendInSession(input.accountExternalId, input.to, input.idempotencyKey, (sessionId) => [
+      "messages/sendFileFromUrl",
+      { sessionId, url: input.url, ...(input.caption ? { caption: input.caption } : {}) },
+    ]);
+  }
+
+  /** ChatPro Chat sends inside a session: finds or opens the person's, then sends. */
+  private async sendInSession(
+    instanceId: string,
+    to: string,
+    idempotencyKey: string | undefined,
+    request: (sessionId: string) => [path: string, fields: Json],
+  ): Promise<SendResult> {
     if (!this.options.chatToken) {
       return { ok: false, errorCode: "chatpro_chat_not_configured", errorMessage: "Missing CHATPRO_CHAT_TOKEN", retryable: false };
     }
-    const instanceId = input.accountExternalId;
     try {
-      const session = await this.chat("sessions/getOrCreateByNumber", { instanceId, number: input.to, provider: "whatsapp" });
+      const session = await this.chat("sessions/getOrCreateByNumber", { instanceId, number: to, provider: "whatsapp" });
       if (!session.ok) return sendError(session.status, session.body);
       const sessionId = findId(session.body);
       if (!sessionId) {
         return { ok: false, errorCode: "chatpro_no_session", errorMessage: "ChatPro returned no session", retryable: false };
       }
 
-      const sent = await this.chat("messages/sendMessage", { instanceId, sessionId, message: input.body, provider: "whatsapp" });
+      const [path, fields] = request(sessionId);
+      const sent = await this.chat(path, { instanceId, provider: "whatsapp", ...fields });
       if (!sent.ok) return sendError(sent.status, sent.body);
       // ChatPro accepted it: reporting a failure here would invite a duplicate resend.
-      const id = findId(sent.body) ?? `chatpro-local-${input.idempotencyKey ?? crypto.randomUUID()}`;
+      const id = findId(sent.body) ?? `chatpro-local-${idempotencyKey ?? crypto.randomUUID()}`;
       return { ok: true, externalMessageId: id, acceptedAt: this.now() };
     } catch (error) {
       const timeout = error instanceof Error && error.name === "TimeoutError";

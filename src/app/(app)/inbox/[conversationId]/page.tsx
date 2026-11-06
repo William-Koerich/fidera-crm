@@ -158,7 +158,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
         <footer className="border-t border-border bg-surface px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
           <div className="mx-auto max-w-3xl">
             {windowOpen && connected ? (
-              <Composer conversationId={conversation.id} quickReplies={quickReplies} />
+              <Composer conversationId={conversation.id} quickReplies={quickReplies} canSendFiles={conversation.canSendFiles} />
             ) : (
               <p className="text-sm text-text-muted">
                 {!connected

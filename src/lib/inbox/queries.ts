@@ -1,3 +1,6 @@
+import { getProviderByName } from "@/lib/channels";
+import { isStoragePathOf } from "./attachments";
+import { previewText } from "./format";
 import "server-only";
 import type { Tables } from "@/lib/supabase/database.types";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
@@ -64,7 +67,7 @@ export async function listConversations(opts: {
       contactPhone: c.contacts?.phone_normalized ?? null,
       contactAvatarUrl: c.contacts ? contactAvatarUrl(c.contacts) : null,
       lastMessageAt: c.last_message_at,
-      lastMessagePreview: c.last_message_preview,
+      lastMessagePreview: previewText(c.last_message_preview),
       awaitingReply: c.awaiting_reply,
       unreadCount: c.unread_count,
       replyWindowEndsAt: c.channel_accounts?.provider === "chatpro" ? null : c.reply_window_ends_at,
@@ -85,6 +88,8 @@ export interface ConversationDetail {
   replyWindowEndsAt: string | null;
   /** False when replies are not limited to 24h (ChatPro). */
   hasReplyWindow: boolean;
+  /** Whether this channel's provider sends files. */
+  canSendFiles: boolean;
   contact: {
     id: string;
     name: string | null;
@@ -126,6 +131,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     lastInboundAt: data.last_inbound_at,
     replyWindowEndsAt: data.channel_accounts.provider === "chatpro" ? null : data.reply_window_ends_at,
     hasReplyWindow: data.channel_accounts.provider !== "chatpro",
+    canSendFiles: !!getProviderByName(data.channel_accounts.provider).sendMedia,
     contact: {
       id: data.contacts.id,
       name: data.contacts.display_name,
@@ -158,7 +164,7 @@ export async function listMessages(
   const supabase = await createClient();
   let query = supabase
     .from("messages")
-    .select("id, direction, origin, type, body, status, occurred_at, media_path, media_mime_type, error_code")
+    .select("id, organization_id, direction, origin, type, body, status, occurred_at, media_path, media_mime_type, error_code")
     .eq("conversation_id", conversationId)
     .order("occurred_at", { ascending: false })
     .order("id", { ascending: false })
@@ -171,7 +177,10 @@ export async function listMessages(
   const oldest = page.at(-1);
 
   // Rows above were read with the user's client (RLS), so signing their media is safe.
-  const paths = page.map((m) => m.media_path).filter((p): p is string => !!p && p !== MEDIA_UNAVAILABLE);
+  const paths = page
+    .filter((m) => m.media_path && isStoragePathOf(m.media_path, m.organization_id))
+    .map((m) => m.media_path!)
+    .filter((p) => p !== MEDIA_UNAVAILABLE);
   const signed = new Map<string, string>();
   if (paths.length > 0) {
     const { data: urls } = await createAdminClient().storage.from(MEDIA_BUCKET).createSignedUrls(paths, 300);

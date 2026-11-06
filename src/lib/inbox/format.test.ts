@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDayLabel, formatPhone, formatRemaining, formatShortDate, whatsAppLink } from "./format";
+import { formatDayLabel, formatPhone, formatRemaining, formatShortDate, whatsAppLink, previewText } from "./format";
 
 describe("formatRemaining", () => {
   it.each([
@@ -56,5 +56,19 @@ describe("formatDayLabel", () => {
     ["2025-12-24T12:00:00Z", "24 de dezembro de 2025"],
   ])("%s -> %s", (iso, label) => {
     expect(formatDayLabel(iso, now)).toBe(label);
+  });
+});
+
+describe("previewText", () => {
+  it("names media in Portuguese and keeps the caption", () => {
+    expect(previewText("[image]")).toBe("Imagem");
+    expect(previewText("[audio]")).toBe("Áudio");
+    expect(previewText("[document] Tabela de preços")).toBe("Documento: Tabela de preços");
+  });
+
+  it("leaves ordinary text alone, even when it starts with brackets", () => {
+    expect(previewText("Oi, tudo bem?")).toBe("Oi, tudo bem?");
+    expect(previewText("[urgente] me liga")).toBe("[urgente] me liga");
+    expect(previewText(null)).toBeNull();
   });
 });
