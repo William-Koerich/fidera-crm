@@ -5,6 +5,7 @@ import { canManage, requireMembership } from "@/lib/auth";
 import { getProviderByName } from "@/lib/channels";
 import type { ChannelTeamSync } from "@/lib/channels/types";
 import { parseBusinessHours, type BusinessHours } from "@/lib/replies/auto-reply";
+import { MEMBER_VISIBILITIES } from "@/lib/inbox/queries";
 import { cleanItemName, cleanLabelColor, isTeamItemKind, planImport, type TeamItemKind } from "@/lib/replies/team-items";
 import type { Json } from "@/lib/supabase/database.types";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
@@ -121,6 +122,47 @@ export async function saveDistributionAction(_prev: TeamItemState, formData: For
     actor_id: me.user.id,
     action: "distribution.updated",
     metadata: { enabled },
+  });
+  refresh();
+  return { status: "saved", savedAt: Date.now() };
+}
+
+export async function saveAccessAction(_prev: TeamItemState, formData: FormData): Promise<TeamItemState> {
+  const me = await requireMembership();
+  if (!canManage(me.role)) return fail("Apenas donos e administradores podem alterar isto.");
+  const visibility = MEMBER_VISIBILITIES.find((v) => v === formData.get("visibility"));
+  if (!visibility) return fail("Escolha uma opção.");
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("access_settings").upsert({ organization_id: me.organizationId, member_visibility: visibility });
+  if (error) return fail("Não foi possível salvar. Tente de novo.");
+
+  // Only people and departments of this business can be linked: the lists come from here, not the form.
+  const [memberships, departments] = await Promise.all([
+    supabase.from("memberships").select("user_id").eq("organization_id", me.organizationId).eq("role", "member"),
+    supabase.from("departments").select("id").eq("organization_id", me.organizationId),
+  ]);
+  if (memberships.error || departments.error) return fail("Não foi possível salvar. Tente de novo.");
+  const validDepartments = new Set(departments.data.map((d) => d.id));
+  const links = memberships.data.flatMap((m) =>
+    formData
+      .getAll(`departments_${m.user_id}`)
+      .map(String)
+      .filter((id) => validDepartments.has(id))
+      .map((department_id) => ({ organization_id: me.organizationId, user_id: m.user_id, department_id })),
+  );
+
+  const { error: deleteError } = await supabase.from("member_departments").delete().eq("organization_id", me.organizationId);
+  if (deleteError) return fail("Não foi possível salvar. Tente de novo.");
+  if (links.length > 0) {
+    const { error: insertError } = await supabase.from("member_departments").insert(links);
+    if (insertError) return fail("Não foi possível salvar. Tente de novo.");
+  }
+  await createAdminClient().from("audit_log").insert({
+    organization_id: me.organizationId,
+    actor_id: me.user.id,
+    action: "access.updated",
+    metadata: { member_visibility: visibility },
   });
   refresh();
   return { status: "saved", savedAt: Date.now() };

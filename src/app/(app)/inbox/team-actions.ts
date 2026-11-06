@@ -12,6 +12,8 @@ import { createAdminClient, createClient } from "@/lib/supabase/server";
 export interface TeamActionState {
   status: "saved" | "error";
   notice?: string;
+  /** The change hid the conversation from this person: there is nothing left to show here. */
+  lostAccess?: boolean;
 }
 
 const NOT_MIRRORED = "Salvo no Fidera, mas o ChatPro não confirmou.";
@@ -56,22 +58,27 @@ export async function setDepartmentAction(conversationId: string, departmentId: 
   const department = departmentId ? departments.find((d) => d.id === departmentId) : null;
   if (departmentId && !department) return error("Departamento não encontrado.");
 
-  const supabase = await createClient();
-  const { error: updateError } = await supabase
+  // Server client: `conversation` came through RLS, and RLS would refuse a move that hides it from this person.
+  const { error: updateError } = await createAdminClient()
     .from("conversations")
     .update({ department_id: department?.id ?? null })
-    .eq("id", conversation.id);
+    .eq("id", conversation.id)
+    .eq("organization_id", conversation.organizationId);
   if (updateError) return error("Não foi possível salvar. Tente de novo.");
-  refresh();
+  const lostAccess = !(await getConversation(conversation.id));
+  if (!lostAccess) refresh();
 
-  if (!ctx.sync) return { status: "saved" };
-  if (!department) return { status: "saved", notice: "Removido aqui no Fidera. No ChatPro, o departamento anterior continua." };
-  if (!department.externalId || !ctx.to) return { status: "saved", notice: "Salvo no Fidera. Este departamento não existe no ChatPro." };
-  return mirrored(
-    await ctx.sync.assignDepartment({ accountExternalId: ctx.instanceId, to: ctx.to, departmentExternalId: department.externalId }),
-    "department",
-    conversation.id,
-  );
+  if (!ctx.sync) return { lostAccess, status: "saved" };
+  if (!department) return { lostAccess, status: "saved", notice: "Removido aqui no Fidera. No ChatPro, o departamento anterior continua." };
+  if (!department.externalId || !ctx.to) return { lostAccess, status: "saved", notice: "Salvo no Fidera. Este departamento não existe no ChatPro." };
+  return {
+    lostAccess,
+    ...mirrored(
+      await ctx.sync.assignDepartment({ accountExternalId: ctx.instanceId, to: ctx.to, departmentExternalId: department.externalId }),
+      "department",
+      conversation.id,
+    ),
+  };
 }
 
 export async function setContactLabelAction(conversationId: string, labelId: string, on: boolean): Promise<TeamActionState> {

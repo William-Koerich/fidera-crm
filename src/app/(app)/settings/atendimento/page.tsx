@@ -3,9 +3,10 @@ import { Suspense } from "react";
 import { Panel, Skeleton } from "@/components/ui";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { canManage, requireMembership } from "@/lib/auth";
-import { getDistribution, listInboxOptions } from "@/lib/inbox/queries";
+import { getAccessSettings, getDistribution, listInboxOptions } from "@/lib/inbox/queries";
 import type { TeamItemKind } from "@/lib/replies/team-items";
 import { deleteTeamItemAction } from "./actions";
+import { AccessForm } from "./access-form";
 import { DistributionForm } from "./distribution-form";
 import { ImportFromChannel, TeamItemForm } from "./forms";
 
@@ -58,9 +59,10 @@ function ItemList({
 async function Service() {
   const me = await requireMembership();
   const manage = canManage(me.role);
-  const [{ endings, departments, labels }, distribution] = await Promise.all([
+  const [{ endings, departments, labels }, distribution, access] = await Promise.all([
     listInboxOptions(me.organizationId),
     manage ? getDistribution(me.organizationId) : null,
+    manage ? getAccessSettings(me.organizationId) : null,
   ]);
 
   return (
@@ -68,6 +70,14 @@ async function Service() {
       {distribution ? (
         <Panel title="Distribuição automática" description="Divide as novas conversas entre a equipe, sem ninguém precisar escolher. Vem desligada.">
           <DistributionForm enabled={distribution.enabled} members={distribution.members} />
+        </Panel>
+      ) : null}
+      {access ? (
+        <Panel
+          title="Permissões da equipe"
+          description="Donos e administradores sempre veem tudo. Só eles exportam dados, veem relatórios e apagam contatos. Vale só no Fidera: o acesso de cada pessoa ao ChatPro não muda."
+        >
+          <AccessForm visibility={access.visibility} members={access.members} departments={departments} />
         </Panel>
       ) : null}
       <Panel title="Motivos de finalização" description="O que a equipe escolhe ao finalizar uma conversa. No ChatPro, o motivo é obrigatório para encerrar o atendimento.">

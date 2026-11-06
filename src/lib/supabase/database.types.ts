@@ -5,6 +5,12 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   crm: {
     Tables: {
+      access_settings: {
+        Row: { organization_id: string; member_visibility: string; updated_at: string };
+        Insert: { organization_id: string; member_visibility?: string; updated_at?: string };
+        Update: { organization_id?: string; member_visibility?: string; updated_at?: string };
+        Relationships: [{ foreignKeyName: "access_settings_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
+      };
       audit_log: {
         Row: { id: string; organization_id: string | null; actor_id: string | null; action: string; target_table: string | null; target_id: string | null; metadata: Json; created_at: string };
         Insert: { id?: string; organization_id?: string | null; actor_id?: string | null; action: string; target_table?: string | null; target_id?: string | null; metadata?: Json; created_at?: string };
@@ -82,6 +88,12 @@ export type Database = {
         Insert: { id?: string; organization_id: string; name: string; color: string; external_id?: string | null; created_at?: string };
         Update: { id?: string; organization_id?: string; name?: string; color?: string; external_id?: string | null; created_at?: string };
         Relationships: [{ foreignKeyName: "labels_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
+      };
+      member_departments: {
+        Row: { organization_id: string; user_id: string; department_id: string };
+        Insert: { organization_id: string; user_id: string; department_id: string };
+        Update: { organization_id?: string; user_id?: string; department_id?: string };
+        Relationships: [{ foreignKeyName: "member_departments_organization_id_department_id_fkey"; columns: ["organization_id", "department_id"]; isOneToOne: false; referencedRelation: "departments"; referencedColumns: ["organization_id", "id"] }, { foreignKeyName: "member_departments_organization_id_user_id_fkey"; columns: ["organization_id", "user_id"]; isOneToOne: false; referencedRelation: "memberships"; referencedColumns: ["organization_id", "user_id"] }];
       };
       memberships: {
         Row: { organization_id: string; user_id: string; role: Database["crm"]["Enums"]["membership_role"]; created_at: string; accepts_conversations: boolean; last_assigned_at: string | null; work_hours: Json | null };

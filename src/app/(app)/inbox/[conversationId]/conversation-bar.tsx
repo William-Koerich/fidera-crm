@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -50,10 +51,16 @@ export function ConversationBar({
   const [activeLabels, setActiveLabels] = useState(() => new Set(contactLabelIds));
   const [pending, startTransition] = useTransition();
 
-  const run = (work: () => Promise<{ status: string; notice?: string } | null>, undo?: () => void) => {
+  const router = useRouter();
+
+  const run = (work: () => Promise<{ status: string; notice?: string; lostAccess?: boolean } | null>, undo?: () => void) => {
     setNotice(null);
     startTransition(async () => {
       const result = await work().catch(() => null);
+      if (result?.lostAccess) {
+        router.replace("/inbox");
+        return;
+      }
       if (result?.status !== "saved") undo?.();
       setNotice(result ? (result.notice ?? null) : "Não foi possível salvar. Tente de novo.");
     });

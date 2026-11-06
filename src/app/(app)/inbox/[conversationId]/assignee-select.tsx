@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Select } from "@/components/ui/field";
 import type { TeamMember } from "@/lib/inbox/queries";
@@ -20,6 +21,7 @@ export function AssigneeSelect({
   const [value, setValue] = useState(assignedTo ?? "");
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   function change(next: string) {
     const previous = value;
@@ -27,6 +29,10 @@ export function AssigneeSelect({
     setNotice(null);
     startTransition(async () => {
       const result = await assignConversationAction(conversationId, next).catch(() => null);
+      if (result?.lostAccess) {
+        router.replace("/inbox");
+        return;
+      }
       if (result?.status !== "saved") setValue(previous);
       setNotice(result ? (result.notice ?? null) : "Não foi possível salvar. Tente de novo.");
     });

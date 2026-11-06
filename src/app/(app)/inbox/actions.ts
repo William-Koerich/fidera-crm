@@ -74,6 +74,8 @@ export interface AssignState {
   status: "saved" | "error";
   /** Shown when the CRM saved it but the channel's own system did not follow. */
   notice?: string;
+  /** The change hid the conversation from this person: there is nothing left to show here. */
+  lostAccess?: boolean;
 }
 
 /** Sets who is responsible. The team list comes from the server, so only members can be chosen. */
@@ -84,8 +86,13 @@ export async function assignConversationAction(conversationId: string, assigneeI
   const assignee = assigneeId ? (await listTeamMembers(conversation.organizationId)).find((m) => m.id === assigneeId) : null;
   if (assigneeId && !assignee) return { status: "error", notice: "Esta pessoa não faz parte da equipe." };
 
-  const supabase = await createClient();
-  const { error } = await supabase.from("conversations").update({ assigned_to: assignee?.id ?? null }).eq("id", conversation.id);
+  // Server client: `conversation` above came through RLS, so this person can see it, and RLS
+  // would refuse a transfer that hides it from them, which is what transferring is for.
+  const { error } = await createAdminClient()
+    .from("conversations")
+    .update({ assigned_to: assignee?.id ?? null })
+    .eq("id", conversation.id)
+    .eq("organization_id", conversation.organizationId);
   if (error) return { status: "error", notice: "Não foi possível salvar. Tente de novo." };
   await createAdminClient().from("audit_log").insert({
     organization_id: conversation.organizationId,
@@ -95,21 +102,23 @@ export async function assignConversationAction(conversationId: string, assigneeI
     target_id: conversation.id,
     metadata: assignee ? { assigned_to: assignee.id } : {},
   });
-  refresh();
+  const lostAccess = !(await getConversation(conversation.id));
+  if (!lostAccess) refresh();
 
   const provider = getProviderByName(conversation.account.provider);
-  if (!provider.assignConversation) return { status: "saved" };
-  if (!assignee) return { status: "saved", notice: "Removido aqui no Fidera. No ChatPro, a atribuição anterior continua." };
-  if (!conversation.recipientExternalId) return { status: "saved" };
+  if (!provider.assignConversation) return { lostAccess, status: "saved" };
+  if (!assignee) return { lostAccess, status: "saved", notice: "Removido aqui no Fidera. No ChatPro, a atribuição anterior continua." };
+  if (!conversation.recipientExternalId) return { lostAccess, status: "saved" };
 
   const mirrored = await provider.assignConversation({
     accountExternalId: conversation.account.externalAccountId,
     to: conversation.recipientExternalId,
     assigneeEmail: assignee.email,
   });
-  if (mirrored === "assigned") return { status: "saved" };
+  if (mirrored === "assigned") return { lostAccess, status: "saved" };
   logEvent("conversation.assign_not_mirrored", { conversationId: conversation.id, result: mirrored }, "warn");
   return {
+    lostAccess,
     status: "saved",
     notice:
       mirrored === "no_matching_user"

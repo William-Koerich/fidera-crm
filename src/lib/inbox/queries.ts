@@ -213,6 +213,32 @@ export async function getDistribution(organizationId: string): Promise<{
   };
 }
 
+export const MEMBER_VISIBILITIES = ["all", "department", "own"] as const;
+export type MemberVisibility = (typeof MEMBER_VISIBILITIES)[number];
+
+/** For managers: what members see, and the departments of those who are not managers. */
+export async function getAccessSettings(organizationId: string): Promise<{
+  visibility: MemberVisibility;
+  members: { id: string; email: string; departmentIds: string[] }[];
+}> {
+  const supabase = await createClient();
+  const [settings, memberships, departments, team] = await Promise.all([
+    supabase.from("access_settings").select("member_visibility").eq("organization_id", organizationId).maybeSingle(),
+    supabase.from("memberships").select("user_id, role").eq("organization_id", organizationId),
+    supabase.from("member_departments").select("user_id, department_id").eq("organization_id", organizationId),
+    listTeamMembers(organizationId),
+  ]);
+  if (settings.error || memberships.error || departments.error) throw new Error("Could not load the access settings");
+  const plainMembers = new Set(memberships.data.filter((m) => m.role === "member").map((m) => m.user_id));
+  const visibility = MEMBER_VISIBILITIES.find((v) => v === settings.data?.member_visibility) ?? "all";
+  return {
+    visibility,
+    members: team
+      .filter((m) => plainMembers.has(m.id))
+      .map((m) => ({ ...m, departmentIds: departments.data.filter((d) => d.user_id === m.id).map((d) => d.department_id) })),
+  };
+}
+
 export interface InboxOption {
   id: string;
   name: string;

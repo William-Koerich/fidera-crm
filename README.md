@@ -124,6 +124,15 @@ off duty receives nothing new, except their own clients. With nobody on duty, a 
 unassigned until the next customer message. ChatPro's docs have no route for its own schedules,
 so this is not mirrored, and it does not block anyone's access.
 
+### Team permissions
+
+*Ajustes -> Atendimento* sets what members see: all conversations (default), those of their
+departments, or only their own. Unassigned conversations stay visible so someone can pick them up.
+It is enforced by RLS on conversations, messages, notes and contacts, so calling the API directly
+shows the same; the webhook pipeline runs as the service role and is not affected. A member can
+transfer a conversation away and then stops seeing it; that write goes through the server, since RLS
+refuses a change that hides a row from whoever makes it. ChatPro access is not affected.
+
 ### Service rating (NPS)
 
 *Ajustes -> Respostas* turns it on, off by default. ChatPro's docs say its own rating only goes out
