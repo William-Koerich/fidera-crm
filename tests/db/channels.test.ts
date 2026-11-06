@@ -283,6 +283,27 @@ describe.skipIf(!hasDatabase())("channel tables isolation", () => {
       expect((await db.query("select 1 from crm.quick_replies")).rowCount).toBe(0);
     }));
 
+  it("automatic reply settings are private to managers and need their text", () =>
+    withRollback(db, async (db) => {
+      const s = await seed(db);
+      await actAs(db, s.ownerA);
+      expect(
+        await errorCode(db, "insert into crm.auto_reply_settings (organization_id, greeting_enabled) values ($1, true)", [s.orgA]),
+      ).toBe("23514");
+      await db.query(
+        "insert into crm.auto_reply_settings (organization_id, greeting_enabled, greeting_text) values ($1, true, 'Olá')",
+        [s.orgA],
+      );
+      expect(
+        await errorCode(db, "insert into crm.auto_reply_settings (organization_id) values ($1)", [s.orgB]),
+      ).toBe(INSUFFICIENT_PRIVILEGE);
+
+      await actAs(db, s.memberA);
+      expect((await db.query("select 1 from crm.auto_reply_settings")).rowCount).toBe(0);
+      await actAs(db, s.ownerB);
+      expect((await db.query("select 1 from crm.auto_reply_settings")).rowCount).toBe(0);
+    }));
+
   it("external_message_id is unique per channel account", () =>
     withRollback(db, async (db) => {
       const s = await seed(db);

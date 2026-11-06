@@ -84,6 +84,18 @@ ChatPro's docs show no webhook signature, so the secret in the URL is the only
 authentication: treat that address as a password. Replies are not limited to a
 24h window. Groups are ignored.
 
+### Replies
+
+*Ajustes -> Respostas* manages both kinds, stored in the CRM:
+
+- **Quick replies:** typing `/` in the inbox lists them. A person still sends the message.
+- **Automatic replies** (off by default): a greeting on first contact and a message outside
+  business hours, sent while processing the webhook. They do not clear "awaiting reply".
+  Limits: one away message per conversation in 12 hours, 30 automatic messages per hour per
+  business, and only messages under 10 minutes old. Phone replies, imported history and our
+  own echoes never trigger them. Import the conversations before enabling the greeting:
+  a contact with no conversation in the CRM counts as new.
+
 ### Free testing with the Meta test number
 
 No payment method is needed for the developer app's test number.

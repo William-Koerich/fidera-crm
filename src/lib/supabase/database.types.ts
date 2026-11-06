@@ -11,6 +11,12 @@ export type Database = {
         Update: { id?: string; organization_id?: string | null; actor_id?: string | null; action?: string; target_table?: string | null; target_id?: string | null; metadata?: Json; created_at?: string };
         Relationships: [{ foreignKeyName: "audit_log_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
+      auto_reply_settings: {
+        Row: { organization_id: string; greeting_enabled: boolean; greeting_text: string; away_enabled: boolean; away_text: string; business_hours: Json; updated_at: string };
+        Insert: { organization_id: string; greeting_enabled?: boolean; greeting_text?: string; away_enabled?: boolean; away_text?: string; business_hours?: Json; updated_at?: string };
+        Update: { organization_id?: string; greeting_enabled?: boolean; greeting_text?: string; away_enabled?: boolean; away_text?: string; business_hours?: Json; updated_at?: string };
+        Relationships: [{ foreignKeyName: "auto_reply_settings_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
+      };
       channel_accounts: {
         Row: { id: string; organization_id: string; channel: Database["crm"]["Enums"]["channel"]; provider: Database["crm"]["Enums"]["channel_provider"]; external_account_id: string; external_business_id: string | null; display_name: string | null; display_phone: string | null; status: Database["crm"]["Enums"]["channel_account_status"]; token_secret_id: string | null; connected_at: string | null; created_at: string; updated_at: string; history_sync_progress: number | null; disconnected_reason: string | null; provider_channel_id: string | null };
         Insert: { id?: string; organization_id: string; channel: Database["crm"]["Enums"]["channel"]; provider: Database["crm"]["Enums"]["channel_provider"]; external_account_id: string; external_business_id?: string | null; display_name?: string | null; display_phone?: string | null; status?: Database["crm"]["Enums"]["channel_account_status"]; token_secret_id?: string | null; connected_at?: string | null; created_at?: string; updated_at?: string; history_sync_progress?: number | null; disconnected_reason?: string | null; provider_channel_id?: string | null };
@@ -30,9 +36,9 @@ export type Database = {
         Relationships: [{ foreignKeyName: "contacts_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
       conversations: {
-        Row: { id: string; organization_id: string; contact_id: string; channel_account_id: string; channel: Database["crm"]["Enums"]["channel"]; assigned_to: string | null; last_inbound_at: string | null; last_outbound_at: string | null; last_message_at: string | null; reply_window_ends_at: string | null; awaiting_reply: boolean; unread_count: number; created_at: string; updated_at: string; last_message_preview: string | null };
-        Insert: { id?: string; organization_id: string; contact_id: string; channel_account_id: string; channel: Database["crm"]["Enums"]["channel"]; assigned_to?: string | null; last_inbound_at?: string | null; last_outbound_at?: string | null; last_message_at?: string | null; reply_window_ends_at?: string | null; awaiting_reply?: boolean; unread_count?: number; created_at?: string; updated_at?: string; last_message_preview?: string | null };
-        Update: { id?: string; organization_id?: string; contact_id?: string; channel_account_id?: string; channel?: Database["crm"]["Enums"]["channel"]; assigned_to?: string | null; last_inbound_at?: string | null; last_outbound_at?: string | null; last_message_at?: string | null; reply_window_ends_at?: string | null; awaiting_reply?: boolean; unread_count?: number; created_at?: string; updated_at?: string; last_message_preview?: string | null };
+        Row: { id: string; organization_id: string; contact_id: string; channel_account_id: string; channel: Database["crm"]["Enums"]["channel"]; assigned_to: string | null; last_inbound_at: string | null; last_outbound_at: string | null; last_message_at: string | null; reply_window_ends_at: string | null; awaiting_reply: boolean; unread_count: number; created_at: string; updated_at: string; last_message_preview: string | null; greeted_at: string | null; last_away_reply_at: string | null };
+        Insert: { id?: string; organization_id: string; contact_id: string; channel_account_id: string; channel: Database["crm"]["Enums"]["channel"]; assigned_to?: string | null; last_inbound_at?: string | null; last_outbound_at?: string | null; last_message_at?: string | null; reply_window_ends_at?: string | null; awaiting_reply?: boolean; unread_count?: number; created_at?: string; updated_at?: string; last_message_preview?: string | null; greeted_at?: string | null; last_away_reply_at?: string | null };
+        Update: { id?: string; organization_id?: string; contact_id?: string; channel_account_id?: string; channel?: Database["crm"]["Enums"]["channel"]; assigned_to?: string | null; last_inbound_at?: string | null; last_outbound_at?: string | null; last_message_at?: string | null; reply_window_ends_at?: string | null; awaiting_reply?: boolean; unread_count?: number; created_at?: string; updated_at?: string; last_message_preview?: string | null; greeted_at?: string | null; last_away_reply_at?: string | null };
         Relationships: [{ foreignKeyName: "conversations_organization_id_channel_account_id_fkey"; columns: ["organization_id", "channel_account_id"]; isOneToOne: false; referencedRelation: "channel_accounts"; referencedColumns: ["organization_id", "id"] }, { foreignKeyName: "conversations_organization_id_contact_id_fkey"; columns: ["organization_id", "contact_id"]; isOneToOne: false; referencedRelation: "contacts"; referencedColumns: ["organization_id", "id"] }];
       };
       invitations: {
@@ -96,7 +102,7 @@ export type Database = {
       contact_source: "whatsapp_inbound" | "instagram_inbound" | "business_app_echo" | "history" | "capture_link" | "manual" | "import";
       membership_role: "owner" | "admin" | "member";
       message_direction: "inbound" | "outbound";
-      message_origin: "customer" | "api" | "business_app_echo" | "history";
+      message_origin: "customer" | "api" | "business_app_echo" | "history" | "automation";
       message_status: "received" | "pending" | "sent" | "delivered" | "read" | "failed" | "deleted";
       message_type: "text" | "image" | "audio" | "video" | "document" | "sticker" | "location" | "contacts" | "reaction" | "template" | "interactive" | "unsupported";
       webhook_event_status: "pending" | "processing" | "processed" | "failed" | "skipped";

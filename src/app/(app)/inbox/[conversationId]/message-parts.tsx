@@ -14,6 +14,7 @@ const STATUS: Partial<Record<MessageItem["status"], { icon: "clock" | "check" | 
 const ORIGIN_LABEL: Partial<Record<MessageItem["origin"], string>> = {
   business_app_echo: "pelo celular",
   history: "histórico",
+  automation: "automática",
 };
 
 export function DaySeparator({ label }: { label: string }) {

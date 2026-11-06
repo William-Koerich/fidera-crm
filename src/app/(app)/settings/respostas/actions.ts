@@ -2,8 +2,10 @@
 
 import { refresh } from "next/cache";
 import { canManage, requireMembership } from "@/lib/auth";
+import { parseAutoReplyForm } from "@/lib/replies/auto-reply";
 import { MAX_REPLY_LENGTH, normalizeShortcut } from "@/lib/replies/quick-replies";
-import { createClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/supabase/database.types";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 export interface ReplyFormState {
   status: "idle" | "error" | "saved";
@@ -50,4 +52,36 @@ export async function deleteQuickReplyAction(formData: FormData): Promise<void> 
     .eq("id", String(formData.get("id") ?? ""))
     .eq("organization_id", me.organizationId);
   refresh();
+}
+
+export async function saveAutoRepliesAction(_prev: ReplyFormState, formData: FormData): Promise<ReplyFormState> {
+  const me = await requireManager();
+  if (!me) return fail("Apenas donos e administradores podem alterar respostas.");
+
+  const parsed = parseAutoReplyForm((name) => {
+    const value = formData.get(name);
+    return typeof value === "string" ? value : null;
+  });
+  if (!parsed.ok) return fail(parsed.message);
+  const { settings } = parsed;
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("auto_reply_settings").upsert({
+    organization_id: me.organizationId,
+    greeting_enabled: settings.greetingEnabled,
+    greeting_text: settings.greetingText,
+    away_enabled: settings.awayEnabled,
+    away_text: settings.awayText,
+    business_hours: settings.businessHours as unknown as Json,
+  });
+  if (error) return fail("Não foi possível salvar. Tente de novo.");
+
+  await createAdminClient().from("audit_log").insert({
+    organization_id: me.organizationId,
+    actor_id: me.user.id,
+    action: "auto_replies.updated",
+    metadata: { greeting_enabled: settings.greetingEnabled, away_enabled: settings.awayEnabled },
+  });
+  refresh();
+  return { status: "saved", savedAt: Date.now() };
 }

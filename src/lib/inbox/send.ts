@@ -1,10 +1,10 @@
 import "server-only";
 import { getProviderByName } from "@/lib/channels";
 import { isDisconnectionError } from "@/lib/channels/meta-provider";
-import { estimateSendCost } from "@/lib/billing/pricing";
 import { logEvent } from "@/lib/log";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import type { ConversationDetail } from "./queries";
+import { recordSendUsage } from "./usage";
 
 export const MAX_MESSAGE_LENGTH = 4096;
 
@@ -120,24 +120,13 @@ export async function sendReply(input: {
     .update({ last_outbound_at: now.toISOString(), last_message_at: now.toISOString(), awaiting_reply: false, unread_count: 0 })
     .eq("id", conversation.id);
 
-  // usage_ledger is server-only: record the estimated Meta cost of this send.
-  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
-  const { count } = await admin
-    .from("usage_ledger")
-    .select("id", { count: "exact", head: true })
-    .eq("channel_account_id", conversation.account.id)
-    .eq("category", "service")
-    .gte("occurred_at", monthStart);
-  const { error: ledgerError } = await admin.from("usage_ledger").insert({
-    organization_id: conversation.organizationId,
-    channel_account_id: conversation.account.id,
-    message_id: messageId,
-    category: "service",
-    // Only Meta charges per message.
-    estimated_cost: conversation.account.provider === "meta" ? estimateSendCost("service", count ?? 0) : 0,
-    occurred_at: now.toISOString(),
+  await recordSendUsage(admin, {
+    organizationId: conversation.organizationId,
+    accountId: conversation.account.id,
+    provider: conversation.account.provider,
+    messageId,
+    now,
   });
-  if (ledgerError) logEvent("usage_ledger.insert_failed", { messageId }, "error");
 
   logEvent("message.sent", { conversationId: conversation.id, provider: conversation.account.provider });
   return { ok: true };

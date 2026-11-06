@@ -3,6 +3,8 @@ import { getProviderByName } from "@/lib/channels";
 import type { Json } from "@/lib/supabase/database.types";
 import { createAdminClient, type AdminClient } from "@/lib/supabase/server";
 import { logEvent } from "@/lib/log";
+import { runAutoReplies } from "@/lib/replies/auto-reply";
+import { supabaseAutoReplyStore } from "@/lib/replies/auto-reply-store";
 import { fetchPendingMedia } from "./media";
 
 /** History syncs can carry thousands of messages: ingest them in batches. */
@@ -74,6 +76,13 @@ export async function processWebhookEvents(
         events: normalized.length,
         ...totals,
         ms: Date.now() - started,
+      });
+
+      // After the event is complete: a failed auto reply must not make the webhook retry.
+      await runAutoReplies(normalized, provider, supabaseAutoReplyStore(admin, event.provider), {
+        onOutcome: (outcome) => logEvent("auto_reply.outcome", { eventId: event.id, outcome }, outcome === "sent" ? "info" : "warn"),
+        onError: (e) =>
+          logEvent("auto_reply.failed", { eventId: event.id, error: e instanceof Error ? e.message : "unknown" }, "error"),
       });
     } catch (e) {
       failed += 1;
