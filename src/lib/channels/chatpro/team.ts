@@ -8,6 +8,8 @@
  * - leads/findByPhoneNumber { phoneNumber }, leads/assignLabel and unassignLabel { leadId, labelId }.
  * - messages/addComments { sessionId, message, userId }.
  * - leads/updateOwner { leadId, ownerId }, which requires an owner: clearing one is not possible.
+ * - reports: GET ?date&instanceId&token -> text/csv of the day. Only this route takes the key in
+ *   the address, so that address must never be logged.
  *
  * Success bodies are not documented, hence the tolerant id lookup. The CRM is the
  * record, so nothing here throws: a failure only means ChatPro did not follow.
@@ -78,6 +80,20 @@ export class ChatProTeamSync implements ChannelTeamSync {
     const leadId = lead.ok && isObj(lead.data) ? text(lead.data.id) : null;
     if (!leadId) return "failed";
     return (await this.post("leads/updateOwner", { instanceId, leadId, ownerId })).ok ? "assigned" : "failed";
+  }
+
+  async downloadDayReport(instanceId: string, day: string): Promise<string | null> {
+    if (!this.options.chatToken) return null;
+    const url = new URL(`${this.options.baseUrl}/reports`);
+    url.searchParams.set("date", day);
+    url.searchParams.set("instanceId", instanceId);
+    url.searchParams.set("token", this.options.chatToken);
+    try {
+      const response = await this.options.fetch(url, { signal: AbortSignal.timeout(30_000) });
+      return response.ok ? await response.text() : null;
+    } catch {
+      return null;
+    }
   }
 
   listEndings(instanceId: string) {

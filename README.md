@@ -124,6 +124,14 @@ off duty receives nothing new, except their own clients. With nobody on duty, a 
 unassigned until the next customer message. ChatPro's docs have no route for its own schedules,
 so this is not mirrored, and it does not block anyone's access.
 
+### Reports
+
+`/reports` is for owners and admins: the database functions refuse anyone else. An attendance
+follows ChatPro's rule, one per person every 24 hours, so this is the number to compare with a
+plan's allowance. First response is a median and does not discount closed hours. Exports are
+semicolon CSV with a byte order mark, which opens directly in Excel in Brazil. Cells are guarded
+against spreadsheet formulas, and each export is audited.
+
 ### Free testing with the Meta test number
 
 No payment method is needed for the developer app's test number.

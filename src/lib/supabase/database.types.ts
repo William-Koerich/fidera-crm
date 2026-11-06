@@ -129,6 +129,8 @@ export type Database = {
       get_channel_token: { Args: { p_provider: Database["crm"]["Enums"]["channel_provider"]; p_external_account_id: string }; Returns: string };
       ingest_events: { Args: { p_provider: Database["crm"]["Enums"]["channel_provider"]; p_events: Json }; Returns: Json };
       list_members: { Args: { org_id: string }; Returns: { user_id: string; email: string; role: Database["crm"]["Enums"]["membership_role"]; created_at: string }[] };
+      report_conversations: { Args: { p_org: string; p_from: string; p_to: string; p_limit?: number }; Returns: { contact_name: string; phone: string; status: string; assigned_to: string; department: string; ending: string; labels: string; first_message_at: string; last_message_at: string; received: number; sent: number }[] };
+      report_summary: { Args: { p_org: string; p_from: string; p_to: string }; Returns: Json };
       search_conversations: { Args: { p_org: string; p_query: string; p_limit?: number }; Returns: string[] };
       set_channel_token: { Args: { p_account_id: string; p_token: string }; Returns: undefined };
     };

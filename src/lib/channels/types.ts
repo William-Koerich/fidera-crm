@@ -135,6 +135,8 @@ export interface ChannelTeamSync {
   createLabel(accountExternalId: string, name: string, color: string): Promise<string | null>;
   setContactLabel(input: { accountExternalId: string; to: string; labelExternalId: string; on: boolean }): Promise<boolean>;
   addNote(input: { accountExternalId: string; to: string; body: string; authorEmail: string | null }): Promise<boolean>;
+  /** The provider's own history of one day ("2026-11-06") as CSV. Optional: not every provider has one. */
+  downloadDayReport?(accountExternalId: string, day: string): Promise<string | null>;
   setContactOwner(input: { accountExternalId: string; to: string; ownerEmail: string }): Promise<AssignResult>;
 }
 

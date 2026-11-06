@@ -126,6 +126,18 @@ describe("ChatProTeamSync", () => {
     });
   });
 
+  it("downloads the day's report with the key the route requires", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response("id;nome\n1;Ana\n", { status: 200 }));
+    const sync = new ChatProTeamSync({ chatToken: "CHAT", baseUrl: "https://sparks.test", fetch: fetchMock });
+    expect(await sync.downloadDayReport("i", "2026-11-06")).toBe("id;nome\n1;Ana\n");
+    const url = new URL(String(fetchMock.mock.calls[0]![0]));
+    expect(url.pathname).toBe("/reports");
+    expect(Object.fromEntries(url.searchParams)).toEqual({ date: "2026-11-06", instanceId: "i", token: "CHAT" });
+
+    const refused = new ChatProTeamSync({ chatToken: "CHAT", baseUrl: "https://sparks.test", fetch: async () => json(404, {}) });
+    expect(await refused.downloadDayReport("i", "2026-11-06")).toBeNull();
+  });
+
   it("never throws when the network fails", async () => {
     const sync = new ChatProTeamSync({
       chatToken: "CHAT",
