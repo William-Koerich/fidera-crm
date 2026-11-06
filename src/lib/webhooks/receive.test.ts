@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { signBody } from "@/lib/channels/signature";
 import { inboundText } from "@/lib/channels/whatsapp/fixtures";
-import { receiveWebhook, type StoredEventInput, type WebhookEventStore } from "./receive";
+import { receiveWebhook, receiveWithSecret, type StoredEventInput, type WebhookEventStore } from "./receive";
 
 function memoryStore() {
   const rows = new Map<string, StoredEventInput & { id: string }>();
@@ -41,5 +41,36 @@ describe("receiveWebhook", () => {
     const { store } = memoryStore();
     const raw = "not json";
     expect((await receiveWebhook({ ...base, rawBody: raw, signature: signBody(raw, secret) }, store)).status).toBe(400);
+  });
+});
+
+describe("receiveWithSecret", () => {
+  const input = { provider: "chatpro" as const, channel: "whatsapp" as const, instanceId: "chatpro-a", rawBody: '{"Type":"x"}', secret };
+
+  it("stores the event once, wrapped with the instance from the URL", async () => {
+    const { store, rows } = memoryStore();
+    expect(await receiveWithSecret({ ...input, token: secret }, store)).toEqual({ status: 200, eventId: "evt-1", duplicate: false });
+    expect(await receiveWithSecret({ ...input, token: secret }, store)).toEqual({ status: 200, eventId: null, duplicate: true });
+    expect([...rows.values()][0]?.payload).toEqual({ instanceId: "chatpro-a", event: { Type: "x" } });
+  });
+
+  it("does not treat the same body from another instance as a duplicate", async () => {
+    const { store, rows } = memoryStore();
+    await receiveWithSecret({ ...input, token: secret }, store);
+    await receiveWithSecret({ ...input, instanceId: "chatpro-b", token: secret }, store);
+    expect(rows.size).toBe(2);
+  });
+
+  it("rejects a missing or wrong secret, and an unconfigured secret", async () => {
+    const { store, rows } = memoryStore();
+    expect((await receiveWithSecret({ ...input, token: null }, store)).status).toBe(401);
+    expect((await receiveWithSecret({ ...input, token: "wrong" }, store)).status).toBe(401);
+    expect((await receiveWithSecret({ ...input, token: "", secret: "" }, store)).status).toBe(401);
+    expect(rows.size).toBe(0);
+  });
+
+  it("rejects invalid JSON", async () => {
+    const { store } = memoryStore();
+    expect((await receiveWithSecret({ ...input, rawBody: "nope", token: secret }, store)).status).toBe(400);
   });
 });

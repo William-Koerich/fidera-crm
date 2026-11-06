@@ -46,9 +46,9 @@ interface GraphError {
   error?: { code?: number; message?: string };
 }
 
-/** Errors meaning the connection itself is gone and must be redone (190: access token expired/invalid). */
+/** Errors meaning the connection itself is gone and must be redone (190: Meta access token expired/invalid). */
 export function isDisconnectionError(errorCode: string): boolean {
-  return errorCode === "190";
+  return errorCode === "190" || errorCode === "chatpro_unauthorized";
 }
 
 export class MetaChannelProvider implements ChannelProvider {

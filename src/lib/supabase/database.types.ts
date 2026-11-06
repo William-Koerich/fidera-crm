@@ -86,7 +86,7 @@ export type Database = {
     Enums: {
       channel: "whatsapp" | "instagram";
       channel_account_status: "pending" | "active" | "disconnected" | "error";
-      channel_provider: "mock" | "meta" | "coexy";
+      channel_provider: "mock" | "meta" | "coexy" | "chatpro";
       contact_source: "whatsapp_inbound" | "instagram_inbound" | "business_app_echo" | "history" | "capture_link" | "manual" | "import";
       membership_role: "owner" | "admin" | "member";
       message_direction: "inbound" | "outbound";

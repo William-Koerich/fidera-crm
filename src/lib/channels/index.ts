@@ -2,6 +2,7 @@ import "server-only";
 import { getWhatsAppProviderName } from "@/lib/env";
 import type { Enums } from "@/lib/supabase/database.types";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getChatProProvider } from "./chatpro/config";
 import { MetaChannelProvider, type TokenResolver } from "./meta-provider";
 import { MockChannelProvider } from "./mock-provider";
 import type { ChannelProvider } from "./types";
@@ -41,8 +42,11 @@ export function getProviderByName(name: Enums<"channel_provider">): ChannelProvi
     case "meta":
       provider = new MetaChannelProvider({ getAccessToken: metaToken, apiVersion: process.env.META_GRAPH_API_VERSION });
       break;
+    case "chatpro":
+      provider = getChatProProvider();
+      break;
     case "coexy":
-      throw new Error("The Coexy integration was removed. Use WHATSAPP_PROVIDER=mock or meta.");
+      throw new Error("The Coexy integration was removed. Use WHATSAPP_PROVIDER=mock, meta or chatpro.");
   }
   instances.set(name, provider);
   return provider;

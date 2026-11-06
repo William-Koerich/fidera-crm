@@ -33,7 +33,7 @@ export async function listConversations(opts: {
   let query = supabase
     .from("conversations")
     .select(
-      "id, channel, last_message_at, last_message_preview, awaiting_reply, unread_count, reply_window_ends_at, last_inbound_at, last_outbound_at, contacts(display_name, phone_normalized)",
+      "id, channel, last_message_at, last_message_preview, awaiting_reply, unread_count, reply_window_ends_at, last_inbound_at, last_outbound_at, contacts(display_name, phone_normalized), channel_accounts(provider)",
     )
     .eq("organization_id", opts.organizationId)
     .not("last_message_at", "is", null)
@@ -59,7 +59,7 @@ export async function listConversations(opts: {
       lastMessagePreview: c.last_message_preview,
       awaitingReply: c.awaiting_reply,
       unreadCount: c.unread_count,
-      replyWindowEndsAt: c.reply_window_ends_at,
+      replyWindowEndsAt: c.channel_accounts?.provider === "chatpro" ? null : c.reply_window_ends_at,
       lastFromUs: !!c.last_outbound_at && (!c.last_inbound_at || c.last_outbound_at >= c.last_inbound_at),
     })),
     nextCursor:
@@ -75,6 +75,8 @@ export interface ConversationDetail {
   channel: Tables<"conversations">["channel"];
   lastInboundAt: string | null;
   replyWindowEndsAt: string | null;
+  /** False when replies are not limited to 24h (ChatPro). */
+  hasReplyWindow: boolean;
   contact: {
     id: string;
     name: string | null;
@@ -113,7 +115,8 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     organizationId: data.organization_id,
     channel: data.channel,
     lastInboundAt: data.last_inbound_at,
-    replyWindowEndsAt: data.reply_window_ends_at,
+    replyWindowEndsAt: data.channel_accounts.provider === "chatpro" ? null : data.reply_window_ends_at,
+    hasReplyWindow: data.channel_accounts.provider !== "chatpro",
     contact: {
       id: data.contacts.id,
       name: data.contacts.display_name,

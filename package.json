@@ -15,7 +15,8 @@
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mts",
     "db:status": "node --env-file-if-exists=.env.local scripts/migrate.mts --status",
     "db:types": "node --env-file-if-exists=.env.local scripts/gen-types.mts && eslint --fix src/lib/supabase/database.types.ts",
-    "meta:setup": "node --env-file-if-exists=.env.local scripts/meta-setup.mts"
+    "meta:setup": "node --env-file-if-exists=.env.local scripts/meta-setup.mts",
+    "chatpro:webhook": "node --env-file-if-exists=.env.local scripts/chatpro-webhook.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

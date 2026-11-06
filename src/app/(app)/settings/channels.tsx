@@ -1,9 +1,12 @@
 import { Icon } from "@/components/icons";
 import { Alert, Badge, Button, Panel, type Tone } from "@/components/ui";
+import { getChatProConfig } from "@/lib/channels/chatpro/config";
+import { getOrigin } from "@/lib/urls";
 import { canManage, requireMembership } from "@/lib/auth";
 import { getWhatsAppProviderName } from "@/lib/env";
 import { listChannelAccounts } from "@/lib/inbox/queries";
 import { connectMetaNumberAction, connectMockChannelAction } from "./channel-actions";
+import { ChatProConnect } from "./chatpro-connect";
 
 const STATUS: Record<string, { label: string; tone: Tone }> = {
   pending: { label: "Conectando", tone: "info" },
@@ -12,7 +15,36 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
   error: { label: "Com erro", tone: "danger" },
 };
 
-const PROVIDER_LABEL = { mock: "Teste (simulado)", meta: "API oficial da Meta", coexy: "Integração removida" } as const;
+const PROVIDER_LABEL = { mock: "Teste (simulado)", meta: "API oficial da Meta", coexy: "Integração removida", chatpro: "ChatPro (QR Code)" } as const;
+
+async function chatProSection(organizationId: string) {
+  const config = getChatProConfig();
+  if (!config.instanceId || !config.token || !config.webhookSecret) {
+    return (
+      <Alert tone="warning" title="ChatPro ainda não configurado">
+        Preencha CHATPRO_INSTANCE_ID, CHATPRO_TOKEN e CHATPRO_WEBHOOK_SECRET nas variáveis do servidor.
+      </Alert>
+    );
+  }
+  if (config.organizationId !== organizationId) {
+    return (
+      <Alert tone="info" title="Esta instância não está ligada a este negócio">
+        Para usar o número aqui, defina no servidor: CHATPRO_ORGANIZATION_ID={organizationId}
+      </Alert>
+    );
+  }
+  const origin = await getOrigin();
+  const webhookUrl = `${origin}/api/webhooks/chatpro/${encodeURIComponent(config.instanceId)}?token=${encodeURIComponent(config.webhookSecret)}`;
+  return (
+    <div className="grid gap-4">
+      <Alert tone="warning" title="Conexão por QR Code, fora da API oficial da Meta">
+        O WhatsApp pode restringir ou bloquear o número, principalmente com envio em massa. Use para conversas com os seus
+        clientes. O celular precisa continuar com o WhatsApp instalado e conectado.
+      </Alert>
+      <ChatProConnect webhookUrl={webhookUrl} webhookIsPublic={origin.startsWith("https://")} />
+    </div>
+  );
+}
 
 export async function Channels() {
   const me = await requireMembership();
@@ -56,13 +88,14 @@ export async function Channels() {
 
         {disconnected ? (
           <Alert tone="warning" title="A conexão foi removida">
-            Mensagens novas não chegam até você reconectar. Isso acontece quando o acesso à API da Meta expira ou o
-            número é removido da conta. As conversas antigas continuam salvas.
+            Mensagens novas não chegam até você reconectar. As conversas antigas continuam salvas.
           </Alert>
         ) : null}
 
         {!manage ? (
           <p className="text-sm text-text-muted">Apenas donos e administradores podem conectar ou trocar o número.</p>
+        ) : provider === "chatpro" ? (
+          await chatProSection(me.organizationId)
         ) : provider === "mock" ? (
           <form action={connectMockChannelAction} className="grid gap-2 rounded-lg bg-background p-4">
             <p className="text-sm font-medium">Ambiente de desenvolvimento</p>

@@ -92,17 +92,35 @@ export async function sendReply(input: {
     return { ok: false, reason: "provider_error" };
   }
 
-  await supabase
+  const admin = createAdminClient();
+  let messageId = pending.id;
+  const { error: sentError } = await supabase
     .from("messages")
     .update({ status: "sent", external_message_id: result.externalMessageId })
     .eq("id", pending.id);
+  if (sentError?.code === "23505") {
+    // ChatPro's webhook for this send arrived before the API response and already
+    // stored the message: keep that row, marked as sent from the app.
+    const { data: echoed } = await admin
+      .from("messages")
+      .update({ origin: "api", sent_by: userId })
+      .eq("channel_account_id", conversation.account.id)
+      .eq("external_message_id", result.externalMessageId)
+      .select("id")
+      .single();
+    if (echoed) {
+      await admin.from("messages").delete().eq("id", pending.id);
+      messageId = echoed.id;
+    }
+  } else if (sentError) {
+    logEvent("message.update_failed", { messageId: pending.id, code: sentError.code }, "error");
+  }
   await supabase
     .from("conversations")
     .update({ last_outbound_at: now.toISOString(), last_message_at: now.toISOString(), awaiting_reply: false, unread_count: 0 })
     .eq("id", conversation.id);
 
   // usage_ledger is server-only: record the estimated Meta cost of this send.
-  const admin = createAdminClient();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
   const { count } = await admin
     .from("usage_ledger")
@@ -113,12 +131,13 @@ export async function sendReply(input: {
   const { error: ledgerError } = await admin.from("usage_ledger").insert({
     organization_id: conversation.organizationId,
     channel_account_id: conversation.account.id,
-    message_id: pending.id,
+    message_id: messageId,
     category: "service",
-    estimated_cost: conversation.account.provider === "mock" ? 0 : estimateSendCost("service", count ?? 0),
+    // Only Meta charges per message.
+    estimated_cost: conversation.account.provider === "meta" ? estimateSendCost("service", count ?? 0) : 0,
     occurred_at: now.toISOString(),
   });
-  if (ledgerError) logEvent("usage_ledger.insert_failed", { messageId: pending.id }, "error");
+  if (ledgerError) logEvent("usage_ledger.insert_failed", { messageId }, "error");
 
   logEvent("message.sent", { conversationId: conversation.id, provider: conversation.account.provider });
   return { ok: true };

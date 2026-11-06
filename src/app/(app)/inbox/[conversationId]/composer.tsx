@@ -50,7 +50,7 @@ export function Composer({ conversationId }: { conversationId: string }) {
         </button>
       </div>
       <p id="composer-hint" className="hidden px-1 text-xs text-text-muted sm:block">
-        Ctrl + Enter para enviar. A mensagem sai pelo número conectado, dentro da janela de 24h.
+        Ctrl + Enter para enviar. A mensagem sai pelo número conectado.
       </p>
     </form>
   );

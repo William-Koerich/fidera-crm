@@ -77,7 +77,9 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
   const { items, olderCursor } = await listMessages(conversation.id, before);
   const { contact } = conversation;
   const title = contact.name || formatPhone(contact.phone) || "Contato";
-  const windowOpen = conversation.replyWindowEndsAt ? new Date(conversation.replyWindowEndsAt) > new Date() : false;
+  const windowOpen =
+    !conversation.hasReplyWindow ||
+    (conversation.replyWindowEndsAt ? new Date(conversation.replyWindowEndsAt) > new Date() : false);
   const backHref = query.filter === "awaiting" ? "/inbox?filter=awaiting" : "/inbox";
   const connected = conversation.account.status === "active";
 

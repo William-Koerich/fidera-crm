@@ -17,7 +17,7 @@ const POINTS: { icon: IconName; title: string; text: string }[] = [
   {
     icon: "phone",
     title: "Responda de qualquer aparelho",
-    text: "O número do negócio fica na API oficial do WhatsApp, e a equipe responde por aqui, sem depender de um único celular.",
+    text: "A equipe responde por aqui, no celular ou no computador, sem ficar passando um único aparelho de mão em mão.",
   },
 ];
 

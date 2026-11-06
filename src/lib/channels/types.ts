@@ -130,7 +130,7 @@ export interface DownloadedMedia {
 }
 
 export interface ChannelProvider {
-  readonly name: "mock" | "meta";
+  readonly name: "mock" | "meta" | "chatpro";
   parseWebhook(payload: unknown): NormalizedEvent[];
   sendMessage(input: SendMessageInput): Promise<SendResult>;
   getReplyWindow(conversation: ReplyWindowConversation, now?: Date): ReplyWindow;

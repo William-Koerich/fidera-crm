@@ -49,12 +49,28 @@ intake + processing code as `POST /api/webhooks/whatsapp`.
 ## WhatsApp providers
 
 `WHATSAPP_PROVIDER` selects how WhatsApp is reached. Everything after the
-webhook (queue, ingestion, inbox) is the same for both.
+webhook (queue, ingestion, inbox) is the same for all of them.
 
 | Value | What it is | Webhook route | Signature |
 | --- | --- | --- | --- |
 | `mock` (default) | In-memory provider + simulator, no account needed | `/api/webhooks/whatsapp` | `X-Hub-Signature-256` with `MOCK_WEBHOOK_SECRET` |
 | `meta` | Official Cloud API, e.g. the free test number of a Meta developer app | `/api/webhooks/whatsapp` | `X-Hub-Signature-256` with `META_APP_SECRET` |
+| `chatpro` | ChatPro API, number linked by QR Code (not Meta's official API) | `/api/webhooks/chatpro/<instance>?token=...` | Secret in the URL (`CHATPRO_WEBHOOK_SECRET`) |
+
+### ChatPro
+
+1. In the ChatPro panel, copy the instance code and its API token.
+2. Set `WHATSAPP_PROVIDER=chatpro`, `CHATPRO_INSTANCE_ID`, `CHATPRO_TOKEN`,
+   `CHATPRO_WEBHOOK_SECRET` (`openssl rand -hex 32`) and `CHATPRO_ORGANIZATION_ID`
+   (*Ajustes -> Canais* shows the value for the current business).
+3. Point the instance's webhook at the app, once it has a public https address:
+   paste the address shown in *Ajustes -> Canais* into the ChatPro panel, or run
+   `CHATPRO_PANEL_EMAIL=... CHATPRO_PANEL_PASSWORD=... npm run chatpro:webhook -- https://<host>`.
+4. In *Ajustes -> Canais*, tap *Mostrar QR Code* and scan it with the phone.
+
+ChatPro's docs show no webhook signature, so the secret in the URL is the only
+authentication: treat that address as a password. Replies are not limited to a
+24h window. Groups are ignored.
 
 ### Free testing with the Meta test number
 

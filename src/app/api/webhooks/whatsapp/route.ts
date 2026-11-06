@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
 
 /** Direct Meta webhooks (X-Hub-Signature-256), or mock deliveries in mock mode. */
 export async function POST(request: NextRequest) {
-  const provider = getWhatsAppProviderName() === "mock" ? "mock" : "meta";
-  return handleWhatsAppWebhook(request, provider, "x-hub-signature-256");
+  const name = getWhatsAppProviderName();
+  if (name === "chatpro") return new Response("Not found", { status: 404 });
+  return handleWhatsAppWebhook(request, name, "x-hub-signature-256");
 }
