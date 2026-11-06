@@ -8,11 +8,12 @@ import { Avatar, Skeleton } from "@/components/ui";
 import { requireMembership } from "@/lib/auth";
 import { decodeCursor } from "@/lib/inbox/cursor";
 import { dayKey, formatDayLabel, formatPhone } from "@/lib/inbox/format";
-import { getConversation, listMessages } from "@/lib/inbox/queries";
+import { getConversation, listMessages, listTeamMembers } from "@/lib/inbox/queries";
 import { listQuickReplies } from "@/lib/replies/queries";
 import { ConversationList, ListSkeleton, parseInboxParams } from "../conversation-list";
 import { RealtimeRefresh } from "../realtime-refresh";
 import { WindowBadge } from "../window-badge";
+import { AssigneeSelect } from "./assignee-select";
 import { Composer } from "./composer";
 import { ContactPanel } from "./contact-panel";
 import { MarkRead } from "./mark-read";
@@ -75,16 +76,17 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
   if (!conversation) notFound();
 
   const before = typeof query.before === "string" ? decodeCursor(query.before) : null;
-  const [{ items, olderCursor }, quickReplies] = await Promise.all([
+  const [{ items, olderCursor }, quickReplies, members] = await Promise.all([
     listMessages(conversation.id, before),
     listQuickReplies(me.organizationId),
+    listTeamMembers(conversation.organizationId),
   ]);
   const { contact } = conversation;
   const title = contact.name || formatPhone(contact.phone) || "Contato";
   const windowOpen =
     !conversation.hasReplyWindow ||
     (conversation.replyWindowEndsAt ? new Date(conversation.replyWindowEndsAt) > new Date() : false);
-  const backHref = query.filter === "awaiting" ? "/inbox?filter=awaiting" : "/inbox";
+  const backHref = query.filter === "awaiting" || query.filter === "mine" ? `/inbox?filter=${query.filter}` : "/inbox";
   const connected = conversation.account.status === "active";
 
   return (
@@ -116,6 +118,14 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
             <WindowBadge endsAt={conversation.replyWindowEndsAt} />
           </div>
         </header>
+
+        <AssigneeSelect
+          key={conversation.id}
+          conversationId={conversation.id}
+          assignedTo={conversation.assignedTo}
+          members={members}
+          currentUserId={me.user.id}
+        />
 
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto flex max-w-3xl flex-col gap-1.5 px-3 py-4 sm:px-6">

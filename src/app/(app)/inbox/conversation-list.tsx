@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { Alert, Avatar, ButtonLink, EmptyState, Skeleton, TabLinks, cx } from "@/components/ui";
+import { requireUser } from "@/lib/auth";
 import { getWhatsAppProviderName } from "@/lib/env";
 import { decodeCursor } from "@/lib/inbox/cursor";
 import { formatPhone, formatShortDate } from "@/lib/inbox/format";
@@ -10,7 +11,7 @@ import { WindowBadge } from "./window-badge";
 
 export function parseInboxParams(params: Record<string, string | string[] | undefined>) {
   return {
-    filter: (params.filter === "awaiting" ? "awaiting" : "all") as InboxFilter,
+    filter: (params.filter === "awaiting" || params.filter === "mine" ? params.filter : "all") as InboxFilter,
     cursor: typeof params.cursor === "string" ? params.cursor : null,
   };
 }
@@ -36,7 +37,7 @@ export function ListSkeleton() {
 }
 
 function hrefFor(filter: InboxFilter, extra: Record<string, string> = {}) {
-  const q = new URLSearchParams({ ...(filter === "awaiting" ? { filter } : {}), ...extra }).toString();
+  const q = new URLSearchParams({ ...(filter !== "all" ? { filter } : {}), ...extra }).toString();
   return q ? `/inbox?${q}` : "/inbox";
 }
 
@@ -52,8 +53,9 @@ export async function ConversationList({
   cursor: string | null;
   activeId?: string;
 }) {
+  const user = await requireUser();
   const [{ items, nextCursor }, accounts] = await Promise.all([
-    listConversations({ organizationId, filter, cursor: decodeCursor(cursor) }),
+    listConversations({ organizationId, filter, cursor: decodeCursor(cursor), userId: user.id }),
     listChannelAccounts(organizationId),
   ]);
   const disconnected = accounts.find((a) => a.status === "disconnected");
@@ -73,6 +75,7 @@ export async function ConversationList({
           items={[
             { key: "all", label: "Todas", href: hrefFor("all") },
             { key: "awaiting", label: "Sem resposta", href: hrefFor("awaiting") },
+            { key: "mine", label: "Minhas", href: hrefFor("mine") },
           ]}
         />
       </div>
@@ -103,6 +106,12 @@ export async function ConversationList({
           />
         ) : filter === "awaiting" ? (
           <EmptyState icon="check" title="Tudo respondido" description="Ninguém está esperando resposta agora." />
+        ) : filter === "mine" ? (
+          <EmptyState
+            icon="user"
+            title="Nenhuma conversa com você"
+            description="Abra uma conversa e escolha você como responsável para ela aparecer aqui."
+          />
         ) : (
           <EmptyState
             icon="message"
@@ -134,7 +143,7 @@ export async function ConversationList({
             return (
               <li key={c.id}>
                 <Link
-                  href={`/inbox/${c.id}${filter === "awaiting" ? "?filter=awaiting" : ""}`}
+                  href={`/inbox/${c.id}${filter !== "all" ? `?filter=${filter}` : ""}`}
                   aria-current={active ? "page" : undefined}
                   className={cx(
                     "flex gap-3 px-4 py-3 transition-colors",

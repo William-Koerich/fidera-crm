@@ -16,11 +16,14 @@
  *   list belongs to the bulk-sending API. Its success body was not documented, hence
  *   the tolerant id lookup below.
  * - messages/sendFileFromUrl: POST { instanceId, sessionId, url, provider, caption }.
+ * - users/getAllInstanceUsers: POST { instanceId } -> [{ user_id, active, deleted, user: { email } }].
+ * - sessions/assignTo: POST { instanceId, sessionId, userId }.
  *
  * The number is linked by QR Code and is not on Meta's Cloud API, so there is
  * no 24h reply window here.
  */
 import type {
+  AssignResult,
   ChannelProvider,
   ContactProfile,
   DownloadedMedia,
@@ -141,6 +144,30 @@ export class ChatProChannelProvider implements ChannelProvider {
       "messages/sendFileFromUrl",
       { sessionId, url: input.url, ...(input.caption ? { caption: input.caption } : {}) },
     ]);
+  }
+
+  async assignConversation(input: { accountExternalId: string; to: string; assigneeEmail: string }): Promise<AssignResult> {
+    if (!this.options.chatToken) return "failed";
+    const instanceId = input.accountExternalId;
+    try {
+      const users = await this.chatJson("users/getAllInstanceUsers", { instanceId });
+      if (!users.ok || !Array.isArray(users.data)) return "failed";
+      const email = input.assigneeEmail.trim().toLowerCase();
+      const match = users.data.filter(isObj).find((u) => {
+        const profile = isObj(u.user) ? u.user : {};
+        return u.deleted !== true && u.active !== false && text(profile.email)?.trim().toLowerCase() === email;
+      });
+      const userId = match ? text(match.user_id) : null;
+      if (!userId) return "no_matching_user";
+
+      const session = await this.chat("sessions/getOrCreateByNumber", { instanceId, number: input.to, provider: "whatsapp" });
+      const sessionId = session.ok ? findId(session.body) : null;
+      if (!sessionId) return "failed";
+      const assigned = await this.chat("sessions/assignTo", { instanceId, sessionId, userId });
+      return assigned.ok ? "assigned" : "failed";
+    } catch {
+      return "failed";
+    }
   }
 
   /** ChatPro Chat sends inside a session: finds or opens the person's, then sends. */

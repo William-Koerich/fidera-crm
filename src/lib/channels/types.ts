@@ -115,6 +115,8 @@ export interface SendMediaInput {
   idempotencyKey?: string;
 }
 
+export type AssignResult = "assigned" | "no_matching_user" | "failed";
+
 export type SendResult =
   | { ok: true; externalMessageId: string; acceptedAt: Date }
   | { ok: false; errorCode: string; errorMessage: string; retryable: boolean };
@@ -152,6 +154,11 @@ export interface ChannelProvider {
   readonly name: "mock" | "meta" | "chatpro";
   parseWebhook(payload: unknown): NormalizedEvent[];
   sendMessage(input: SendMessageInput): Promise<SendResult>;
+  /**
+   * Mirrors who is responsible for a conversation on the provider's side, matching
+   * people by e-mail. The CRM remains the record of who is responsible.
+   */
+  assignConversation?(input: { accountExternalId: string; to: string; assigneeEmail: string }): Promise<AssignResult>;
   /** Sends a file. Providers without it do not offer attachments in the inbox. */
   sendMedia?(input: SendMediaInput): Promise<SendResult>;
   getReplyWindow(conversation: ReplyWindowConversation, now?: Date): ReplyWindow;

@@ -10,7 +10,7 @@ import { afterCursorFilter, encodeCursor, type Cursor } from "./cursor";
 export const CONVERSATIONS_PAGE_SIZE = 30;
 export const MESSAGES_PAGE_SIZE = 50;
 
-export type InboxFilter = "all" | "awaiting";
+export type InboxFilter = "all" | "awaiting" | "mine";
 
 export interface ConversationListItem {
   id: string;
@@ -38,6 +38,8 @@ export async function listConversations(opts: {
   organizationId: string;
   filter: InboxFilter;
   cursor: Cursor | null;
+  /** The signed-in person, for the "mine" filter. */
+  userId: string;
 }): Promise<{ items: ConversationListItem[]; nextCursor: string | null }> {
   const supabase = await createClient();
   let query = supabase
@@ -52,6 +54,7 @@ export async function listConversations(opts: {
     .limit(CONVERSATIONS_PAGE_SIZE + 1);
 
   if (opts.filter === "awaiting") query = query.eq("awaiting_reply", true);
+  if (opts.filter === "mine") query = query.eq("assigned_to", opts.userId);
   if (opts.cursor) query = query.or(afterCursorFilter("last_message_at", opts.cursor));
 
   const { data, error } = await query;
@@ -88,6 +91,8 @@ export interface ConversationDetail {
   replyWindowEndsAt: string | null;
   /** False when replies are not limited to 24h (ChatPro). */
   hasReplyWindow: boolean;
+  /** Team member responsible for this conversation. */
+  assignedTo: string | null;
   /** Whether this channel's provider sends files. */
   canSendFiles: boolean;
   contact: {
@@ -109,7 +114,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   const { data, error } = await supabase
     .from("conversations")
     .select(
-      "id, organization_id, channel, last_inbound_at, reply_window_ends_at, contact_id, contacts(id, display_name, phone_normalized, source, created_at, last_interaction_at, avatar_path, profile_synced_at), channel_accounts(id, external_account_id, provider, status)",
+      "id, organization_id, channel, assigned_to, last_inbound_at, reply_window_ends_at, contact_id, contacts(id, display_name, phone_normalized, source, created_at, last_interaction_at, avatar_path, profile_synced_at), channel_accounts(id, external_account_id, provider, status)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -131,6 +136,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     lastInboundAt: data.last_inbound_at,
     replyWindowEndsAt: data.channel_accounts.provider === "chatpro" ? null : data.reply_window_ends_at,
     hasReplyWindow: data.channel_accounts.provider !== "chatpro",
+    assignedTo: data.assigned_to,
     canSendFiles: !!getProviderByName(data.channel_accounts.provider).sendMedia,
     contact: {
       id: data.contacts.id,
@@ -149,6 +155,18 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     },
     recipientExternalId: identity?.external_id ?? null,
   };
+}
+
+export interface TeamMember {
+  id: string;
+  email: string;
+}
+
+export async function listTeamMembers(organizationId: string): Promise<TeamMember[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("list_members", { org_id: organizationId });
+  if (error) throw new Error(`Could not load the team (${error.code})`);
+  return data.map((m) => ({ id: m.user_id, email: m.email }));
 }
 
 export type MessageItem = Pick<

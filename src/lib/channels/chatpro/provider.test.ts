@@ -80,6 +80,44 @@ describe("ChatProChannelProvider", () => {
     expect(JSON.parse(String(fetchMock.mock.calls[1]![1]?.body))).not.toHaveProperty("caption");
   });
 
+  describe("assignConversation", () => {
+    const input = { accountExternalId: "chatpro-abc", to: "5511999999999", assigneeEmail: "Ana@Salao.com " };
+    const users = [
+      { user_id: "gone", active: true, deleted: true, user: { email: "ana@salao.com" } },
+      { user_id: "u-ana", active: true, deleted: false, user: { email: "ana@salao.com" } },
+    ];
+    const flow = (assign = json(201, {})) =>
+      vi.fn<typeof fetch>(async (url) => {
+        const path = String(url);
+        if (path.endsWith("/users/getAllInstanceUsers")) return json(201, users);
+        if (path.endsWith("/sessions/getOrCreateByNumber")) return json(201, { id: "session-1" });
+        return assign;
+      });
+
+    it("finds the active person by e-mail and assigns the session", async () => {
+      const fetchMock = flow();
+      expect(await provider(fetchMock).assignConversation(input)).toBe("assigned");
+      const [url, init] = fetchMock.mock.calls[2]!;
+      expect(url).toBe("https://sparks.chatpro.com.br/sessions/assignTo");
+      expect(JSON.parse(String(init?.body))).toEqual({ instanceId: "chatpro-abc", sessionId: "session-1", userId: "u-ana" });
+    });
+
+    it("opens no session for someone who is not on ChatPro", async () => {
+      const fetchMock = flow();
+      expect(await provider(fetchMock).assignConversation({ ...input, assigneeEmail: "outra@salao.com" })).toBe("no_matching_user");
+      expect(fetchMock).toHaveBeenCalledOnce();
+    });
+
+    it("reports failures instead of throwing", async () => {
+      expect(await provider(flow(json(400, {}))).assignConversation(input)).toBe("failed");
+      expect(await provider(async () => json(429, {})).assignConversation(input)).toBe("failed");
+      const offline = vi.fn<typeof fetch>(async () => {
+        throw new TypeError("fetch failed");
+      });
+      expect(await provider(offline).assignConversation(input)).toBe("failed");
+    });
+  });
+
   it("does not send when the session cannot be opened", async () => {
     const fetchMock = vi.fn<typeof fetch>(async () => json(201, {}));
     expect(await provider(fetchMock).sendMessage(input)).toMatchObject({ ok: false, errorCode: "chatpro_no_session" });
