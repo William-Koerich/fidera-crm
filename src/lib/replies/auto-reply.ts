@@ -120,15 +120,18 @@ export interface AutoReplyContext {
   settings: AutoReplySettings;
 }
 
+/** What sending an automatic message needs to know. */
+export type SendTarget = Pick<AutoReplyContext, "organizationId" | "accountId" | "conversationId" | "lastOutboundAt">;
+
 export interface AutoReplyStore {
   /** Null when the message is unknown or the business has nothing enabled. */
   loadContext(accountExternalId: string, externalMessageId: string): Promise<AutoReplyContext | null>;
   countRecent(organizationId: string, since: Date): Promise<number>;
   /** Atomically takes the right to send. False when another run already did. */
   claim(conversationId: string, kind: AutoReplyKind, now: Date): Promise<boolean>;
-  createPending(context: AutoReplyContext, body: string, now: Date): Promise<string>;
+  createPending(context: SendTarget, body: string, now: Date): Promise<string>;
   markFailed(messageId: string, errorCode: string): Promise<void>;
-  markSent(context: AutoReplyContext, messageId: string, externalMessageId: string, now: Date): Promise<void>;
+  markSent(context: SendTarget, messageId: string, externalMessageId: string, now: Date): Promise<void>;
 }
 
 export type AutoReplyOutcome = "sent" | "failed" | "hourly_limit";

@@ -2,7 +2,7 @@ import "server-only";
 import { recordSendUsage } from "@/lib/inbox/usage";
 import type { Enums, Tables } from "@/lib/supabase/database.types";
 import type { AdminClient } from "@/lib/supabase/server";
-import { AWAY_COOLDOWN_MS, type AutoReplyContext, type AutoReplySettings, type AutoReplyStore, type BusinessHours } from "./auto-reply";
+import { AWAY_COOLDOWN_MS, type AutoReplySettings, type AutoReplyStore, type BusinessHours, type SendTarget } from "./auto-reply";
 
 export function toAutoReplySettings(row: Tables<"auto_reply_settings"> | null): AutoReplySettings {
   return {
@@ -36,11 +36,15 @@ export function supabaseAutoReplyStore(admin: AdminClient, provider: Enums<"chan
 
       const { data: message } = await admin
         .from("messages")
-        .select("occurred_at, conversation_id, conversations(greeted_at, last_away_reply_at, last_outbound_at)")
+        .select("id, occurred_at, conversation_id, conversations(greeted_at, last_away_reply_at, last_outbound_at)")
         .eq("channel_account_id", account.id)
         .eq("external_message_id", externalMessageId)
         .maybeSingle();
       if (!message?.conversations) return null;
+
+      // A rating was answered: it gets its own thanks, not an automatic reply.
+      const { data: rating } = await admin.from("nps_surveys").select("id").eq("response_message_id", message.id).maybeSingle();
+      if (rating) return null;
 
       const { count } = await admin
         .from("messages")
@@ -88,7 +92,7 @@ export function supabaseAutoReplyStore(admin: AdminClient, provider: Enums<"chan
       return data.length === 1;
     },
 
-    async createPending(context: AutoReplyContext, body, now) {
+    async createPending(context: SendTarget, body, now) {
       const { data, error } = await admin
         .from("messages")
         .insert({

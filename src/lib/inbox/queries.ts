@@ -101,6 +101,7 @@ export interface ConversationDetail {
   organizationId: string;
   channel: Tables<"conversations">["channel"];
   lastInboundAt: string | null;
+  lastOutboundAt: string | null;
   replyWindowEndsAt: string | null;
   /** False when replies are not limited to 24h (ChatPro). */
   hasReplyWindow: boolean;
@@ -131,7 +132,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   const { data, error } = await supabase
     .from("conversations")
     .select(
-      "id, organization_id, channel, assigned_to, status, department_id, last_inbound_at, reply_window_ends_at, contact_id, contacts(id, display_name, phone_normalized, source, created_at, last_interaction_at, avatar_path, profile_synced_at, owner_id), channel_accounts(id, external_account_id, provider, status)",
+      "id, organization_id, channel, assigned_to, status, department_id, last_inbound_at, last_outbound_at, reply_window_ends_at, contact_id, contacts(id, display_name, phone_normalized, source, created_at, last_interaction_at, avatar_path, profile_synced_at, owner_id), channel_accounts(id, external_account_id, provider, status)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -151,6 +152,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     organizationId: data.organization_id,
     channel: data.channel,
     lastInboundAt: data.last_inbound_at,
+    lastOutboundAt: data.last_outbound_at,
     replyWindowEndsAt: data.channel_accounts.provider === "chatpro" ? null : data.reply_window_ends_at,
     hasReplyWindow: data.channel_accounts.provider !== "chatpro",
     assignedTo: data.assigned_to,

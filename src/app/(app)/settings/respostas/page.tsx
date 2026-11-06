@@ -4,9 +4,10 @@ import { Alert, Panel, Skeleton } from "@/components/ui";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { canManage, requireMembership } from "@/lib/auth";
 import { getWhatsAppProviderName } from "@/lib/env";
-import { getAutoReplySettings, listQuickReplies } from "@/lib/replies/queries";
+import { getAutoReplySettings, getNpsSettings, listQuickReplies } from "@/lib/replies/queries";
 import { deleteQuickReplyAction } from "./actions";
 import { AutoReplyForm } from "./auto-reply-form";
+import { NpsForm } from "./nps-form";
 import { QuickReplyForm } from "./quick-reply-form";
 
 export const metadata: Metadata = { title: "Respostas" };
@@ -22,9 +23,10 @@ export default function RepliesPage() {
 async function Replies() {
   const me = await requireMembership();
   const manage = canManage(me.role);
-  const [replies, autoReplies] = await Promise.all([
+  const [replies, autoReplies, nps] = await Promise.all([
     listQuickReplies(me.organizationId),
     manage ? getAutoReplySettings(me.organizationId) : null,
+    manage ? getNpsSettings(me.organizationId) : null,
   ]);
 
   return (
@@ -96,6 +98,15 @@ async function Replies() {
             ) : null}
             <AutoReplyForm settings={autoReplies} />
           </div>
+        </Panel>
+      ) : null}
+
+      {nps ? (
+        <Panel
+          title="Avaliação do atendimento"
+          description="Pede uma nota ao finalizar uma conversa. Cada cliente recebe no máximo uma a cada 30 dias, e dá para desmarcar ao finalizar. O resultado fica em Relatórios."
+        >
+          <NpsForm enabled={nps.enabled} question={nps.question} thanks={nps.thanks} />
         </Panel>
       ) : null}
     </>

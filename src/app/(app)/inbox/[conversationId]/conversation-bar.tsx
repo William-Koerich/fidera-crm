@@ -28,6 +28,7 @@ export function ConversationBar({
   departments,
   endings,
   labels,
+  ratingEnabled,
 }: {
   conversationId: string;
   status: "open" | "closed";
@@ -41,6 +42,7 @@ export function ConversationBar({
   departments: InboxOption[];
   endings: InboxOption[];
   labels: InboxOption[];
+  ratingEnabled: boolean;
 }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [department, setDepartment] = useState(departmentId ?? "");
@@ -185,12 +187,22 @@ export function ConversationBar({
                       </option>
                     ))}
                   </Select>
+                  {ratingEnabled ? (
+                    <label className="mt-1 flex min-h-11 cursor-pointer items-center gap-3 text-text">
+                      <input type="checkbox" name="askRating" defaultChecked className="size-5 shrink-0 accent-brand" />
+                      Pedir avaliação ao cliente
+                    </label>
+                  ) : null}
                 </div>
               }
               confirmLabel="Finalizar"
               confirmVariant="primary"
               action={async (formData) => {
-                const result = await finishConversationAction(conversationId, String(formData.get("endingId") ?? "")).catch(() => null);
+                const result = await finishConversationAction(
+                  conversationId,
+                  String(formData.get("endingId") ?? ""),
+                  formData.get("askRating") === "on",
+                ).catch(() => null);
                 setNotice(result ? (result.notice ?? null) : "Não foi possível finalizar. Tente de novo.");
               }}
               fields={{}}

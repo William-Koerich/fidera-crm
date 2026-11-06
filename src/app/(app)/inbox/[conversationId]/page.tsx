@@ -16,7 +16,7 @@ import {
   listNotes,
   listTeamMembers,
 } from "@/lib/inbox/queries";
-import { listQuickReplies } from "@/lib/replies/queries";
+import { isRatingEnabled, listQuickReplies } from "@/lib/replies/queries";
 import { ConversationList, ListSkeleton, parseInboxParams } from "../conversation-list";
 import { RealtimeRefresh } from "../realtime-refresh";
 import { WindowBadge } from "../window-badge";
@@ -83,12 +83,13 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
   if (!conversation) notFound();
 
   const before = typeof query.before === "string" ? decodeCursor(query.before) : null;
-  const [{ items, olderCursor }, quickReplies, members, options, contactLabelIds] = await Promise.all([
+  const [{ items, olderCursor }, quickReplies, members, options, contactLabelIds, rating] = await Promise.all([
     listMessages(conversation.id, before),
     listQuickReplies(me.organizationId),
     listTeamMembers(conversation.organizationId),
     listInboxOptions(conversation.organizationId),
     listContactLabelIds(conversation.contact.id),
+    isRatingEnabled(conversation.organizationId),
   ]);
   const notes = await listNotes(
     conversation.id,
@@ -154,6 +155,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
           departments={options.departments}
           endings={options.endings}
           labels={options.labels}
+          ratingEnabled={rating}
         />
 
         <div className="flex-1 overflow-y-auto">

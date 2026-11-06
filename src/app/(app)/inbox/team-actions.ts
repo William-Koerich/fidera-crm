@@ -4,6 +4,7 @@ import { refresh } from "next/cache";
 import { canManage, requireMembership } from "@/lib/auth";
 import { getProviderByName } from "@/lib/channels";
 import { getConversation, listInboxOptions, listTeamMembers } from "@/lib/inbox/queries";
+import { sendNpsSurvey, type SurveyOutcome } from "@/lib/inbox/nps";
 import { logEvent } from "@/lib/log";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 
@@ -125,7 +126,13 @@ export async function setContactOwnerAction(conversationId: string, ownerId: str
   return mirrored(false, "owner", conversation.id);
 }
 
-export async function finishConversationAction(conversationId: string, endingId: string): Promise<TeamActionState> {
+const SURVEY_NOTICE: Partial<Record<SurveyOutcome, string>> = {
+  asked_recently: "A avaliação não foi enviada: este cliente recebeu uma nos últimos 30 dias.",
+  hourly_limit: "A avaliação não foi enviada: o limite de mensagens automáticas por hora foi atingido.",
+  failed: "A avaliação não foi enviada.",
+};
+
+export async function finishConversationAction(conversationId: string, endingId: string, askRating = false): Promise<TeamActionState> {
   const ctx = await load(conversationId);
   if (!ctx) return error("Conversa não encontrada.");
   const { conversation, me } = ctx;
@@ -142,14 +149,42 @@ export async function finishConversationAction(conversationId: string, endingId:
   await audit(conversation.organizationId, me.user.id, "conversation.finished", conversation.id, { ending_id: ending?.id ?? null });
   refresh();
 
-  if (!ctx.sync) return { status: "saved" };
-  if (!ending?.externalId || !ctx.to) {
-    return { status: "saved", notice: "Finalizada no Fidera. Para encerrar também no ChatPro, escolha um motivo que exista lá." };
+  // Asked before closing on the channel: sending there opens a session, which closing then ends.
+  let surveyNotice: string | undefined;
+  if (askRating && ctx.to) {
+    const admin = createAdminClient();
+    const { data: settings } = await admin.from("nps_settings").select("enabled, question").eq("organization_id", conversation.organizationId).maybeSingle();
+    if (settings?.enabled) {
+      const outcome = await sendNpsSurvey(admin, conversation.account.provider, {
+        organizationId: conversation.organizationId,
+        accountId: conversation.account.id,
+        accountExternalId: conversation.account.externalAccountId,
+        conversationId: conversation.id,
+        lastOutboundAt: conversation.lastOutboundAt,
+        channel: conversation.channel,
+        to: ctx.to,
+        contactId: conversation.contact.id,
+        assignedTo: conversation.assignedTo,
+        question: settings.question,
+      }).catch(() => "failed" as const);
+      surveyNotice = SURVEY_NOTICE[outcome];
+    }
   }
-  return mirrored(
-    await ctx.sync.finishConversation({ accountExternalId: ctx.instanceId, to: ctx.to, endingExternalId: ending.externalId }),
-    "finish",
-    conversation.id,
+  const withSurvey = (state: TeamActionState): TeamActionState => {
+    const notice = [state.notice, surveyNotice].filter(Boolean).join(" ");
+    return notice ? { ...state, notice } : state;
+  };
+
+  if (!ctx.sync) return withSurvey({ status: "saved" });
+  if (!ending?.externalId || !ctx.to) {
+    return withSurvey({ status: "saved", notice: "Finalizada no Fidera. Para encerrar também no ChatPro, escolha um motivo que exista lá." });
+  }
+  return withSurvey(
+    mirrored(
+      await ctx.sync.finishConversation({ accountExternalId: ctx.instanceId, to: ctx.to, endingExternalId: ending.externalId }),
+      "finish",
+      conversation.id,
+    ),
   );
 }
 

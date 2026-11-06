@@ -28,3 +28,19 @@ export async function getReportSummary(organizationId: string, from: string, to:
   if (error) throw new Error(`Could not load the report (${error.code})`);
   return data as unknown as ReportSummary;
 }
+
+export interface NpsReport {
+  sent: number;
+  answered: number;
+  promoters: number;
+  passives: number;
+  detractors: number;
+  by_assignee: { user_id: string | null; answered: number; promoters: number; detractors: number }[];
+}
+
+export async function getNpsReport(organizationId: string, from: string, to: string): Promise<NpsReport> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("report_nps", { p_org: organizationId, p_from: from, p_to: to });
+  if (error) throw new Error(`Could not load the ratings (${error.code})`);
+  return data as unknown as NpsReport;
+}

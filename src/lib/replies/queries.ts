@@ -1,5 +1,5 @@
 import "server-only";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
 import type { AutoReplySettings } from "./auto-reply";
 import { toAutoReplySettings } from "./auto-reply-store";
 import type { QuickReply } from "./quick-replies";
@@ -20,4 +20,16 @@ export async function getAutoReplySettings(organizationId: string): Promise<Auto
   const { data, error } = await supabase.from("auto_reply_settings").select("*").eq("organization_id", organizationId).maybeSingle();
   if (error) throw new Error(`Could not load automatic replies (${error.code})`);
   return toAutoReplySettings(data);
+}
+
+export async function getNpsSettings(organizationId: string): Promise<{ enabled: boolean; question: string; thanks: string }> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("nps_settings").select("enabled, question, thanks").eq("organization_id", organizationId).maybeSingle();
+  return { enabled: data?.enabled ?? false, question: data?.question ?? "", thanks: data?.thanks ?? "" };
+}
+
+/** Members may finish conversations too, but cannot read these settings under RLS. */
+export async function isRatingEnabled(organizationId: string): Promise<boolean> {
+  const { data } = await createAdminClient().from("nps_settings").select("enabled").eq("organization_id", organizationId).maybeSingle();
+  return data?.enabled ?? false;
 }

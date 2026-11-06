@@ -95,6 +95,18 @@ export type Database = {
         Update: { id?: string; organization_id?: string; conversation_id?: string; channel_account_id?: string; direction?: Database["crm"]["Enums"]["message_direction"]; origin?: Database["crm"]["Enums"]["message_origin"]; type?: Database["crm"]["Enums"]["message_type"]; body?: string | null; media_path?: string | null; media_mime_type?: string | null; media_external_id?: string | null; status?: Database["crm"]["Enums"]["message_status"]; external_message_id?: string | null; error_code?: string | null; sent_by?: string | null; occurred_at?: string; created_at?: string; updated_at?: string };
         Relationships: [{ foreignKeyName: "messages_organization_id_channel_account_id_fkey"; columns: ["organization_id", "channel_account_id"]; isOneToOne: false; referencedRelation: "channel_accounts"; referencedColumns: ["organization_id", "id"] }, { foreignKeyName: "messages_organization_id_conversation_id_fkey"; columns: ["organization_id", "conversation_id"]; isOneToOne: false; referencedRelation: "conversations"; referencedColumns: ["organization_id", "id"] }];
       };
+      nps_settings: {
+        Row: { organization_id: string; enabled: boolean; question: string; thanks: string; updated_at: string };
+        Insert: { organization_id: string; enabled?: boolean; question?: string; thanks?: string; updated_at?: string };
+        Update: { organization_id?: string; enabled?: boolean; question?: string; thanks?: string; updated_at?: string };
+        Relationships: [{ foreignKeyName: "nps_settings_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
+      };
+      nps_surveys: {
+        Row: { id: string; organization_id: string; conversation_id: string; contact_id: string; assigned_to: string | null; sent_at: string; expires_at: string; score: number | null; answered_at: string | null; response_message_id: string | null; thanks_pending: boolean };
+        Insert: { id?: string; organization_id: string; conversation_id: string; contact_id: string; assigned_to?: string | null; sent_at?: string; expires_at: string; score?: number | null; answered_at?: string | null; response_message_id?: string | null; thanks_pending?: boolean };
+        Update: { id?: string; organization_id?: string; conversation_id?: string; contact_id?: string; assigned_to?: string | null; sent_at?: string; expires_at?: string; score?: number | null; answered_at?: string | null; response_message_id?: string | null; thanks_pending?: boolean };
+        Relationships: [{ foreignKeyName: "nps_surveys_organization_id_contact_id_fkey"; columns: ["organization_id", "contact_id"]; isOneToOne: false; referencedRelation: "contacts"; referencedColumns: ["organization_id", "id"] }, { foreignKeyName: "nps_surveys_organization_id_conversation_id_fkey"; columns: ["organization_id", "conversation_id"]; isOneToOne: false; referencedRelation: "conversations"; referencedColumns: ["organization_id", "id"] }, { foreignKeyName: "nps_surveys_response_message_id_fkey"; columns: ["response_message_id"]; isOneToOne: false; referencedRelation: "messages"; referencedColumns: ["id"] }];
+      };
       organizations: {
         Row: { id: string; name: string; timezone: string; created_by: string | null; created_at: string; updated_at: string };
         Insert: { id?: string; name: string; timezone?: string; created_by?: string | null; created_at?: string; updated_at?: string };
@@ -130,6 +142,7 @@ export type Database = {
       ingest_events: { Args: { p_provider: Database["crm"]["Enums"]["channel_provider"]; p_events: Json }; Returns: Json };
       list_members: { Args: { org_id: string }; Returns: { user_id: string; email: string; role: Database["crm"]["Enums"]["membership_role"]; created_at: string }[] };
       report_conversations: { Args: { p_org: string; p_from: string; p_to: string; p_limit?: number }; Returns: { contact_name: string; phone: string; status: string; assigned_to: string; department: string; ending: string; labels: string; first_message_at: string; last_message_at: string; received: number; sent: number }[] };
+      report_nps: { Args: { p_org: string; p_from: string; p_to: string }; Returns: Json };
       report_summary: { Args: { p_org: string; p_from: string; p_to: string }; Returns: Json };
       search_conversations: { Args: { p_org: string; p_query: string; p_limit?: number }; Returns: string[] };
       set_channel_token: { Args: { p_account_id: string; p_token: string }; Returns: undefined };

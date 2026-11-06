@@ -124,6 +124,14 @@ off duty receives nothing new, except their own clients. With nobody on duty, a 
 unassigned until the next customer message. ChatPro's docs have no route for its own schedules,
 so this is not mirrored, and it does not block anyone's access.
 
+### Service rating (NPS)
+
+*Ajustes -> Respostas* turns it on, off by default. ChatPro's docs say its own rating only goes out
+when a session is finished inside its chat, so finishing through the CRM asks by itself, at most once
+every 30 days per client and within the automatic messages' hourly limit. A database trigger takes a
+lone number from 0 to 10, on a finished conversation and within 24 hours, as the rating: it does not
+reopen or distribute the conversation. Anything else is the customer writing again.
+
 ### Reports
 
 `/reports` is for owners and admins: the database functions refuse anyone else. An attendance

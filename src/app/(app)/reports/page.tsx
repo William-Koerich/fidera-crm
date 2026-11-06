@@ -6,7 +6,8 @@ import { canManage, requireMembership } from "@/lib/auth";
 import { getProviderByName } from "@/lib/channels";
 import { listChannelAccounts, listTeamMembers } from "@/lib/inbox/queries";
 import { PERIOD_PRESETS, chartBuckets, formatDuration, monthlyPace, parsePreset, periodFor } from "@/lib/reports/period";
-import { getReportSummary } from "@/lib/reports/queries";
+import { getNpsReport, getReportSummary } from "@/lib/reports/queries";
+import { npsScore } from "@/lib/replies/nps";
 import { DailyBars } from "./daily-bars";
 
 export const metadata: Metadata = { title: "Relatórios" };
@@ -73,8 +74,9 @@ async function Report({ searchParams }: { searchParams: PageProps<"/reports">["s
 
   const days = parsePreset(params.dias);
   const { from, to } = periodFor(days, new Date());
-  const [report, members, accounts] = await Promise.all([
+  const [report, nps, members, accounts] = await Promise.all([
     getReportSummary(me.organizationId, from, to),
+    getNpsReport(me.organizationId, from, to),
     listTeamMembers(me.organizationId),
     listChannelAccounts(me.organizationId),
   ]);
@@ -87,6 +89,7 @@ async function Report({ searchParams }: { searchParams: PageProps<"/reports">["s
     conversations: a.conversations,
   }));
   const chart = chartBuckets(report.by_day);
+  const score = npsScore(nps);
   const hasChannelReport = accounts.some((a) => getProviderByName(a.provider).team?.downloadDayReport);
 
   return (
@@ -146,6 +149,45 @@ async function Report({ searchParams }: { searchParams: PageProps<"/reports">["s
         <Breakdown title="Conversas por departamento" rows={report.by_department} empty="Nenhuma conversa no período." />
         <Breakdown title={`Finalizadas por motivo (${report.closed})`} rows={report.by_ending} empty="Nenhuma conversa finalizada no período." />
       </div>
+
+      <Panel
+        title="Avaliação do atendimento"
+        description="NPS: a parcela que deu 9 ou 10 menos a que deu de 0 a 6. Vai de -100 a 100. Poucas respostas dizem pouco."
+      >
+        {nps.sent === 0 ? (
+          <p className="text-sm text-text-muted">Nenhuma avaliação enviada no período. Ligue em Ajustes, na aba Respostas.</p>
+        ) : (
+          <div className="grid gap-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+              <Stat label="NPS" value={score === null ? "Sem dados" : String(score)} />
+              <Stat label="Respostas" value={`${nps.answered} de ${nps.sent}`} note="Avaliações respondidas e enviadas" />
+              <Stat label="Notas" value={`${nps.promoters} / ${nps.passives} / ${nps.detractors}`} note="9 e 10 / 7 e 8 / 0 a 6" />
+            </div>
+            {nps.by_assignee.length > 0 ? (
+              <table className="w-full text-sm">
+                <thead className="text-left text-text-muted">
+                  <tr>
+                    <th scope="col" className="py-1.5 font-medium">Quem atendeu</th>
+                    <th scope="col" className="py-1.5 text-right font-medium">Respostas</th>
+                    <th scope="col" className="py-1.5 text-right font-medium">NPS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border tabular">
+                  {nps.by_assignee.map((row) => (
+                    <tr key={row.user_id ?? "none"}>
+                      <td className="max-w-0 truncate py-1.5 pr-4">
+                        {row.user_id ? (members.find((m) => m.id === row.user_id)?.email ?? "Ex-integrante da equipe") : "Sem responsável"}
+                      </td>
+                      <td className="w-20 py-1.5 text-right">{row.answered}</td>
+                      <td className="w-16 py-1.5 text-right">{npsScore(row)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : null}
+          </div>
+        )}
+      </Panel>
 
       <Panel title="Exportar" description="Os arquivos abrem direto no Excel e contêm dados de clientes: guarde com cuidado.">
         <div className="grid gap-3 sm:flex sm:flex-wrap">
