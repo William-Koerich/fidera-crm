@@ -2,6 +2,7 @@ import { Icon } from "@/components/icons";
 import { cx } from "@/components/ui";
 import { formatTime } from "@/lib/inbox/format";
 import type { MessageItem } from "@/lib/inbox/queries";
+import { MessageText } from "./schedule";
 
 const STATUS: Partial<Record<MessageItem["status"], { icon: "clock" | "check" | "check-double" | "alert"; label: string; className?: string }>> = {
   pending: { icon: "clock", label: "Enviando" },
@@ -71,7 +72,7 @@ export function MessageBubble({ message: m }: { message: MessageItem }) {
           </p>
         ) : null}
 
-        {m.body ? <p className="whitespace-pre-wrap break-words">{m.body}</p> : null}
+        {m.body ? <MessageText text={m.body} sentAt={m.occurred_at} /> : null}
 
         <p className="mt-1 flex items-center justify-end gap-1 text-[11px] text-text-muted">
           {origin ? <span>{origin} ·</span> : null}

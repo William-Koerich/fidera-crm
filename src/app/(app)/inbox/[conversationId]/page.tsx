@@ -5,6 +5,8 @@ import { connection } from "next/server";
 import { Fragment, Suspense } from "react";
 import { Icon } from "@/components/icons";
 import { Avatar, Skeleton } from "@/components/ui";
+import { formatDay } from "@/lib/agenda/form";
+import { listUpcomingForContact } from "@/lib/agenda/queries";
 import { canManage, requireMembership } from "@/lib/auth";
 import { decodeCursor } from "@/lib/inbox/cursor";
 import { dayKey, formatDayLabel, formatPhone } from "@/lib/inbox/format";
@@ -25,6 +27,7 @@ import { ContactPanel } from "./contact-panel";
 import { ConversationBar } from "./conversation-bar";
 import { MarkRead } from "./mark-read";
 import { DaySeparator, MessageBubble, NoteBubble } from "./message-parts";
+import { ScheduleProvider } from "./schedule";
 import { ScrollToBottom } from "./scroll-to-bottom";
 
 export const metadata: Metadata = { title: "Conversa" };
@@ -83,13 +86,14 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
   if (!conversation) notFound();
 
   const before = typeof query.before === "string" ? decodeCursor(query.before) : null;
-  const [{ items, olderCursor }, quickReplies, members, options, contactLabelIds, rating] = await Promise.all([
+  const [{ items, olderCursor }, quickReplies, members, options, contactLabelIds, rating, upcoming] = await Promise.all([
     listMessages(conversation.id, before),
     listQuickReplies(me.organizationId),
     listTeamMembers(conversation.organizationId),
     listInboxOptions(conversation.organizationId),
     listContactLabelIds(conversation.contact.id),
     isRatingEnabled(conversation.organizationId),
+    listUpcomingForContact(conversation.contact.id),
   ]);
   const notes = await listNotes(
     conversation.id,
@@ -111,7 +115,12 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
   const connected = conversation.account.status === "active";
 
   return (
-    <>
+    <ScheduleProvider
+      conversationId={conversation.id}
+      clientName={contact.name ?? formatPhone(contact.phone)}
+      defaultStaffId={conversation.assignedTo}
+      members={members}
+    >
       <div className="fixed inset-0 z-30 flex flex-col bg-background lg:static lg:z-auto lg:min-w-0 lg:flex-1">
         <RealtimeRefresh table="messages" filter={`conversation_id=eq.${conversation.id}`} />
         <RealtimeRefresh table="conversation_notes" filter={`conversation_id=eq.${conversation.id}`} />
@@ -156,6 +165,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
           endings={options.endings}
           labels={options.labels}
           ratingEnabled={rating}
+          upcoming={upcoming.map((a) => `${formatDay(a.date)} às ${a.time}${a.service ? ` · ${a.service}` : ""}`)}
         />
 
         <div className="flex-1 overflow-y-auto">
@@ -218,6 +228,6 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
       >
         <ContactPanel conversation={conversation} />
       </aside>
-    </>
+    </ScheduleProvider>
   );
 }

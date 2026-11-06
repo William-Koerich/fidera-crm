@@ -133,6 +133,15 @@ shows the same; the webhook pipeline runs as the service role and is not affecte
 transfer a conversation away and then stops seeing it; that write goes through the server, since RLS
 refuses a change that hides a row from whoever makes it. ChatPro access is not affected.
 
+### Agenda
+
+`/agenda` is the salon's week, shared by the team. In a conversation, dates and times in messages
+("sábado às 9h", "12/11", "amanhã 15h") become links that open the booking form filled in. They
+are read relative to when the message was sent, in Brasília time; the form is always reviewed
+before saving. A trigger refuses two clients at once for the same person, with a lock so
+simultaneous bookings cannot both pass. Nothing is sent to the client and nothing goes to ChatPro:
+its docs have no agenda route. Appointments are cancelled rather than deleted.
+
 ### Service rating (NPS)
 
 *Ajustes -> Respostas* turns it on, off by default. ChatPro's docs say its own rating only goes out

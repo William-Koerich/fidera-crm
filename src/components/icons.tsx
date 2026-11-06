@@ -24,9 +24,11 @@ export type IconName =
   | "phone"
   | "message"
   | "paperclip"
-  | "chart";
+  | "chart"
+  | "calendar";
 
 const PATHS: Record<IconName, string> = {
+  calendar: "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z",
   chart: "M4 20V10M10 20V4M16 20v-7M22 20H2",
   paperclip: "M21.4 11.1l-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5",
   inbox: "M3 13h5l1.5 3h5L16 13h5M5.5 5h13L21 13v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5l2.5-8Z",

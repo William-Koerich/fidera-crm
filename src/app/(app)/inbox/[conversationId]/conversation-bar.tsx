@@ -14,6 +14,7 @@ import {
   setDepartmentAction,
 } from "../team-actions";
 import { AssigneeSelect } from "./assignee-select";
+import { ScheduleButton } from "./schedule";
 
 /** How the team organizes this conversation. Collapsed so the messages keep the space on phones. */
 export function ConversationBar({
@@ -30,6 +31,7 @@ export function ConversationBar({
   endings,
   labels,
   ratingEnabled,
+  upcoming,
 }: {
   conversationId: string;
   status: "open" | "closed";
@@ -44,6 +46,7 @@ export function ConversationBar({
   endings: InboxOption[];
   labels: InboxOption[];
   ratingEnabled: boolean;
+  upcoming: string[];
 }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [department, setDepartment] = useState(departmentId ?? "");
@@ -73,7 +76,7 @@ export function ConversationBar({
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm sm:px-4 [&::-webkit-details-marker]:hidden">
         <span className="font-medium">Atendimento</span>
         <span className="min-w-0 flex-1 truncate text-text-muted">
-          {status === "closed" ? "Finalizada" : assignee ? assignee.email : "Sem responsável"}
+          {upcoming[0] ? `Agendado: ${upcoming[0]}` : status === "closed" ? "Finalizada" : assignee ? assignee.email : "Sem responsável"}
         </span>
         <span aria-hidden className="text-lg leading-none text-text-muted transition-transform group-open:rotate-45">
           +
@@ -81,6 +84,24 @@ export function ConversationBar({
       </summary>
 
       <div className="grid gap-4 border-t border-border p-3 sm:px-4">
+        <div className="grid gap-2">
+          {upcoming.length > 0 ? (
+            <div>
+              <p className="text-sm text-text-muted">Próximos horários</p>
+              <ul className="mt-1 grid gap-0.5 text-sm">
+                {upcoming.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          <div>
+            <ScheduleButton className="inline-flex min-h-11 items-center rounded-lg bg-brand px-4 text-sm font-medium text-white transition-colors hover:bg-brand-hover sm:min-h-9">
+              Agendar cliente
+            </ScheduleButton>
+          </div>
+        </div>
+
         <AssigneeSelect conversationId={conversationId} assignedTo={assignedTo} members={members} currentUserId={currentUserId} />
 
         <div className="flex items-center gap-3">

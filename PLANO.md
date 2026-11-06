@@ -23,7 +23,9 @@ Incluído:
 - Relatório mensal: chamados, respostas em até 7 dias e valor estimado recuperado.
 - Consentimento, descadastro, registro de uso e custo por negócio.
 
-Fora do MVP: agenda completa, financeiro, estoque, comissões, disparo em massa, construtor de chatbots e IA automática.
+Fora do MVP: financeiro, estoque, comissões, disparo em massa e IA automática.
+
+Decisões do dono do produto em 6 de novembro de 2026: entram no produto a agenda do salão, com agendamento a partir das datas citadas na conversa, e o chatbot com fluxo.
 
 Meta de onboarding: gerar a primeira lista útil em até 10 minutos após conectar.
 
