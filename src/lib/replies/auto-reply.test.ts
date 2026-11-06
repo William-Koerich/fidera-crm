@@ -5,6 +5,7 @@ import {
   decideAutoReply,
   isWithinBusinessHours,
   parseAutoReplyForm,
+  parseBusinessHours,
   runAutoReplies,
   type AutoReplyContext,
   type AutoReplySettings,
@@ -98,6 +99,23 @@ describe("parseAutoReplyForm", () => {
 
   it("allows saving everything off", () => {
     expect(form({})).toMatchObject({ ok: true });
+  });
+});
+
+describe("parseBusinessHours", () => {
+  it("keeps schedules apart by prefix", () => {
+    const values: Record<string, string> = {
+      a_day_1_enabled: "on",
+      a_day_1_open: "08:00",
+      a_day_1_close: "12:00",
+      b_day_2_enabled: "on",
+      b_day_2_open: "13:00",
+      b_day_2_close: "19:00",
+    };
+    const get = (name: string) => values[name] ?? null;
+    expect(parseBusinessHours(get, "a_")).toEqual({ ok: true, hours: { "1": { open: "08:00", close: "12:00" } } });
+    expect(parseBusinessHours(get, "b_")).toEqual({ ok: true, hours: { "2": { open: "13:00", close: "19:00" } } });
+    expect(parseBusinessHours(get, "c_")).toEqual({ ok: true, hours: {} });
   });
 });
 

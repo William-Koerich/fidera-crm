@@ -69,6 +69,24 @@ export function decideAutoReply(input: {
   return null;
 }
 
+/** Reads the weekday fields of BusinessHoursFields. The prefix tells several schedules in one form apart. */
+export function parseBusinessHours(
+  get: (name: string) => string | null,
+  prefix = "",
+): { ok: true; hours: BusinessHours } | { ok: false; message: string } {
+  const hours: BusinessHours = {};
+  for (const [index, name] of WEEKDAYS.entries()) {
+    if (get(`${prefix}day_${index}_enabled`) !== "on") continue;
+    const open = get(`${prefix}day_${index}_open`) ?? "";
+    const close = get(`${prefix}day_${index}_close`) ?? "";
+    if (!TIME.test(open) || !TIME.test(close) || open >= close) {
+      return { ok: false, message: `${name}: o horário de início precisa ser antes do fim.` };
+    }
+    hours[String(index)] = { open, close };
+  }
+  return { ok: true, hours };
+}
+
 /** Validates the settings form. Enabling something requires what it needs to work. */
 export function parseAutoReplyForm(
   get: (name: string) => string | null,
@@ -81,16 +99,9 @@ export function parseAutoReplyForm(
   if (awayEnabled && !awayText) return { ok: false, message: "Escreva o texto para fora do horário." };
   if (greetingText.length > 4096 || awayText.length > 4096) return { ok: false, message: "Texto longo demais." };
 
-  const businessHours: BusinessHours = {};
-  for (const [index, name] of WEEKDAYS.entries()) {
-    if (get(`day_${index}_enabled`) !== "on") continue;
-    const open = get(`day_${index}_open`) ?? "";
-    const close = get(`day_${index}_close`) ?? "";
-    if (!TIME.test(open) || !TIME.test(close) || open >= close) {
-      return { ok: false, message: `${name}: o horário de abertura precisa ser antes do fechamento.` };
-    }
-    businessHours[String(index)] = { open, close };
-  }
+  const parsed = parseBusinessHours(get);
+  if (!parsed.ok) return parsed;
+  const businessHours = parsed.hours;
   if (awayEnabled && Object.keys(businessHours).length === 0) {
     return { ok: false, message: "Marque ao menos um dia de atendimento." };
   }

@@ -116,6 +116,59 @@ describe.skipIf(!hasDatabase())("automatic distribution", () => {
       expect((await assignedTo(db, on.org, "5548900000003")).assigned_to).toBeNull();
     }));
 
+  describe("work hours", () => {
+    // Friday, 14:00 in Brasília (UTC-3).
+    const FRIDAY_2PM = "2026-11-06T17:00:00Z";
+    const onDuty = async (db: Db, hours: object | null, at: string) =>
+      (await db.query<{ on: boolean }>("select crm_private.is_on_duty($1::jsonb, $2::timestamptz) as on", [hours && JSON.stringify(hours), at])).rows[0]!.on;
+
+    it("follows the local day and time, like the automatic replies", () =>
+      withRollback(db, async (db) => {
+        await actAsAdmin(db);
+        expect(await onDuty(db, null, FRIDAY_2PM)).toBe(true);
+        expect(await onDuty(db, { "5": { open: "09:00", close: "18:00" } }, FRIDAY_2PM)).toBe(true);
+        expect(await onDuty(db, { "5": { open: "14:00", close: "15:00" } }, FRIDAY_2PM)).toBe(true);
+        expect(await onDuty(db, { "5": { open: "13:00", close: "14:00" } }, FRIDAY_2PM)).toBe(false);
+        expect(await onDuty(db, { "1": { open: "09:00", close: "18:00" } }, FRIDAY_2PM)).toBe(false);
+        expect(await onDuty(db, {}, FRIDAY_2PM)).toBe(false);
+        // Friday 22:00 in Brasília is already Saturday in UTC.
+        expect(await onDuty(db, { "5": { open: "21:00", close: "23:00" } }, "2026-11-07T01:00:00Z")).toBe(true);
+      }));
+
+    const OFF = {}; // No day marked: never on duty, whatever time the test runs.
+
+    it("skips whoever is off duty", () =>
+      withRollback(db, async (db) => {
+        const s = await setup(db);
+        await db.query("update crm.memberships set work_hours = $1::jsonb where organization_id = $2 and user_id = $3", [JSON.stringify(OFF), s.org, s.ana]);
+        await receive(db, s.account, "5548900000001", "M1");
+        await receive(db, s.account, "5548900000002", "M2");
+        expect((await assignedTo(db, s.org, "5548900000001")).assigned_to).toBe(s.bia);
+        expect((await assignedTo(db, s.org, "5548900000002")).assigned_to).toBe(s.bia);
+      }));
+
+    it("leaves it unassigned with nobody on duty, and tries again on the next message", () =>
+      withRollback(db, async (db) => {
+        const s = await setup(db);
+        await db.query("update crm.memberships set work_hours = $1::jsonb where organization_id = $2", [JSON.stringify(OFF), s.org]);
+        await receive(db, s.account, "5548900000001", "M1");
+        expect((await assignedTo(db, s.org, "5548900000001")).assigned_to).toBeNull();
+
+        await db.query("update crm.memberships set work_hours = null where organization_id = $1 and user_id = $2", [s.org, s.bia]);
+        await receive(db, s.account, "5548900000001", "M2");
+        expect((await assignedTo(db, s.org, "5548900000001")).assigned_to).toBe(s.bia);
+      }));
+
+    it("keeps a client with their owner, even outside the owner's hours", () =>
+      withRollback(db, async (db) => {
+        const s = await setup(db);
+        await db.query("update crm.memberships set work_hours = $1::jsonb where organization_id = $2 and user_id = $3", [JSON.stringify(OFF), s.org, s.owner]);
+        await db.query("insert into crm.contacts (organization_id, phone_normalized, source, owner_id) values ($1, '5548900000009', 'manual', $2)", [s.org, s.owner]);
+        await receive(db, s.account, "5548900000009", "M1");
+        expect((await assignedTo(db, s.org, "5548900000009")).assigned_to).toBe(s.owner);
+      }));
+  });
+
   it("only managers change the setting, and only for their own organization", () =>
     withRollback(db, async (db) => {
       const s = await setup(db);

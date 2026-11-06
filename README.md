@@ -119,6 +119,11 @@ who has waited longest among those accepting conversations; a row lock makes sim
 messages take turns. The webhook processor then repeats the assignment on ChatPro. Client owners
 are mirrored with `leads/updateOwner`, which cannot clear an owner. People are matched by e-mail.
 
+Work hours are per team member, in Brasília time, and only affect who distribution picks: someone
+off duty receives nothing new, except their own clients. With nobody on duty, a conversation stays
+unassigned until the next customer message. ChatPro's docs have no route for its own schedules,
+so this is not mirrored, and it does not block anyone's access.
+
 ### Free testing with the Meta test number
 
 No payment method is needed for the developer app's test number.

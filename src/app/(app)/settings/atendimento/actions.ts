@@ -4,7 +4,9 @@ import { refresh } from "next/cache";
 import { canManage, requireMembership } from "@/lib/auth";
 import { getProviderByName } from "@/lib/channels";
 import type { ChannelTeamSync } from "@/lib/channels/types";
+import { parseBusinessHours, type BusinessHours } from "@/lib/replies/auto-reply";
 import { cleanItemName, cleanLabelColor, isTeamItemKind, planImport, type TeamItemKind } from "@/lib/replies/team-items";
+import type { Json } from "@/lib/supabase/database.types";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 export interface TeamItemState {
@@ -72,27 +74,47 @@ export async function saveDistributionAction(_prev: TeamItemState, formData: For
   if (!canManage(me.role)) return fail("Apenas donos e administradores podem alterar isto.");
   const enabled = formData.get("enabled") === "on";
   const accepting = new Set(formData.getAll("members").map(String));
+  const get = (name: string) => {
+    const value = formData.get(name);
+    return typeof value === "string" ? value : null;
+  };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("distribution_settings").upsert({ organization_id: me.organizationId, enabled });
-  if (error) return fail("Não foi possível salvar. Tente de novo.");
-
   // Server client after the check above: admins may not edit an owner's row under RLS,
-  // but choosing who receives conversations is part of their job.
+  // but choosing who receives conversations, and when, is part of their job.
   const admin = createAdminClient();
   const { data: members, error: membersError } = await admin
     .from("memberships")
-    .select("user_id, accepts_conversations")
+    .select("user_id")
     .eq("organization_id", me.organizationId);
   if (membersError) return fail("Não foi possível salvar. Tente de novo.");
+
+  // Everything is validated first, so a mistake in one schedule saves nothing.
+  const schedules = new Map<string, BusinessHours | null>();
   for (const member of members) {
-    const next = accepting.has(member.user_id);
-    if (next === member.accepts_conversations) continue;
-    await admin
+    const prefix = `member_${member.user_id}_`;
+    if (get(`${prefix}has_hours`) !== "on") {
+      schedules.set(member.user_id, null);
+      continue;
+    }
+    const parsed = parseBusinessHours(get, prefix);
+    if (!parsed.ok) return fail(parsed.message);
+    if (Object.keys(parsed.hours).length === 0) return fail("Quem tem horário definido precisa de ao menos um dia marcado.");
+    schedules.set(member.user_id, parsed.hours);
+  }
+
+  const { error } = await supabase.from("distribution_settings").upsert({ organization_id: me.organizationId, enabled });
+  if (error) return fail("Não foi possível salvar. Tente de novo.");
+  for (const member of members) {
+    const { error: memberError } = await admin
       .from("memberships")
-      .update({ accepts_conversations: next })
+      .update({
+        accepts_conversations: accepting.has(member.user_id),
+        work_hours: (schedules.get(member.user_id) ?? null) as unknown as Json,
+      })
       .eq("organization_id", me.organizationId)
       .eq("user_id", member.user_id);
+    if (memberError) return fail("Não foi possível salvar. Tente de novo.");
   }
   await admin.from("audit_log").insert({
     organization_id: me.organizationId,

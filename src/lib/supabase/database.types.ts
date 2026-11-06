@@ -84,9 +84,9 @@ export type Database = {
         Relationships: [{ foreignKeyName: "labels_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
       memberships: {
-        Row: { organization_id: string; user_id: string; role: Database["crm"]["Enums"]["membership_role"]; created_at: string; accepts_conversations: boolean; last_assigned_at: string | null };
-        Insert: { organization_id: string; user_id: string; role?: Database["crm"]["Enums"]["membership_role"]; created_at?: string; accepts_conversations?: boolean; last_assigned_at?: string | null };
-        Update: { organization_id?: string; user_id?: string; role?: Database["crm"]["Enums"]["membership_role"]; created_at?: string; accepts_conversations?: boolean; last_assigned_at?: string | null };
+        Row: { organization_id: string; user_id: string; role: Database["crm"]["Enums"]["membership_role"]; created_at: string; accepts_conversations: boolean; last_assigned_at: string | null; work_hours: Json | null };
+        Insert: { organization_id: string; user_id: string; role?: Database["crm"]["Enums"]["membership_role"]; created_at?: string; accepts_conversations?: boolean; last_assigned_at?: string | null; work_hours?: Json | null };
+        Update: { organization_id?: string; user_id?: string; role?: Database["crm"]["Enums"]["membership_role"]; created_at?: string; accepts_conversations?: boolean; last_assigned_at?: string | null; work_hours?: Json | null };
         Relationships: [{ foreignKeyName: "memberships_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
       messages: {

@@ -1,3 +1,4 @@
+import type { BusinessHours } from "@/lib/replies/auto-reply";
 import { getProviderByName } from "@/lib/channels";
 import { isStoragePathOf } from "./attachments";
 import { previewText } from "./format";
@@ -190,19 +191,23 @@ export async function listTeamMembers(organizationId: string): Promise<TeamMembe
 
 export async function getDistribution(organizationId: string): Promise<{
   enabled: boolean;
-  members: { id: string; email: string; acceptsConversations: boolean }[];
+  members: { id: string; email: string; acceptsConversations: boolean; workHours: BusinessHours | null }[];
 }> {
   const supabase = await createClient();
   const [settings, memberships, team] = await Promise.all([
     supabase.from("distribution_settings").select("enabled").eq("organization_id", organizationId).maybeSingle(),
-    supabase.from("memberships").select("user_id, accepts_conversations").eq("organization_id", organizationId),
+    supabase.from("memberships").select("user_id, accepts_conversations, work_hours").eq("organization_id", organizationId),
     listTeamMembers(organizationId),
   ]);
   if (settings.error || memberships.error) throw new Error("Could not load the distribution settings");
-  const accepts = new Map(memberships.data.map((m) => [m.user_id, m.accepts_conversations]));
+  const byUser = new Map(memberships.data.map((m) => [m.user_id, m]));
   return {
     enabled: settings.data?.enabled ?? false,
-    members: team.map((m) => ({ ...m, acceptsConversations: accepts.get(m.id) ?? true })),
+    members: team.map((m) => ({
+      ...m,
+      acceptsConversations: byUser.get(m.id)?.accepts_conversations ?? true,
+      workHours: (byUser.get(m.id)?.work_hours ?? null) as unknown as BusinessHours | null,
+    })),
   };
 }
 
