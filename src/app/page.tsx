@@ -47,6 +47,18 @@ const SOON = [
   { title: "Relatórios", text: "Quantos clientes você chamou e quantos responderam." },
 ];
 
+/**
+ * Placeholder prices, shown with a notice on the page: pricing is not decided yet
+ * and the app does not enforce these limits. Update both together when it is.
+ */
+const PLANS = [
+  { name: "Essencial", price: "149", conversations: "300", users: "2", recommended: false },
+  { name: "Profissional", price: "249", conversations: "1.000", users: "5", recommended: true },
+  { name: "Rede", price: "449", conversations: "3.000", users: "10", recommended: false },
+];
+
+const PLAN_INCLUDES = ["Caixa de entrada do WhatsApp", "Respostas rápidas e automáticas", "Nomes e fotos dos contatos"];
+
 const QUESTIONS = [
   {
     q: "Preciso trocar de número?",
@@ -93,6 +105,9 @@ export default function Home() {
             </a>
             <a href="#como-funciona" className="inline-flex min-h-11 items-center px-3 text-sm font-medium text-text-muted hover:text-text">
               Como funciona
+            </a>
+            <a href="#planos" className="inline-flex min-h-11 items-center px-3 text-sm font-medium text-text-muted hover:text-text">
+              Planos
             </a>
             <a href="#perguntas" className="inline-flex min-h-11 items-center px-3 text-sm font-medium text-text-muted hover:text-text">
               Perguntas
@@ -194,7 +209,72 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="perguntas" aria-labelledby="perguntas-titulo" className="scroll-mt-16 border-t border-border bg-background">
+        <section id="planos" aria-labelledby="planos-titulo" className="scroll-mt-16 border-t border-border bg-background">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-8 sm:py-20">
+            <h2 id="planos-titulo" className="text-center text-3xl font-semibold tracking-tight">
+              Planos para o tamanho do seu negócio
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-center text-pretty text-text-muted">
+              Valores de exemplo. Os planos e preços do Fidera ainda estão sendo definidos e podem mudar.
+            </p>
+            <ul className="mx-auto mt-10 grid max-w-5xl grid-cols-1 gap-4 md:grid-cols-3">
+              {PLANS.map((plan) => (
+                <li
+                  key={plan.name}
+                  className={cx(
+                    "relative flex flex-col rounded-2xl border bg-surface",
+                    plan.recommended ? "border-brand ring-1 ring-brand" : "border-border",
+                  )}
+                >
+                  {plan.recommended ? (
+                    <span className="absolute -top-3 left-6 rounded-full bg-brand px-3 py-0.5 text-xs font-semibold text-white">
+                      Recomendado
+                    </span>
+                  ) : null}
+                  <div className="border-b border-border p-6">
+                    <h3 className="font-semibold">{plan.name}</h3>
+                    <p className="mt-2 flex items-baseline gap-1">
+                      <span className="text-4xl font-semibold tracking-tight tabular">R$ {plan.price}</span>
+                      <span className="text-sm text-text-muted">/mês</span>
+                    </p>
+                    <p className="mt-1 text-xs text-text-muted">Valor de exemplo</p>
+                  </div>
+                  <div className="flex flex-1 flex-col gap-5 p-6">
+                    <dl className="grid gap-3">
+                      <div>
+                        <dt className="sr-only">Atendimentos por mês</dt>
+                        <dd>
+                          <span className="text-xl font-semibold tabular">{plan.conversations}</span>
+                          <span className="block text-sm text-text-muted">atendimentos por mês</span>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="sr-only">Pessoas na equipe</dt>
+                        <dd>
+                          <span className="text-xl font-semibold tabular">{plan.users}</span>
+                          <span className="block text-sm text-text-muted">pessoas na equipe</span>
+                        </dd>
+                      </div>
+                    </dl>
+                    <ul className="grid gap-2.5">
+                      {PLAN_INCLUDES.map((item) => (
+                        <Check key={item}>{item}</Check>
+                      ))}
+                    </ul>
+                    <ButtonLink href={SIGNUP} variant={plan.recommended ? undefined : "secondary"} block className="mt-auto">
+                      Criar conta
+                    </ButtonLink>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <p className="mx-auto mt-6 max-w-2xl text-center text-sm text-pretty text-text-muted">
+              Um atendimento é um cliente que escreve para você, contado uma vez a cada 24 horas, com quantas mensagens forem.
+            </p>
+          </div>
+        </section>
+
+        <section id="perguntas" aria-labelledby="perguntas-titulo" className="scroll-mt-16 border-t border-border">
           <div className="mx-auto max-w-3xl px-4 py-16 sm:px-8 sm:py-20">
             <h2 id="perguntas-titulo" className="text-center text-3xl font-semibold tracking-tight">
               Perguntas frequentes
