@@ -48,13 +48,14 @@ const SOON = [
 ];
 
 /**
- * Placeholder prices, shown with a notice on the page: pricing is not decided yet
- * and the app does not enforce these limits. Update both together when it is.
+ * Example prices, shown with a notice on the page: pricing is not final and the app
+ * does not enforce these limits. Each plan pays for one ChatPro plan per customer,
+ * with the same allowance: Conecta (R$ 199), Plus (R$ 399) and Pro (R$ 799).
  */
 const PLANS = [
-  { name: "Essencial", price: "149", conversations: "300", users: "2", recommended: false },
-  { name: "Profissional", price: "249", conversations: "1.000", users: "5", recommended: true },
-  { name: "Rede", price: "449", conversations: "3.000", users: "10", recommended: false },
+  { name: "Essencial", price: "397", conversations: "500", users: "3", recommended: true },
+  { name: "Profissional", price: "797", conversations: "3.000", users: "10", recommended: false },
+  { name: "Rede", price: "1.597", conversations: "10.000", users: "20", recommended: false },
 ];
 
 const PLAN_INCLUDES = ["Caixa de entrada do WhatsApp", "Respostas rápidas e automáticas", "Nomes e fotos dos contatos"];
