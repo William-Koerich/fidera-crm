@@ -3,9 +3,10 @@ import { Suspense } from "react";
 import { Panel, Skeleton } from "@/components/ui";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { canManage, requireMembership } from "@/lib/auth";
-import { listInboxOptions } from "@/lib/inbox/queries";
+import { getDistribution, listInboxOptions } from "@/lib/inbox/queries";
 import type { TeamItemKind } from "@/lib/replies/team-items";
 import { deleteTeamItemAction } from "./actions";
+import { DistributionForm } from "./distribution-form";
 import { ImportFromChannel, TeamItemForm } from "./forms";
 
 export const metadata: Metadata = { title: "Atendimento" };
@@ -57,10 +58,18 @@ function ItemList({
 async function Service() {
   const me = await requireMembership();
   const manage = canManage(me.role);
-  const { endings, departments, labels } = await listInboxOptions(me.organizationId);
+  const [{ endings, departments, labels }, distribution] = await Promise.all([
+    listInboxOptions(me.organizationId),
+    manage ? getDistribution(me.organizationId) : null,
+  ]);
 
   return (
     <>
+      {distribution ? (
+        <Panel title="Distribuição automática" description="Divide as novas conversas entre a equipe, sem ninguém precisar escolher. Vem desligada.">
+          <DistributionForm enabled={distribution.enabled} members={distribution.members} />
+        </Panel>
+      ) : null}
       <Panel title="Motivos de finalização" description="O que a equipe escolhe ao finalizar uma conversa. No ChatPro, o motivo é obrigatório para encerrar o atendimento.">
         <div className="grid gap-4">
           <ItemList kind="endings" items={endings} manage={manage} empty="Nenhum motivo cadastrado ainda." warning="As conversas já finalizadas ficam sem motivo." />

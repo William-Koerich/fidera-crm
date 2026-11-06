@@ -67,6 +67,43 @@ export async function createTeamItemAction(_prev: TeamItemState, formData: FormD
   return { status: "saved", savedAt: Date.now() };
 }
 
+export async function saveDistributionAction(_prev: TeamItemState, formData: FormData): Promise<TeamItemState> {
+  const me = await requireMembership();
+  if (!canManage(me.role)) return fail("Apenas donos e administradores podem alterar isto.");
+  const enabled = formData.get("enabled") === "on";
+  const accepting = new Set(formData.getAll("members").map(String));
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("distribution_settings").upsert({ organization_id: me.organizationId, enabled });
+  if (error) return fail("Não foi possível salvar. Tente de novo.");
+
+  // Server client after the check above: admins may not edit an owner's row under RLS,
+  // but choosing who receives conversations is part of their job.
+  const admin = createAdminClient();
+  const { data: members, error: membersError } = await admin
+    .from("memberships")
+    .select("user_id, accepts_conversations")
+    .eq("organization_id", me.organizationId);
+  if (membersError) return fail("Não foi possível salvar. Tente de novo.");
+  for (const member of members) {
+    const next = accepting.has(member.user_id);
+    if (next === member.accepts_conversations) continue;
+    await admin
+      .from("memberships")
+      .update({ accepts_conversations: next })
+      .eq("organization_id", me.organizationId)
+      .eq("user_id", member.user_id);
+  }
+  await admin.from("audit_log").insert({
+    organization_id: me.organizationId,
+    actor_id: me.user.id,
+    action: "distribution.updated",
+    metadata: { enabled },
+  });
+  refresh();
+  return { status: "saved", savedAt: Date.now() };
+}
+
 export async function deleteTeamItemAction(formData: FormData): Promise<void> {
   const me = await requireMembership();
   const kind = formData.get("kind");

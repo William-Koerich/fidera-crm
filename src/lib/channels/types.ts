@@ -135,6 +135,7 @@ export interface ChannelTeamSync {
   createLabel(accountExternalId: string, name: string, color: string): Promise<string | null>;
   setContactLabel(input: { accountExternalId: string; to: string; labelExternalId: string; on: boolean }): Promise<boolean>;
   addNote(input: { accountExternalId: string; to: string; body: string; authorEmail: string | null }): Promise<boolean>;
+  setContactOwner(input: { accountExternalId: string; to: string; ownerEmail: string }): Promise<AssignResult>;
 }
 
 export type AssignResult = "assigned" | "no_matching_user" | "failed";

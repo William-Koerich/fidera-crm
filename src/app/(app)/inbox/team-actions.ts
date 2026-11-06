@@ -1,9 +1,9 @@
 "use server";
 
 import { refresh } from "next/cache";
-import { requireMembership } from "@/lib/auth";
+import { canManage, requireMembership } from "@/lib/auth";
 import { getProviderByName } from "@/lib/channels";
-import { getConversation, listInboxOptions } from "@/lib/inbox/queries";
+import { getConversation, listInboxOptions, listTeamMembers } from "@/lib/inbox/queries";
 import { logEvent } from "@/lib/log";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 
@@ -99,6 +99,30 @@ export async function setContactLabelAction(conversationId: string, labelId: str
     "label",
     conversation.id,
   );
+}
+
+/** Who this client belongs to. Managers only: it decides where the client's conversations go. */
+export async function setContactOwnerAction(conversationId: string, ownerId: string): Promise<TeamActionState> {
+  const ctx = await load(conversationId);
+  if (!ctx) return error("Conversa não encontrada.");
+  const { conversation, me } = ctx;
+  if (!canManage(me.role)) return error("Apenas donos e administradores podem mudar o dono do cliente.");
+  const owner = ownerId ? (await listTeamMembers(conversation.organizationId)).find((m) => m.id === ownerId) : null;
+  if (ownerId && !owner) return error("Esta pessoa não faz parte da equipe.");
+
+  const supabase = await createClient();
+  const { error: updateError } = await supabase.from("contacts").update({ owner_id: owner?.id ?? null }).eq("id", conversation.contact.id);
+  if (updateError) return error("Não foi possível salvar. Tente de novo.");
+  await audit(conversation.organizationId, me.user.id, "contact.owner_changed", conversation.id, { owner_id: owner?.id ?? null });
+  refresh();
+
+  if (!ctx.sync) return { status: "saved" };
+  if (!owner) return { status: "saved", notice: "Removido aqui no Fidera. No ChatPro, o dono anterior continua." };
+  if (!ctx.to) return { status: "saved" };
+  const result = await ctx.sync.setContactOwner({ accountExternalId: ctx.instanceId, to: ctx.to, ownerEmail: owner.email });
+  if (result === "assigned") return { status: "saved" };
+  if (result === "no_matching_user") return { status: "saved", notice: "Salvo no Fidera. No ChatPro não há usuário com este e-mail." };
+  return mirrored(false, "owner", conversation.id);
 }
 
 export async function finishConversationAction(conversationId: string, endingId: string): Promise<TeamActionState> {

@@ -7,11 +7,12 @@
  * - tags/create { name, color }. There is no route to list tags.
  * - leads/findByPhoneNumber { phoneNumber }, leads/assignLabel and unassignLabel { leadId, labelId }.
  * - messages/addComments { sessionId, message, userId }.
+ * - leads/updateOwner { leadId, ownerId }, which requires an owner: clearing one is not possible.
  *
  * Success bodies are not documented, hence the tolerant id lookup. The CRM is the
  * record, so nothing here throws: a failure only means ChatPro did not follow.
  */
-import type { ChannelTeamSync, ExternalRecord } from "../types";
+import type { AssignResult, ChannelTeamSync, ExternalRecord } from "../types";
 import { findId, isObj, text, type Json } from "./json";
 
 export class ChatProTeamSync implements ChannelTeamSync {
@@ -56,6 +57,27 @@ export class ChatProTeamSync implements ChannelTeamSync {
   private async sessionId(instanceId: string, number: string): Promise<string | null> {
     const { ok, data } = await this.post("sessions/getOrCreateByNumber", { instanceId, number, provider: "whatsapp" });
     return ok && isObj(data) ? findId(data) : null;
+  }
+
+  /** ChatPro and the CRM have separate accounts: the e-mail is what links a person. */
+  private async userIdByEmail(instanceId: string, rawEmail: string): Promise<string | null> {
+    const email = rawEmail.trim().toLowerCase();
+    const users = await this.post("users/getAllInstanceUsers", { instanceId });
+    if (!Array.isArray(users.data)) return null;
+    const match = users.data
+      .filter(isObj)
+      .find((u) => u.deleted !== true && u.active !== false && isObj(u.user) && text(u.user.email)?.trim().toLowerCase() === email);
+    return match ? text(match.user_id) : null;
+  }
+
+  async setContactOwner(input: { accountExternalId: string; to: string; ownerEmail: string }): Promise<AssignResult> {
+    const instanceId = input.accountExternalId;
+    const ownerId = await this.userIdByEmail(instanceId, input.ownerEmail);
+    if (!ownerId) return "no_matching_user";
+    const lead = await this.post("leads/findByPhoneNumber", { instanceId, phoneNumber: input.to });
+    const leadId = lead.ok && isObj(lead.data) ? text(lead.data.id) : null;
+    if (!leadId) return "failed";
+    return (await this.post("leads/updateOwner", { instanceId, leadId, ownerId })).ok ? "assigned" : "failed";
   }
 
   listEndings(instanceId: string) {
@@ -106,15 +128,7 @@ export class ChatProTeamSync implements ChannelTeamSync {
     const sessionId = await this.sessionId(instanceId, input.to);
     if (!sessionId) return false;
 
-    let userId: string | null = null;
-    if (input.authorEmail) {
-      const email = input.authorEmail.trim().toLowerCase();
-      const users = await this.post("users/getAllInstanceUsers", { instanceId });
-      const match = Array.isArray(users.data)
-        ? users.data.filter(isObj).find((u) => isObj(u.user) && text(u.user.email)?.trim().toLowerCase() === email)
-        : undefined;
-      userId = match ? text(match.user_id) : null;
-    }
+    const userId = input.authorEmail ? await this.userIdByEmail(instanceId, input.authorEmail) : null;
     return (await this.post("messages/addComments", { instanceId, sessionId, message: input.body, ...(userId ? { userId } : {}) })).ok;
   }
 }

@@ -5,7 +5,13 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Select } from "@/components/ui/field";
 import type { InboxOption, TeamMember } from "@/lib/inbox/queries";
-import { finishConversationAction, reopenConversationAction, setContactLabelAction, setDepartmentAction } from "../team-actions";
+import {
+  finishConversationAction,
+  reopenConversationAction,
+  setContactLabelAction,
+  setContactOwnerAction,
+  setDepartmentAction,
+} from "../team-actions";
 import { AssigneeSelect } from "./assignee-select";
 
 /** How the team organizes this conversation. Collapsed so the messages keep the space on phones. */
@@ -14,6 +20,8 @@ export function ConversationBar({
   status,
   assignedTo,
   departmentId,
+  contactOwnerId,
+  canChangeOwner,
   contactLabelIds,
   members,
   currentUserId,
@@ -25,6 +33,8 @@ export function ConversationBar({
   status: "open" | "closed";
   assignedTo: string | null;
   departmentId: string | null;
+  contactOwnerId: string | null;
+  canChangeOwner: boolean;
   contactLabelIds: string[];
   members: TeamMember[];
   currentUserId: string;
@@ -34,6 +44,7 @@ export function ConversationBar({
 }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [department, setDepartment] = useState(departmentId ?? "");
+  const [owner, setOwner] = useState(contactOwnerId ?? "");
   const [activeLabels, setActiveLabels] = useState(() => new Set(contactLabelIds));
   const [pending, startTransition] = useTransition();
 
@@ -62,6 +73,33 @@ export function ConversationBar({
 
       <div className="grid gap-4 border-t border-border p-3 sm:px-4">
         <AssigneeSelect conversationId={conversationId} assignedTo={assignedTo} members={members} currentUserId={currentUserId} />
+
+        <div className="flex items-center gap-3">
+          <label htmlFor="contact-owner" className="w-24 shrink-0 text-sm text-text-muted">
+            Dono do cliente
+          </label>
+          <div className="min-w-0 flex-1 sm:max-w-xs">
+            <Select
+              id="contact-owner"
+              value={owner}
+              disabled={pending || !canChangeOwner}
+              onChange={(e) => {
+                const previous = owner;
+                const next = e.target.value;
+                setOwner(next);
+                run(() => setContactOwnerAction(conversationId, next), () => setOwner(previous));
+              }}
+            >
+              <option value="">Ninguém</option>
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.email}
+                  {m.id === currentUserId ? " (você)" : ""}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
 
         {departments.length > 0 ? (
           <div className="flex items-center gap-3">

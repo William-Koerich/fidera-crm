@@ -117,6 +117,8 @@ export interface ConversationDetail {
     createdAt: string;
     lastInteractionAt: string | null;
     avatarUrl: string | null;
+    /** Team member this client belongs to (carteira). */
+    ownerId: string | null;
   };
   account: { id: string; externalAccountId: string; provider: Tables<"channel_accounts">["provider"]; status: Tables<"channel_accounts">["status"] };
   /** Channel identifier to send to (wa_id / IGSID). */
@@ -128,7 +130,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   const { data, error } = await supabase
     .from("conversations")
     .select(
-      "id, organization_id, channel, assigned_to, status, department_id, last_inbound_at, reply_window_ends_at, contact_id, contacts(id, display_name, phone_normalized, source, created_at, last_interaction_at, avatar_path, profile_synced_at), channel_accounts(id, external_account_id, provider, status)",
+      "id, organization_id, channel, assigned_to, status, department_id, last_inbound_at, reply_window_ends_at, contact_id, contacts(id, display_name, phone_normalized, source, created_at, last_interaction_at, avatar_path, profile_synced_at, owner_id), channel_accounts(id, external_account_id, provider, status)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -162,6 +164,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
       createdAt: data.contacts.created_at,
       lastInteractionAt: data.contacts.last_interaction_at,
       avatarUrl: contactAvatarUrl(data.contacts),
+      ownerId: data.contacts.owner_id,
     },
     account: {
       id: data.channel_accounts.id,
@@ -183,6 +186,24 @@ export async function listTeamMembers(organizationId: string): Promise<TeamMembe
   const { data, error } = await supabase.rpc("list_members", { org_id: organizationId });
   if (error) throw new Error(`Could not load the team (${error.code})`);
   return data.map((m) => ({ id: m.user_id, email: m.email }));
+}
+
+export async function getDistribution(organizationId: string): Promise<{
+  enabled: boolean;
+  members: { id: string; email: string; acceptsConversations: boolean }[];
+}> {
+  const supabase = await createClient();
+  const [settings, memberships, team] = await Promise.all([
+    supabase.from("distribution_settings").select("enabled").eq("organization_id", organizationId).maybeSingle(),
+    supabase.from("memberships").select("user_id, accepts_conversations").eq("organization_id", organizationId),
+    listTeamMembers(organizationId),
+  ]);
+  if (settings.error || memberships.error) throw new Error("Could not load the distribution settings");
+  const accepts = new Map(memberships.data.map((m) => [m.user_id, m.accepts_conversations]));
+  return {
+    enabled: settings.data?.enabled ?? false,
+    members: team.map((m) => ({ ...m, acceptsConversations: accepts.get(m.id) ?? true })),
+  };
 }
 
 export interface InboxOption {

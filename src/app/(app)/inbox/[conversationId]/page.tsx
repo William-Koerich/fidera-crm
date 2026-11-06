@@ -5,7 +5,7 @@ import { connection } from "next/server";
 import { Fragment, Suspense } from "react";
 import { Icon } from "@/components/icons";
 import { Avatar, Skeleton } from "@/components/ui";
-import { requireMembership } from "@/lib/auth";
+import { canManage, requireMembership } from "@/lib/auth";
 import { decodeCursor } from "@/lib/inbox/cursor";
 import { dayKey, formatDayLabel, formatPhone } from "@/lib/inbox/format";
 import {
@@ -146,6 +146,8 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
           status={conversation.status}
           assignedTo={conversation.assignedTo}
           departmentId={conversation.departmentId}
+          contactOwnerId={contact.ownerId}
+          canChangeOwner={canManage(me.role)}
           contactLabelIds={contactLabelIds}
           members={members}
           currentUserId={me.user.id}

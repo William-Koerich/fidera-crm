@@ -111,6 +111,14 @@ be imported from ChatPro; labels cannot, since it has no route to list them. Its
 `departments/create`, but the route that exists is `departments/createDepartment`. Internal
 notes are mirrored as session comments and never sent to the customer.
 
+### Distribution and client owners
+
+*Ajustes -> Atendimento* turns on automatic distribution (off by default). A database trigger
+assigns each customer message on an unassigned conversation to the client's owner, or else to
+who has waited longest among those accepting conversations; a row lock makes simultaneous
+messages take turns. The webhook processor then repeats the assignment on ChatPro. Client owners
+are mirrored with `leads/updateOwner`, which cannot clear an owner. People are matched by e-mail.
+
 ### Free testing with the Meta test number
 
 No payment method is needed for the developer app's test number.

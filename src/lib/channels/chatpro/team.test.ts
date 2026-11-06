@@ -96,6 +96,36 @@ describe("ChatProTeamSync", () => {
     expect(bodyOf(unknown.fetchMock, "messages/addComments")).not.toHaveProperty("userId");
   });
 
+  describe("setContactOwner", () => {
+    const input = { accountExternalId: "i", to: "5511", ownerEmail: "Ana@salao.com" };
+    const routes = {
+      "users/getAllInstanceUsers": () =>
+        json(201, [
+          { user_id: "gone", deleted: true, user: { email: "ana@salao.com" } },
+          { user_id: "u1", deleted: false, active: true, user: { email: "ana@salao.com" } },
+        ]),
+      "leads/findByPhoneNumber": () => json(201, { id: "l1" }),
+      "leads/updateOwner": () => json(201, {}),
+    };
+
+    it("sets the active person as the lead's owner", async () => {
+      const { sync, fetchMock } = setup(routes);
+      expect(await sync.setContactOwner(input)).toBe("assigned");
+      expect(bodyOf(fetchMock, "leads/updateOwner")).toEqual({ instanceId: "i", leadId: "l1", ownerId: "u1" });
+    });
+
+    it("says when the person is not on ChatPro, without touching the lead", async () => {
+      const { sync, fetchMock } = setup(routes);
+      expect(await sync.setContactOwner({ ...input, ownerEmail: "outra@salao.com" })).toBe("no_matching_user");
+      expect(fetchMock).toHaveBeenCalledOnce();
+    });
+
+    it("reports a lead it cannot find", async () => {
+      const { sync } = setup({ ...routes, "leads/findByPhoneNumber": () => json(404, {}) });
+      expect(await sync.setContactOwner(input)).toBe("failed");
+    });
+  });
+
   it("never throws when the network fails", async () => {
     const sync = new ChatProTeamSync({
       chatToken: "CHAT",
