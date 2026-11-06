@@ -9,6 +9,7 @@ import { requireMembership } from "@/lib/auth";
 import { decodeCursor } from "@/lib/inbox/cursor";
 import { dayKey, formatDayLabel, formatPhone } from "@/lib/inbox/format";
 import { getConversation, listMessages } from "@/lib/inbox/queries";
+import { listQuickReplies } from "@/lib/replies/queries";
 import { ConversationList, ListSkeleton, parseInboxParams } from "../conversation-list";
 import { RealtimeRefresh } from "../realtime-refresh";
 import { WindowBadge } from "../window-badge";
@@ -69,12 +70,15 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
   const [{ conversationId }, query] = await Promise.all([params, searchParams]);
   // The reply window and day labels are compared with "now": render at request time.
   await connection();
-  await requireMembership();
+  const me = await requireMembership();
   const conversation = await getConversation(conversationId);
   if (!conversation) notFound();
 
   const before = typeof query.before === "string" ? decodeCursor(query.before) : null;
-  const { items, olderCursor } = await listMessages(conversation.id, before);
+  const [{ items, olderCursor }, quickReplies] = await Promise.all([
+    listMessages(conversation.id, before),
+    listQuickReplies(me.organizationId),
+  ]);
   const { contact } = conversation;
   const title = contact.name || formatPhone(contact.phone) || "Contato";
   const windowOpen =
@@ -154,7 +158,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
         <footer className="border-t border-border bg-surface px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
           <div className="mx-auto max-w-3xl">
             {windowOpen && connected ? (
-              <Composer conversationId={conversation.id} />
+              <Composer conversationId={conversation.id} quickReplies={quickReplies} />
             ) : (
               <p className="text-sm text-text-muted">
                 {!connected

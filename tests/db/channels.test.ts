@@ -262,6 +262,27 @@ describe.skipIf(!hasDatabase())("channel tables isolation", () => {
       expect((await db.query("select 1 from vault.secrets where id = $1", [rows[0]!.secret])).rowCount).toBe(0);
     }));
 
+  it("quick replies are shared inside an organization and only managers change them", () =>
+    withRollback(db, async (db) => {
+      const s = await seed(db);
+      await actAs(db, s.ownerA);
+      await db.query("insert into crm.quick_replies (organization_id, shortcut, body) values ($1, 'horario', 'Das 9h às 18h')", [s.orgA]);
+      expect(
+        await errorCode(db, "insert into crm.quick_replies (organization_id, shortcut, body) values ($1, 'horario', 'x')", [s.orgA]),
+      ).toBe(UNIQUE_VIOLATION);
+      expect(
+        await errorCode(db, "insert into crm.quick_replies (organization_id, shortcut, body) values ($1, 'x', 'y')", [s.orgB]),
+      ).toBe(INSUFFICIENT_PRIVILEGE);
+
+      await actAs(db, s.memberA);
+      expect((await db.query("select 1 from crm.quick_replies")).rowCount).toBe(1);
+      expect((await db.query("update crm.quick_replies set body = 'z'")).rowCount).toBe(0);
+      expect((await db.query("delete from crm.quick_replies")).rowCount).toBe(0);
+
+      await actAs(db, s.ownerB);
+      expect((await db.query("select 1 from crm.quick_replies")).rowCount).toBe(0);
+    }));
+
   it("external_message_id is unique per channel account", () =>
     withRollback(db, async (db) => {
       const s = await seed(db);
