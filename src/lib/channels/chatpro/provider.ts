@@ -1,12 +1,18 @@
 /**
- * ChatPro provider (WHATSAPP_PROVIDER=chatpro), "CHATPRO API" product.
- * Docs: https://chatpro.readme.io, read on 2026-11-06.
+ * ChatPro provider (WHATSAPP_PROVIDER=chatpro). Docs: https://chatpro.readme.io,
+ * read on 2026-11-06. It uses two ChatPro services, each with its own key:
  *
- * - Base https://v5.chatpro.com.br/{instance_id}/api/v1, header Authorization: <instance token>.
- * - send_message: POST { number, message } -> 201 { resposeMessage: { id, timestamp }, status: true }.
+ * Connection: https://oci.chatpro.com.br/{instance_id}/api/v1, header Authorization.
  * - status: GET -> { connected, info: { Wid, Pushname } }.
  * - generate_qrcode: GET -> { qr (base64), status, error }.
  * - remove_session: GET -> disconnects the phone.
+ *
+ * Messages (ChatPro Chat): https://sparks.chatpro.com.br, header instance-token.
+ * - sessions/getOrCreateByNumber: POST { instanceId, number, provider } -> { id, ... }.
+ * - messages/sendMessage: POST { instanceId, sessionId, message, provider }. ChatPro
+ *   support pointed to this route; the public docs omit it and the send_message they
+ *   list belongs to the bulk-sending API. Its success body was not documented, hence
+ *   the tolerant id lookup below.
  *
  * The number is linked by QR Code and is not on Meta's Cloud API, so there is
  * no 24h reply window here.
@@ -21,12 +27,16 @@ import type {
 } from "../types";
 import { parseChatProWebhook } from "./parse";
 
-export const CHATPRO_API_URL = "https://v5.chatpro.com.br";
+export const CHATPRO_API_URL = "https://oci.chatpro.com.br";
+export const CHATPRO_CHAT_URL = "https://sparks.chatpro.com.br";
 
 export interface ChatProOptions {
-  /** Instance token from the ChatPro panel. */
+  /** Key for connection calls (status, QR Code, disconnect). */
   token: string;
+  /** Key for ChatPro Chat calls (sending messages). */
+  chatToken: string;
   baseUrl?: string;
+  chatBaseUrl?: string;
   fetch?: typeof fetch;
   now?: () => Date;
 }
@@ -37,15 +47,35 @@ export interface ChatProStatus {
   wid: string | null;
 }
 
+type Json = Record<string, unknown>;
+const isObj = (v: unknown): v is Json => typeof v === "object" && v !== null && !Array.isArray(v);
+const text = (v: unknown): string | null => (typeof v === "string" && v.length > 0 ? v : null);
+
+/** The id at the top of the body or under one of the usual wrappers. */
+function findId(body: Json): string | null {
+  const nested = [body.message, body.data, body.session, body.key, body.resposeMessage, body.responseMessage];
+  return text(body.id) ?? text(body.messageId) ?? text(body.message_id) ?? nested.map((n) => (isObj(n) ? text(n.id) : null)).find(Boolean) ?? null;
+}
+
+const sendError = (status: number, body: Json): SendResult => ({
+  ok: false,
+  errorCode: status === 401 ? "chatpro_unauthorized" : `http_${status}`,
+  // May echo the phone number; callers keep it out of logs.
+  errorMessage: (Array.isArray(body.message) ? body.message.join("; ") : text(body.message)) ?? `HTTP ${status}`,
+  retryable: status >= 500 || status === 429,
+});
+
 export class ChatProChannelProvider implements ChannelProvider {
   readonly name = "chatpro" as const;
   private readonly fetchImpl: typeof fetch;
   private readonly baseUrl: string;
+  private readonly chatBaseUrl: string;
   private readonly now: () => Date;
 
   constructor(private readonly options: ChatProOptions) {
     this.fetchImpl = options.fetch ?? fetch;
     this.baseUrl = (options.baseUrl ?? CHATPRO_API_URL).replace(/\/$/, "");
+    this.chatBaseUrl = (options.chatBaseUrl ?? CHATPRO_CHAT_URL).replace(/\/$/, "");
     this.now = options.now ?? (() => new Date());
   }
 
@@ -73,13 +103,23 @@ export class ChatProChannelProvider implements ChannelProvider {
     if (input.channel !== "whatsapp") {
       return { ok: false, errorCode: "unsupported_channel", errorMessage: "Only WhatsApp is supported", retryable: false };
     }
-    let response: Response;
+    if (!this.options.chatToken) {
+      return { ok: false, errorCode: "chatpro_chat_not_configured", errorMessage: "Missing CHATPRO_CHAT_TOKEN", retryable: false };
+    }
+    const instanceId = input.accountExternalId;
     try {
-      response = await this.call(input.accountExternalId, "send_message", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ number: input.to, message: input.body }),
-      });
+      const session = await this.chat("sessions/getOrCreateByNumber", { instanceId, number: input.to, provider: "whatsapp" });
+      if (!session.ok) return sendError(session.status, session.body);
+      const sessionId = findId(session.body);
+      if (!sessionId) {
+        return { ok: false, errorCode: "chatpro_no_session", errorMessage: "ChatPro returned no session", retryable: false };
+      }
+
+      const sent = await this.chat("messages/sendMessage", { instanceId, sessionId, message: input.body, provider: "whatsapp" });
+      if (!sent.ok) return sendError(sent.status, sent.body);
+      // ChatPro accepted it: reporting a failure here would invite a duplicate resend.
+      const id = findId(sent.body) ?? `chatpro-local-${input.idempotencyKey ?? crypto.randomUUID()}`;
+      return { ok: true, externalMessageId: id, acceptedAt: this.now() };
     } catch (error) {
       const timeout = error instanceof Error && error.name === "TimeoutError";
       return {
@@ -89,22 +129,17 @@ export class ChatProChannelProvider implements ChannelProvider {
         retryable: true,
       };
     }
+  }
 
-    const json = (await response.json().catch(() => ({}))) as {
-      resposeMessage?: { id?: string };
-      responseMessage?: { id?: string };
-      message?: string;
-    };
-    const id = json.resposeMessage?.id ?? json.responseMessage?.id;
-    if (response.ok && id) return { ok: true, externalMessageId: id, acceptedAt: this.now() };
-
-    return {
-      ok: false,
-      errorCode: response.status === 401 ? "chatpro_unauthorized" : `http_${response.status}`,
-      // May echo the phone number; callers keep it out of logs.
-      errorMessage: json.message ?? `HTTP ${response.status}`,
-      retryable: response.status >= 500 || response.status === 429,
-    };
+  private async chat(path: string, payload: Json): Promise<{ ok: boolean; status: number; body: Json }> {
+    const response = await this.fetchImpl(`${this.chatBaseUrl}/${path}`, {
+      method: "POST",
+      headers: { "instance-token": this.options.chatToken, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(15_000),
+    });
+    const body: unknown = await response.json().catch(() => ({}));
+    return { ok: response.ok, status: response.status, body: isObj(body) ? body : {} };
   }
 
   async getStatus(instanceId: string): Promise<ChatProStatus> {

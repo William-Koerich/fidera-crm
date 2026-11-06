@@ -13,22 +13,75 @@ const input = {
 };
 
 const provider = (fetchImpl: typeof fetch) =>
-  new ChatProChannelProvider({ token: "TOKEN", fetch: fetchImpl, now: () => new Date("2026-11-06T10:00:00Z") });
+  new ChatProChannelProvider({
+    token: "TOKEN",
+    chatToken: "CHAT",
+    fetch: fetchImpl,
+    now: () => new Date("2026-11-06T10:00:00Z"),
+  });
+
+/** Answers the session lookup, then the send. */
+const sendFlow = (sent: Response) =>
+  vi.fn<typeof fetch>(async (url) =>
+    String(url).endsWith("/sessions/getOrCreateByNumber") ? json(201, { id: "session-1", open: true }) : sent,
+  );
 
 describe("ChatProChannelProvider", () => {
-  it("sends text with the documented request and reads the response id", async () => {
-    const fetchMock = vi.fn<typeof fetch>(async () =>
-      json(201, { message: "Mensagem Enviada", resposeMessage: { id: "3EB0", timestamp: "1" }, status: true }),
-    );
+  it("opens the session by number and sends through ChatPro Chat with its own key", async () => {
+    const fetchMock = sendFlow(json(201, { id: "3EB0" }));
     expect(await provider(fetchMock).sendMessage(input)).toEqual({
       ok: true,
       externalMessageId: "3EB0",
       acceptedAt: new Date("2026-11-06T10:00:00Z"),
     });
+    const [sessionUrl, sessionInit] = fetchMock.mock.calls[0]!;
+    expect(sessionUrl).toBe("https://sparks.chatpro.com.br/sessions/getOrCreateByNumber");
+    expect((sessionInit?.headers as Record<string, string>)["instance-token"]).toBe("CHAT");
+    expect(JSON.parse(String(sessionInit?.body))).toEqual({
+      instanceId: "chatpro-abc",
+      number: "5511999999999",
+      provider: "whatsapp",
+    });
+    const [sendUrl, sendInit] = fetchMock.mock.calls[1]!;
+    expect(sendUrl).toBe("https://sparks.chatpro.com.br/messages/sendMessage");
+    expect(JSON.parse(String(sendInit?.body))).toEqual({
+      instanceId: "chatpro-abc",
+      sessionId: "session-1",
+      message: "Olá!",
+      provider: "whatsapp",
+    });
+  });
+
+  it("does not send when the session cannot be opened", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => json(201, {}));
+    expect(await provider(fetchMock).sendMessage(input)).toMatchObject({ ok: false, errorCode: "chatpro_no_session" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports an accepted send as sent even when the response has no id", async () => {
+    const result = await provider(sendFlow(json(200, {}))).sendMessage({ ...input, idempotencyKey: "msg-1" });
+    expect(result).toMatchObject({ ok: true, externalMessageId: "chatpro-local-msg-1" });
+  });
+
+  it("refuses to send without the ChatPro Chat key", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    const noKey = new ChatProChannelProvider({ token: "TOKEN", chatToken: "", fetch: fetchMock });
+    expect(await noKey.sendMessage(input)).toMatchObject({ ok: false, errorCode: "chatpro_chat_not_configured" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("uses the connection key and host for status", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => json(200, { connected: true }));
+    await provider(fetchMock).getStatus("chatpro-abc");
     const [url, init] = fetchMock.mock.calls[0]!;
-    expect(url).toBe("https://v5.chatpro.com.br/chatpro-abc/api/v1/send_message");
+    expect(url).toBe("https://oci.chatpro.com.br/chatpro-abc/api/v1/status");
     expect((init?.headers as Record<string, string>).Authorization).toBe("TOKEN");
-    expect(JSON.parse(String(init?.body))).toEqual({ number: "5511999999999", message: "Olá!" });
+  });
+
+  it("reads validation errors sent as a list", async () => {
+    expect(await provider(sendFlow(json(400, { message: ["message must be a string", "x"] }))).sendMessage(input)).toMatchObject({
+      errorMessage: "message must be a string; x",
+    });
   });
 
   it("maps errors and retries only transient ones", async () => {

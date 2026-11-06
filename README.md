@@ -59,10 +59,15 @@ webhook (queue, ingestion, inbox) is the same for all of them.
 
 ### ChatPro
 
-1. In the ChatPro panel, copy the instance code and its API token.
+ChatPro uses two services with separate keys: `oci.chatpro.com.br` for the connection
+(status, QR Code, disconnect; `CHATPRO_TOKEN`) and `sparks.chatpro.com.br` for sending
+through ChatPro Chat (`CHATPRO_CHAT_TOKEN`). Sending opens the session by number, then
+calls `messages/sendMessage`, a route ChatPro support indicated and the public docs omit.
+
+1. Get the instance code and both keys from ChatPro.
 2. Set `WHATSAPP_PROVIDER=chatpro`, `CHATPRO_INSTANCE_ID`, `CHATPRO_TOKEN`,
-   `CHATPRO_WEBHOOK_SECRET` (`openssl rand -hex 32`) and `CHATPRO_ORGANIZATION_ID`
-   (*Ajustes -> Canais* shows the value for the current business).
+   `CHATPRO_CHAT_TOKEN`, `CHATPRO_WEBHOOK_SECRET` (`openssl rand -hex 32`) and
+   `CHATPRO_ORGANIZATION_ID` (*Ajustes -> Canais* shows the value for the current business).
 3. Set `CHATPRO_PANEL_EMAIL` and `CHATPRO_PANEL_PASSWORD`, and `NEXT_PUBLIC_SITE_URL`
    with the public https address. *Ajustes -> Canais* then configures the webhook by
    itself. Without them, it shows the address to paste in the ChatPro panel.
