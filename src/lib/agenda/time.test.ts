@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { addDays, formatDay, isoToLocal, localDateTimeToIso, parseAppointmentForm, validDay, weekStart } from "./form";
+import {
+  addDays,
+  confirmationText,
+  durationLabel,
+  formatDay,
+  isoToLocal,
+  localDateTimeToIso,
+  matchService,
+  parseAppointmentForm,
+  parseServiceForm,
+  validDay,
+  weekStart,
+} from "./form";
 
 describe("agenda time", () => {
   it("round-trips Brasília clock time", () => {
@@ -41,5 +53,42 @@ describe("parseAppointmentForm", () => {
     expect(parse({ date: "2026-02-30" })).toMatchObject({ ok: false });
     expect(parse({ time: "25:00" })).toMatchObject({ ok: false });
     expect(parse({ duration: "7" })).toMatchObject({ ok: false });
+  });
+});
+
+describe("services", () => {
+  const services = [{ id: "1", name: "Corte", durationMinutes: 30 }, { id: "2", name: "Escova progressiva", durationMinutes: 180 }];
+
+  it("finds a listed service as it is typed", () => {
+    expect(matchService(services, " corte ")?.durationMinutes).toBe(30);
+    expect(matchService(services, "Cort")).toBeUndefined();
+    expect(matchService(services, "")).toBeUndefined();
+  });
+
+  it("validates the form", () => {
+    const form = (name: string, duration: string) => parseServiceForm((n) => ({ name, duration })[n] ?? null);
+    expect(form("  Corte   e barba ", "45")).toEqual({ ok: true, name: "Corte e barba", durationMinutes: 45 });
+    expect(form(" ", "45")).toMatchObject({ ok: false });
+    expect(form("Corte", "7")).toMatchObject({ ok: false });
+  });
+
+  it("labels durations", () => {
+    expect(durationLabel(45)).toBe("45 min");
+    expect(durationLabel(120)).toBe("2 h");
+    expect(durationLabel(90)).toBe("1 h 30 min");
+  });
+});
+
+describe("confirmationText", () => {
+  const saved = { clientName: "Ana Souza", date: "2026-11-07", time: "09:00", service: "Corte" };
+
+  it("greets by first name and says when and what", () => {
+    expect(confirmationText(saved, true)).toBe("Olá, Ana! Seu horário ficou marcado para sábado, 07/11, às 09:00 (Corte). Até lá!");
+  });
+
+  it("does not greet a phone number, and leaves out a missing service", () => {
+    expect(confirmationText({ ...saved, clientName: "+55 (48) 99999-0000", service: null }, false)).toBe(
+      "Olá! Seu horário ficou marcado para sábado, 07/11, às 09:00. Até lá!",
+    );
   });
 });

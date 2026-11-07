@@ -137,6 +137,12 @@ export type Database = {
         Update: { id?: string; organization_id?: string; shortcut?: string; body?: string; created_at?: string; updated_at?: string };
         Relationships: [{ foreignKeyName: "quick_replies_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
+      services: {
+        Row: { id: string; organization_id: string; name: string; duration_minutes: number; created_at: string; updated_at: string };
+        Insert: { id?: string; organization_id: string; name: string; duration_minutes: number; created_at?: string; updated_at?: string };
+        Update: { id?: string; organization_id?: string; name?: string; duration_minutes?: number; created_at?: string; updated_at?: string };
+        Relationships: [{ foreignKeyName: "services_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
+      };
       usage_ledger: {
         Row: { id: string; organization_id: string; channel_account_id: string | null; message_id: string | null; category: string; quantity: number; estimated_cost: number; currency: string; occurred_at: string; created_at: string };
         Insert: { id?: string; organization_id: string; channel_account_id?: string | null; message_id?: string | null; category: string; quantity?: number; estimated_cost?: number; currency?: string; occurred_at?: string; created_at?: string };

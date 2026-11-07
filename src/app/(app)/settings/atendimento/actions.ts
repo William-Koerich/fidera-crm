@@ -5,6 +5,7 @@ import { canManage, requireMembership } from "@/lib/auth";
 import { getProviderByName } from "@/lib/channels";
 import type { ChannelTeamSync } from "@/lib/channels/types";
 import { parseBusinessHours, type BusinessHours } from "@/lib/replies/auto-reply";
+import { parseServiceForm } from "@/lib/agenda/form";
 import { MEMBER_VISIBILITIES } from "@/lib/inbox/queries";
 import { cleanItemName, cleanLabelColor, isTeamItemKind, planImport, type TeamItemKind } from "@/lib/replies/team-items";
 import type { Json } from "@/lib/supabase/database.types";
@@ -166,6 +167,35 @@ export async function saveAccessAction(_prev: TeamItemState, formData: FormData)
   });
   refresh();
   return { status: "saved", savedAt: Date.now() };
+}
+
+/** Saving a name that already exists changes its duration. */
+export async function saveServiceAction(_prev: TeamItemState, formData: FormData): Promise<TeamItemState> {
+  const me = await requireMembership();
+  if (!canManage(me.role)) return fail("Apenas donos e administradores podem alterar isto.");
+  const parsed = parseServiceForm((name) => {
+    const value = formData.get(name);
+    return typeof value === "string" ? value : null;
+  });
+  if (!parsed.ok) return fail(parsed.message);
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("services")
+    .upsert(
+      { organization_id: me.organizationId, name: parsed.name, duration_minutes: parsed.durationMinutes },
+      { onConflict: "organization_id,name" },
+    );
+  if (error) return fail("Não foi possível salvar. Tente de novo.");
+  refresh();
+  return { status: "saved", savedAt: Date.now() };
+}
+
+export async function deleteServiceAction(formData: FormData): Promise<void> {
+  const me = await requireMembership();
+  if (!canManage(me.role)) return;
+  const supabase = await createClient();
+  await supabase.from("services").delete().eq("id", String(formData.get("id") ?? "")).eq("organization_id", me.organizationId);
+  refresh();
 }
 
 export async function deleteTeamItemAction(formData: FormData): Promise<void> {

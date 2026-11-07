@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { addDays, isoToLocal, localDateTimeToIso, type AppointmentStatus } from "./form";
+import { addDays, isoToLocal, localDateTimeToIso, type AppointmentStatus, type ServiceOption } from "./form";
 
 export interface AppointmentItem {
   id: string;
@@ -71,4 +71,15 @@ export async function listUpcomingForContact(contactId: string): Promise<Appoint
     .limit(5);
   if (error) throw new Error(`Could not load appointments (${error.code})`);
   return data.map(toItem);
+}
+
+export async function listServices(organizationId: string): Promise<ServiceOption[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("services")
+    .select("id, name, duration_minutes")
+    .eq("organization_id", organizationId)
+    .order("name");
+  if (error) throw new Error(`Could not load the services (${error.code})`);
+  return data.map((s) => ({ id: s.id, name: s.name, durationMinutes: s.duration_minutes }));
 }

@@ -1,7 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
-import { APPOINTMENT_STATUSES, parseAppointmentForm, type AppointmentStatus } from "@/lib/agenda/form";
+import { APPOINTMENT_STATUSES, isoToLocal, parseAppointmentForm, type AppointmentStatus, type SavedAppointment } from "@/lib/agenda/form";
 import { requireMembership } from "@/lib/auth";
 import { getConversation, listTeamMembers } from "@/lib/inbox/queries";
 import { createClient } from "@/lib/supabase/server";
@@ -10,6 +10,7 @@ export interface AppointmentFormState {
   status: "idle" | "saved" | "error";
   message?: string;
   savedAt?: number;
+  saved?: SavedAppointment;
 }
 
 const fail = (message: string): AppointmentFormState => ({ status: "error", message });
@@ -61,7 +62,11 @@ export async function saveAppointmentAction(_prev: AppointmentFormState, formDat
     if (error) return fail("Não foi possível salvar. Tente de novo.");
   }
   refresh();
-  return { status: "saved", savedAt: Date.now() };
+  return {
+    status: "saved",
+    savedAt: Date.now(),
+    saved: { clientName: values.clientName, ...isoToLocal(values.startsAt), service: values.service },
+  };
 }
 
 export async function setAppointmentStatusAction(id: string, status: AppointmentStatus): Promise<{ ok: boolean; message?: string }> {

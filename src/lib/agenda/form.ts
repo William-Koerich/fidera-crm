@@ -1,4 +1,4 @@
-import { localDateTimeToIso, validDay } from "./time";
+import { formatDay, localDateTimeToIso, validDay } from "./time";
 
 export * from "./time";
 
@@ -46,4 +46,46 @@ export function parseAppointmentForm(
       staffId: get("staffId") || null,
     },
   };
+}
+
+export interface ServiceOption {
+  id: string;
+  name: string;
+  durationMinutes: number;
+}
+
+export function durationLabel(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  return minutes % 60 === 0 ? `${minutes / 60} h` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+
+/** The listed service with this exact name, ignoring case and surrounding spaces. */
+export function matchService(services: ServiceOption[], typed: string): ServiceOption | undefined {
+  const name = typed.trim().toLowerCase();
+  return name ? services.find((s) => s.name.toLowerCase() === name) : undefined;
+}
+
+export function parseServiceForm(
+  get: (name: string) => string | null,
+): { ok: true; name: string; durationMinutes: number } | { ok: false; message: string } {
+  const name = (get("name") ?? "").trim().replace(/\s+/g, " ");
+  if (!name || name.length > 120) return { ok: false, message: "Escreva o nome do serviço." };
+  const durationMinutes = DURATIONS.find((d) => d === Number(get("duration")));
+  if (!durationMinutes) return { ok: false, message: "Escolha a duração." };
+  return { ok: true, name, durationMinutes };
+}
+
+export interface SavedAppointment {
+  clientName: string;
+  date: string;
+  time: string;
+  service: string | null;
+}
+
+/** A confirmation for the person to review and send. A phone number is not a name to greet. */
+export function confirmationText(saved: SavedAppointment, useName: boolean): string {
+  const firstName = useName ? saved.clientName.trim().split(/\s+/)[0] : "";
+  const greeting = firstName ? `Olá, ${firstName}!` : "Olá!";
+  const service = saved.service ? ` (${saved.service})` : "";
+  return `${greeting} Seu horário ficou marcado para ${formatDay(saved.date).toLowerCase()}, às ${saved.time}${service}. Até lá!`;
 }

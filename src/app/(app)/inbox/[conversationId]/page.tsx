@@ -6,7 +6,7 @@ import { Fragment, Suspense } from "react";
 import { Icon } from "@/components/icons";
 import { Avatar, Skeleton } from "@/components/ui";
 import { formatDay } from "@/lib/agenda/form";
-import { listUpcomingForContact } from "@/lib/agenda/queries";
+import { listServices, listUpcomingForContact } from "@/lib/agenda/queries";
 import { canManage, requireMembership } from "@/lib/auth";
 import { decodeCursor } from "@/lib/inbox/cursor";
 import { dayKey, formatDayLabel, formatPhone } from "@/lib/inbox/format";
@@ -86,7 +86,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
   if (!conversation) notFound();
 
   const before = typeof query.before === "string" ? decodeCursor(query.before) : null;
-  const [{ items, olderCursor }, quickReplies, members, options, contactLabelIds, rating, upcoming] = await Promise.all([
+  const [{ items, olderCursor }, quickReplies, members, options, contactLabelIds, rating, upcoming, services] = await Promise.all([
     listMessages(conversation.id, before),
     listQuickReplies(me.organizationId),
     listTeamMembers(conversation.organizationId),
@@ -94,6 +94,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
     listContactLabelIds(conversation.contact.id),
     isRatingEnabled(conversation.organizationId),
     listUpcomingForContact(conversation.contact.id),
+    listServices(conversation.organizationId),
   ]);
   const notes = await listNotes(
     conversation.id,
@@ -118,6 +119,8 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
     <ScheduleProvider
       conversationId={conversation.id}
       clientName={contact.name ?? formatPhone(contact.phone)}
+      hasContactName={!!contact.name}
+      services={services}
       defaultStaffId={conversation.assignedTo}
       members={members}
     >

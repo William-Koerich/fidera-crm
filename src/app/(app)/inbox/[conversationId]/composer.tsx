@@ -8,6 +8,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { ATTACHMENT_ACCEPT, attachmentProblem } from "@/lib/inbox/attachments";
 import { filterQuickReplies, slashQuery, type QuickReply } from "@/lib/replies/quick-replies";
 import { getBrowserClient } from "@/lib/supabase/client";
+import { useBookingConfirmation } from "./schedule";
 import { addNoteAction } from "../team-actions";
 import { prepareAttachmentAction, sendAttachmentAction, sendReplyAction, type ComposerState } from "../actions";
 
@@ -40,6 +41,7 @@ export function Composer({
   const [sendingFile, startSendingFile] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
   const [noteMode, setNoteMode] = useState(false);
+  const confirmation = useBookingConfirmation();
   const busy = pending || sendingFile;
 
   const query = noteMode ? null : slashQuery(text);
@@ -57,6 +59,14 @@ export function Composer({
   useEffect(() => {
     if (state.status === "sent") inputRef.current?.focus();
   }, [state.sentAt, state.status]);
+
+  /** Only fills the box: the person reviews it and sends. Keeps anything already written. */
+  function useConfirmation() {
+    setNoteMode(false);
+    setText((current) => (current.trim() ? `${current.trimEnd()}\n${confirmation.text}` : (confirmation.text ?? "")));
+    confirmation.dismiss();
+    inputRef.current?.focus();
+  }
 
   function pickFile(picked: File | undefined) {
     if (fileRef.current) fileRef.current.value = "";
@@ -155,6 +165,17 @@ export function Composer({
       <input type="hidden" name="conversationId" value={conversationId} />
       {state.status === "error" ? <Alert tone="danger">{state.message}</Alert> : null}
       {fileError ? <Alert tone="danger">{fileError}</Alert> : null}
+      {confirmation.text ? (
+        <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-success/20 bg-success/5 px-3 py-2 text-sm">
+          <span className="min-w-0 flex-1">Cliente agendado. Quer avisar pelo WhatsApp?</span>
+          <button type="button" onClick={useConfirmation} className="inline-flex min-h-11 items-center font-medium text-info hover:underline sm:min-h-0">
+            Escrever confirmação
+          </button>
+          <button type="button" onClick={confirmation.dismiss} className="inline-flex min-h-11 items-center text-text-muted hover:text-text sm:min-h-0">
+            Agora não
+          </button>
+        </div>
+      ) : null}
       {file ? (
         <div className="flex items-center gap-2 rounded-xl border border-border bg-background py-1 pr-1 pl-3">
           <Icon name="paperclip" className="size-4 shrink-0 text-text-muted" />

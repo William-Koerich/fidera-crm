@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { ButtonLink, PageHeader, Skeleton } from "@/components/ui";
 import { addDays, formatDay, isoToLocal, validDay, weekStart } from "@/lib/agenda/form";
-import { listWeekAppointments } from "@/lib/agenda/queries";
+import { listServices, listWeekAppointments } from "@/lib/agenda/queries";
 import { requireMembership } from "@/lib/auth";
 import { listTeamMembers } from "@/lib/inbox/queries";
 import { AgendaWeek } from "./agenda-week";
@@ -35,7 +35,7 @@ async function Week({ searchParams }: { searchParams: PageProps<"/agenda">["sear
   const monday = weekStart(parseDate(params.semana) ?? today);
   const members = await listTeamMembers(me.organizationId);
   const staffId = members.find((m) => m.id === params.pessoa)?.id ?? null;
-  const items = await listWeekAppointments(me.organizationId, monday, staffId);
+  const [items, services] = await Promise.all([listWeekAppointments(me.organizationId, monday, staffId), listServices(me.organizationId)]);
   const link = (week: string) => `/agenda?semana=${week}${staffId ? `&pessoa=${staffId}` : ""}`;
 
   return (
@@ -57,7 +57,7 @@ async function Week({ searchParams }: { searchParams: PageProps<"/agenda">["sear
           <StaffFilter members={members} value={staffId} monday={monday} />
         </div>
       </div>
-      <AgendaWeek key={`${monday}-${staffId}`} monday={monday} today={today} items={items} members={members} />
+      <AgendaWeek key={`${monday}-${staffId}`} monday={monday} today={today} items={items} members={members} services={services} />
     </div>
   );
 }

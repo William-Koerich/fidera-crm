@@ -1,11 +1,11 @@
 "use client";
 
-import { useActionState, useEffect, useRef, type ReactNode } from "react";
+import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
 import { Field, Input, Select, Textarea, fieldA11y } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
-import { DURATIONS } from "@/lib/agenda/form";
+import { DURATIONS, durationLabel, matchService, type SavedAppointment, type ServiceOption } from "@/lib/agenda/form";
 import type { TeamMember } from "@/lib/inbox/queries";
 import { saveAppointmentAction, type AppointmentFormState } from "./actions";
 
@@ -28,17 +28,22 @@ export interface AppointmentDraft {
 export function AppointmentDialog({
   draft,
   members,
+  services,
   onClose,
+  onSaved,
   footer,
 }: {
   draft: AppointmentDraft;
   members: TeamMember[];
+  services: ServiceOption[];
   onClose: () => void;
+  onSaved?: (saved: SavedAppointment) => void;
   footer?: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [state, action, pending] = useActionState<AppointmentFormState, FormData>(saveAppointmentAction, { status: "idle" });
   const toast = useToast();
+  const [duration, setDuration] = useState(String(draft.durationMinutes));
 
   useEffect(() => {
     ref.current?.showModal();
@@ -47,6 +52,7 @@ export function AppointmentDialog({
   useEffect(() => {
     if (state.status !== "saved") return;
     toast(draft.appointmentId ? "Agendamento atualizado." : "Cliente agendado.");
+    if (state.saved) onSaved?.(state.saved);
     ref.current?.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per save
   }, [state.savedAt]);
@@ -81,10 +87,10 @@ export function AppointmentDialog({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Field id="appointment-duration" label="Duração" className="min-w-0">
-            <Select {...fieldA11y("appointment-duration")} name="duration" defaultValue={String(draft.durationMinutes)}>
+            <Select {...fieldA11y("appointment-duration")} name="duration" value={duration} onChange={(e) => setDuration(e.target.value)}>
               {DURATIONS.map((minutes) => (
                 <option key={minutes} value={minutes}>
-                  {minutes < 60 ? `${minutes} min` : minutes % 60 === 0 ? `${minutes / 60} h` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`}
+                  {durationLabel(minutes)}
                 </option>
               ))}
             </Select>
@@ -101,7 +107,24 @@ export function AppointmentDialog({
           </Field>
         </div>
         <Field id="appointment-service" label="Serviço" optional>
-          <Input {...fieldA11y("appointment-service")} name="service" defaultValue={draft.service ?? ""} maxLength={120} placeholder="Corte, escova, barba…" />
+          <Input
+            {...fieldA11y("appointment-service")}
+            name="service"
+            list="appointment-services"
+            defaultValue={draft.service ?? ""}
+            maxLength={120}
+            autoComplete="off"
+            placeholder="Corte, escova, barba…"
+            onChange={(e) => {
+              const service = matchService(services, e.target.value);
+              if (service) setDuration(String(service.durationMinutes));
+            }}
+          />
+          <datalist id="appointment-services">
+            {services.map((service) => (
+              <option key={service.id} value={service.name} />
+            ))}
+          </datalist>
         </Field>
         <Field id="appointment-notes" label="Observação" optional>
           <Textarea {...fieldA11y("appointment-notes")} name="notes" defaultValue={draft.notes ?? ""} maxLength={1000} rows={2} />

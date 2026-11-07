@@ -142,6 +142,10 @@ before saving. A trigger refuses two clients at once for the same person, with a
 simultaneous bookings cannot both pass. Nothing is sent to the client and nothing goes to ChatPro:
 its docs have no agenda route. Appointments are cancelled rather than deleted.
 
+*Ajustes -> Atendimento* lists services with their durations: choosing one while booking fills in the
+duration. Appointments keep the service name as text, so changing the list does not rewrite them. After
+booking from a conversation, the message box offers a confirmation to fill in; a person reviews and sends it.
+
 ### Service rating (NPS)
 
 *Ajustes -> Respostas* turns it on, off by default. ChatPro's docs say its own rating only goes out

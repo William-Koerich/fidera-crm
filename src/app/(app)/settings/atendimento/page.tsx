@@ -2,13 +2,16 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Panel, Skeleton } from "@/components/ui";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { durationLabel } from "@/lib/agenda/form";
+import { listServices } from "@/lib/agenda/queries";
 import { canManage, requireMembership } from "@/lib/auth";
 import { getAccessSettings, getDistribution, listInboxOptions } from "@/lib/inbox/queries";
 import type { TeamItemKind } from "@/lib/replies/team-items";
-import { deleteTeamItemAction } from "./actions";
+import { deleteServiceAction, deleteTeamItemAction } from "./actions";
 import { AccessForm } from "./access-form";
 import { DistributionForm } from "./distribution-form";
 import { ImportFromChannel, TeamItemForm } from "./forms";
+import { ServiceForm } from "./service-form";
 
 export const metadata: Metadata = { title: "Atendimento" };
 
@@ -59,14 +62,42 @@ function ItemList({
 async function Service() {
   const me = await requireMembership();
   const manage = canManage(me.role);
-  const [{ endings, departments, labels }, distribution, access] = await Promise.all([
+  const [{ endings, departments, labels }, distribution, access, services] = await Promise.all([
     listInboxOptions(me.organizationId),
     manage ? getDistribution(me.organizationId) : null,
     manage ? getAccessSettings(me.organizationId) : null,
+    listServices(me.organizationId),
   ]);
 
   return (
     <>
+      <Panel title="Serviços" description="Ao agendar, escolher um serviço já preenche a duração. Excluir não muda os agendamentos já feitos.">
+        <div className="grid gap-4">
+          {services.length === 0 ? (
+            <p className="text-sm text-text-muted">Nenhum serviço cadastrado ainda.</p>
+          ) : (
+            <ul className="divide-y divide-border rounded-lg border border-border">
+              {services.map((service) => (
+                <li key={service.id} className="flex items-center gap-3 px-4 py-2">
+                  <span className="min-w-0 flex-1 truncate text-sm">{service.name}</span>
+                  <span className="shrink-0 text-sm text-text-muted tabular">{durationLabel(service.durationMinutes)}</span>
+                  {manage ? (
+                    <ConfirmDialog
+                      trigger="Excluir"
+                      title={`Excluir "${service.name}"?`}
+                      description="O serviço sai da lista. Os agendamentos já feitos continuam com o nome dele."
+                      confirmLabel="Excluir"
+                      action={deleteServiceAction}
+                      fields={{ id: service.id }}
+                    />
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+          {manage ? <ServiceForm /> : null}
+        </div>
+      </Panel>
       {distribution ? (
         <Panel title="Distribuição automática" description="Divide as novas conversas entre a equipe, sem ninguém precisar escolher. Vem desligada.">
           <DistributionForm enabled={distribution.enabled} members={distribution.members} />

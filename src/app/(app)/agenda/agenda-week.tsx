@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Badge, Button, cx } from "@/components/ui";
 import { Alert } from "@/components/ui/feedback";
-import { addDays, formatDay, isoToLocal, type AppointmentStatus } from "@/lib/agenda/form";
+import { addDays, formatDay, isoToLocal, type AppointmentStatus, type ServiceOption } from "@/lib/agenda/form";
 import type { AppointmentItem } from "@/lib/agenda/queries";
 import type { TeamMember } from "@/lib/inbox/queries";
 import { setAppointmentStatusAction } from "./actions";
@@ -21,7 +21,19 @@ function endTime(item: AppointmentItem): string {
   return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
-export function AgendaWeek({ monday, today, items, members }: { monday: string; today: string; items: AppointmentItem[]; members: TeamMember[] }) {
+export function AgendaWeek({
+  monday,
+  today,
+  items,
+  members,
+  services,
+}: {
+  monday: string;
+  today: string;
+  items: AppointmentItem[];
+  members: TeamMember[];
+  services: ServiceOption[];
+}) {
   const [draft, setDraft] = useState<AppointmentDraft | null>(null);
   const [opened, setOpened] = useState<AppointmentItem | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -116,6 +128,7 @@ export function AgendaWeek({ monday, today, items, members }: { monday: string; 
           key={draft.appointmentId ?? "new"}
           draft={draft}
           members={members}
+          services={services}
           onClose={close}
           footer={
             opened ? (

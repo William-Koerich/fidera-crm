@@ -92,6 +92,21 @@ describe.skipIf(!hasDatabase())("appointments", () => {
       expect(await errorCode(db, "delete from crm.appointments")).toBe("42501");
     }));
 
+  it("services are read by the team, changed by managers, and private to the organization", () =>
+    withRollback(db, async (db) => {
+      const s = await setup(db);
+      const add = "insert into crm.services (organization_id, name, duration_minutes) values ($1, 'Corte', 30)";
+      expect(await errorCode(db, add, [s.org])).toBe("42501");
+      await actAs(db, s.owner);
+      await db.query(add, [s.org]);
+      expect(await errorCode(db, add, [s.org])).toBe("23505");
+      await actAs(db, s.ana);
+      expect((await db.query("select 1 from crm.services")).rowCount).toBe(1);
+      expect((await db.query("delete from crm.services")).rowCount).toBe(0);
+      await actAs(db, s.stranger);
+      expect((await db.query("select 1 from crm.services")).rowCount).toBe(0);
+    }));
+
   it("keeps the appointment when the person leaves the team", () =>
     withRollback(db, async (db) => {
       const s = await setup(db);
