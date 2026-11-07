@@ -14,6 +14,7 @@ import {
   setDepartmentAction,
 } from "../team-actions";
 import { AssigneeSelect } from "./assignee-select";
+import { ConversationSummary } from "./conversation-summary";
 import { ScheduleButton } from "./schedule";
 
 /** How the team organizes this conversation. Collapsed so the messages keep the space on phones. */
@@ -32,6 +33,7 @@ export function ConversationBar({
   labels,
   ratingEnabled,
   upcoming,
+  aiEnabled,
 }: {
   conversationId: string;
   status: "open" | "closed";
@@ -47,6 +49,7 @@ export function ConversationBar({
   labels: InboxOption[];
   ratingEnabled: boolean;
   upcoming: string[];
+  aiEnabled: boolean;
 }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [department, setDepartment] = useState(departmentId ?? "");
@@ -101,6 +104,8 @@ export function ConversationBar({
             </ScheduleButton>
           </div>
         </div>
+
+        {aiEnabled ? <ConversationSummary conversationId={conversationId} /> : null}
 
         <AssigneeSelect conversationId={conversationId} assignedTo={assignedTo} members={members} currentUserId={currentUserId} />
 

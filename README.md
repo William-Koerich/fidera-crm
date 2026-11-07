@@ -146,6 +146,15 @@ its docs have no agenda route. Appointments are cancelled rather than deleted.
 duration. Appointments keep the service name as text, so changing the list does not rewrite them. After
 booking from a conversation, the message box offers a confirmation to fill in; a person reviews and sends it.
 
+### AI assistant
+
+Optional, off until `ANTHROPIC_API_KEY` is set on the server. In a conversation: *Sugerir resposta*
+writes a reply, *Melhorar texto* rewrites the draft, and *Resumir conversa com IA* summarizes it, with
+the option to save the summary as a note. Nothing is sent without a person reading it. It uses
+`claude-opus-5-5` at low effort with the API's server-side fallback, reads the last 30 messages
+of a conversation the person can open (RLS), treats customer text as data, and is capped at 120 uses
+per business per hour, counted in the audit log. Conversation text goes to Anthropic for each use.
+
 ### Bot
 
 *Ajustes -> Respostas* turns on a numbered menu (off by default) that answers a text, hands over

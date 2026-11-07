@@ -9,6 +9,7 @@ import { ATTACHMENT_ACCEPT, attachmentProblem } from "@/lib/inbox/attachments";
 import { filterQuickReplies, slashQuery, type QuickReply } from "@/lib/replies/quick-replies";
 import { getBrowserClient } from "@/lib/supabase/client";
 import { useBookingConfirmation } from "./schedule";
+import { rewriteDraftAction, suggestReplyAction } from "../ai-actions";
 import { addNoteAction } from "../team-actions";
 import { prepareAttachmentAction, sendAttachmentAction, sendReplyAction, type ComposerState } from "../actions";
 
@@ -26,7 +27,10 @@ export function Composer({
   quickReplies,
   canSendFiles,
   initialText = "",
+  aiEnabled = false,
 }: {
+  /** Whether the server has the AI assistant switched on. */
+  aiEnabled?: boolean;
   /** Text to start with, for the person to review, e.g. from "Chamar hoje". */
   initialText?: string;
   conversationId: string;
@@ -45,6 +49,27 @@ export function Composer({
   const fileRef = useRef<HTMLInputElement>(null);
   const [noteMode, setNoteMode] = useState(false);
   const confirmation = useBookingConfirmation();
+  const [aiPending, startAi] = useTransition();
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
+
+  /** The assistant only fills the box: a person reads and sends. */
+  function askAi(kind: "suggest" | "rewrite") {
+    setAiNotice(null);
+    startAi(async () => {
+      const result = await (kind === "suggest" ? suggestReplyAction(conversationId) : rewriteDraftAction(conversationId, text)).catch(() => null);
+      if (!result) {
+        setAiNotice("A IA não respondeu agora. Tente de novo em instantes.");
+        return;
+      }
+      if (!result.ok) {
+        setAiNotice(result.message);
+        return;
+      }
+      setText(result.text);
+      setAiNotice("Texto escrito pela IA. Revise antes de enviar.");
+      inputRef.current?.focus();
+    });
+  }
   const busy = pending || sendingFile;
 
   const query = noteMode ? null : slashQuery(text);
@@ -168,6 +193,11 @@ export function Composer({
       <input type="hidden" name="conversationId" value={conversationId} />
       {state.status === "error" ? <Alert tone="danger">{state.message}</Alert> : null}
       {fileError ? <Alert tone="danger">{fileError}</Alert> : null}
+      {aiNotice ? (
+        <p role="status" className="px-1 text-xs text-text-muted">
+          {aiNotice}
+        </p>
+      ) : null}
       {confirmation.text ? (
         <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-success/20 bg-success/5 px-3 py-2 text-sm">
           <span className="min-w-0 flex-1">Cliente agendado. Quer avisar pelo WhatsApp?</span>
@@ -293,6 +323,28 @@ export function Composer({
         <p id="composer-hint" className="hidden text-xs text-text-muted sm:block">
           {noteMode ? "Ctrl + Enter para salvar. Só a equipe vê." : `Ctrl + Enter para enviar.${quickReplies.length > 0 ? " Digite / para respostas rápidas." : ""}`}
         </p>
+        {aiEnabled && !noteMode ? (
+          <div className="flex flex-wrap items-center gap-x-3">
+            <button
+              type="button"
+              onClick={() => askAi("suggest")}
+              disabled={aiPending || busy}
+              className="inline-flex min-h-11 items-center text-sm font-medium text-info hover:underline disabled:opacity-60 sm:min-h-0"
+            >
+              {aiPending ? "Escrevendo…" : "Sugerir resposta"}
+            </button>
+            {text.trim() ? (
+              <button
+                type="button"
+                onClick={() => askAi("rewrite")}
+                disabled={aiPending || busy}
+                className="inline-flex min-h-11 items-center text-sm font-medium text-info hover:underline disabled:opacity-60 sm:min-h-0"
+              >
+                Melhorar texto
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         <button
           type="button"
           aria-pressed={noteMode}

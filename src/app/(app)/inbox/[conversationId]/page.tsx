@@ -7,6 +7,7 @@ import { Icon } from "@/components/icons";
 import { Avatar, Skeleton } from "@/components/ui";
 import { formatDay } from "@/lib/agenda/form";
 import { listServices, listUpcomingForContact } from "@/lib/agenda/queries";
+import { isAssistantEnabled } from "@/lib/ai/assistant";
 import { canManage, requireMembership } from "@/lib/auth";
 import { decodeCursor } from "@/lib/inbox/cursor";
 import { dayKey, formatDayLabel, formatPhone } from "@/lib/inbox/format";
@@ -170,6 +171,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
           endings={options.endings}
           labels={options.labels}
           ratingEnabled={rating}
+          aiEnabled={isAssistantEnabled()}
           upcoming={upcoming.map((a) => `${formatDay(a.date)} às ${a.time}${a.service ? ` · ${a.service}` : ""}`)}
         />
 
@@ -221,6 +223,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
                 quickReplies={quickReplies}
                 canSendFiles={conversation.canSendFiles}
                 initialText={draftText}
+                aiEnabled={isAssistantEnabled()}
               />
             ) : (
               <p className="text-sm text-text-muted">
