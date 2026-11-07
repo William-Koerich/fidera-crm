@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { refresh } from "next/cache";
 import { canManage, requireMembership } from "@/lib/auth";
 import { getChatProConfig, getChatProPanel, getChatProProvider, getChatProWebhookUrl } from "@/lib/channels/chatpro/config";
@@ -54,6 +55,30 @@ async function saveChannelAccount(
         external_account_id: externalAccountId,
       });
   if (error) throw new Error(`Could not save channel account (${error.code})`);
+}
+
+/** Creates this business's website chat. Its key is public, so it is random and long. */
+export async function createWebchatAction(): Promise<void> {
+  const me = await requireManager();
+  const admin = createAdminClient();
+  const { data: existing } = await admin
+    .from("channel_accounts")
+    .select("id")
+    .eq("organization_id", me.organizationId)
+    .eq("provider", "webchat")
+    .limit(1);
+  if (existing?.length) return refresh();
+  const { error } = await admin.from("channel_accounts").insert({
+    organization_id: me.organizationId,
+    channel: "webchat",
+    provider: "webchat",
+    external_account_id: randomBytes(16).toString("hex"),
+    display_name: "Chat do site",
+    status: "active",
+    connected_at: new Date().toISOString(),
+  });
+  if (error) throw new Error(`Could not create the website chat (${error.code})`);
+  refresh();
 }
 
 /** Mock mode only: creates a fake WhatsApp number so the inbox works without Meta. */

@@ -146,6 +146,16 @@ its docs have no agenda route. Appointments are cancelled rather than deleted.
 duration. Appointments keep the service name as text, so changing the list does not rewrite them. After
 booking from a conversation, the message box offers a confirmation to fill in; a person reviews and sends it.
 
+### Website chat
+
+*Ajustes -> Canais -> Chat do site* creates one chat per business and shows the line to paste on the
+site (`/widget.js` with the chat's key). The button opens `/w/<key>` in a frame; that path is the
+only one allowed in frames. Visitors give a name (and optionally a WhatsApp number) and land in the
+inbox like any conversation, with source "webchat". Each visitor gets an id signed with
+`WEBCHAT_SECRET`, so nobody reads another visitor's chat; the visitor page polls every 4 seconds.
+Limits: 8 messages a minute per visitor and 300 an hour per site. Replies need no outside service:
+the reply is stored and the visitor's page reads it. The chat is off while `WEBCHAT_SECRET` is empty.
+
 ### AI assistant
 
 Optional, off until `ANTHROPIC_API_KEY` is set on the server. In a conversation: *Sugerir resposta*

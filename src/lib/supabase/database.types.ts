@@ -191,10 +191,10 @@ export type Database = {
       set_channel_token: { Args: { p_account_id: string; p_token: string }; Returns: undefined };
     };
     Enums: {
-      channel: "whatsapp" | "instagram";
+      channel: "whatsapp" | "instagram" | "webchat";
       channel_account_status: "pending" | "active" | "disconnected" | "error";
-      channel_provider: "mock" | "meta" | "coexy" | "chatpro";
-      contact_source: "whatsapp_inbound" | "instagram_inbound" | "business_app_echo" | "history" | "capture_link" | "manual" | "import";
+      channel_provider: "mock" | "meta" | "coexy" | "chatpro" | "webchat";
+      contact_source: "whatsapp_inbound" | "instagram_inbound" | "business_app_echo" | "history" | "capture_link" | "manual" | "import" | "webchat_inbound";
       membership_role: "owner" | "admin" | "member";
       message_direction: "inbound" | "outbound";
       message_origin: "customer" | "api" | "business_app_echo" | "history" | "automation";

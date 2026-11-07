@@ -5,7 +5,9 @@ import { getChatProConfig, getChatProWebhookUrl } from "@/lib/channels/chatpro/c
 import { canManage, requireMembership } from "@/lib/auth";
 import { getWhatsAppProviderName } from "@/lib/env";
 import { countConversations, listChannelAccounts } from "@/lib/inbox/queries";
-import { connectMetaNumberAction, connectMockChannelAction, removeChannelAccountAction } from "./channel-actions";
+import { publicOrigin, webchatSecret } from "@/lib/webchat/server";
+import { connectMetaNumberAction, connectMockChannelAction, createWebchatAction, removeChannelAccountAction } from "./channel-actions";
+import { WebchatSnippet } from "./webchat-snippet";
 import { ChatProConnect } from "./chatpro-connect";
 
 const STATUS: Record<string, { label: string; tone: Tone }> = {
@@ -15,7 +17,7 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
   error: { label: "Com erro", tone: "danger" },
 };
 
-const PROVIDER_LABEL = { mock: "Teste (simulado)", meta: "API oficial da Meta", coexy: "Integração removida", chatpro: "ChatPro (QR Code)" } as const;
+const PROVIDER_LABEL = { mock: "Teste (simulado)", meta: "API oficial da Meta", coexy: "Integração removida", chatpro: "ChatPro (QR Code)", webchat: "Chat do site" } as const;
 
 function removalWarning(conversations: number, provider: string): string {
   const session =
@@ -141,6 +143,47 @@ export async function Channels() {
                 {accounts.some((a) => a.provider === "meta") ? "Atualizar número" : "Conectar número"}
               </Button>
             </div>
+          </form>
+        )}
+      </div>
+    </Panel>
+  );
+}
+
+/** The chat a business puts on its own website. One per business. */
+export async function WebchatSettings() {
+  const me = await requireMembership();
+  if (!canManage(me.role)) return null;
+  const accounts = (await listChannelAccounts(me.organizationId)).filter((a) => a.channel === "webchat");
+  const chat = accounts[0];
+  const enabled = !!webchatSecret();
+  const conversationCounts = chat ? await countConversations([chat.id]) : new Map<string, number>();
+
+  return (
+    <Panel title="Chat do site" description="Um botão de conversa no site do seu negócio. As mensagens chegam nesta inbox, junto com as do WhatsApp.">
+      <div className="grid gap-4">
+        {!enabled ? (
+          <Alert tone="warning" title="Chat do site desligado no servidor">
+            Defina WEBCHAT_SECRET nas variáveis do servidor para ativar. Gere com: openssl rand -hex 32
+          </Alert>
+        ) : chat ? (
+          <>
+            <p className="text-sm text-text-muted">Cole esta linha no site, antes de fechar a tag &lt;/body&gt;:</p>
+            <WebchatSnippet snippet={`<script src="${publicOrigin()}/widget.js" data-key="${chat.external_account_id}" async></script>`} />
+            <div>
+              <ConfirmDialog
+                trigger="Remover chat do site"
+                title="Remover o chat do site?"
+                description={`${removalWarning(conversationCounts.get(chat.id) ?? 0, "webchat")} O botão para de funcionar no site.`}
+                confirmLabel="Remover"
+                action={removeChannelAccountAction}
+                fields={{ accountId: chat.id }}
+              />
+            </div>
+          </>
+        ) : (
+          <form action={createWebchatAction}>
+            <Button type="submit">Criar chat do site</Button>
           </form>
         )}
       </div>

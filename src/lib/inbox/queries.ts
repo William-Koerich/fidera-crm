@@ -28,6 +28,11 @@ export interface ConversationListItem {
   lastFromUs: boolean;
 }
 
+/** Only Meta's official API limits free replies to 24 hours after the customer's last message. */
+function hasReplyWindow(provider: string | undefined): boolean {
+  return provider === "meta" || provider === "mock";
+}
+
 /** The version in the query string makes the browser fetch a photo again after each sync. */
 function contactAvatarUrl(contact: { id: string; avatar_path: string | null; profile_synced_at: string | null }): string | null {
   if (!contact.avatar_path) return null;
@@ -86,7 +91,7 @@ export async function listConversations(opts: {
       lastMessagePreview: previewText(c.last_message_preview),
       awaitingReply: c.awaiting_reply,
       unreadCount: c.unread_count,
-      replyWindowEndsAt: c.channel_accounts?.provider === "chatpro" ? null : c.reply_window_ends_at,
+      replyWindowEndsAt: hasReplyWindow(c.channel_accounts?.provider) ? c.reply_window_ends_at : null,
       lastFromUs: !!c.last_outbound_at && (!c.last_inbound_at || c.last_outbound_at >= c.last_inbound_at),
     })),
     nextCursor:
@@ -153,8 +158,8 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     channel: data.channel,
     lastInboundAt: data.last_inbound_at,
     lastOutboundAt: data.last_outbound_at,
-    replyWindowEndsAt: data.channel_accounts.provider === "chatpro" ? null : data.reply_window_ends_at,
-    hasReplyWindow: data.channel_accounts.provider !== "chatpro",
+    replyWindowEndsAt: hasReplyWindow(data.channel_accounts.provider) ? data.reply_window_ends_at : null,
+    hasReplyWindow: hasReplyWindow(data.channel_accounts.provider),
     assignedTo: data.assigned_to,
     status: data.status === "closed" ? "closed" : "open",
     departmentId: data.department_id,
@@ -359,7 +364,7 @@ export async function listChannelAccounts(organizationId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("channel_accounts")
-    .select("id, channel, provider, display_name, display_phone, status, disconnected_reason, history_sync_progress")
+    .select("id, channel, provider, external_account_id, display_name, display_phone, status, disconnected_reason, history_sync_progress")
     .eq("organization_id", organizationId)
     .order("created_at");
   return data ?? [];

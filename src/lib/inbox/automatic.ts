@@ -1,6 +1,6 @@
 import "server-only";
 import { getProviderByName } from "@/lib/channels";
-import type { SendResult } from "@/lib/channels/types";
+import type { Channel, SendResult } from "@/lib/channels/types";
 import { MAX_AUTO_REPLIES_PER_HOUR, type SendTarget } from "@/lib/replies/auto-reply";
 import { supabaseAutoReplyStore } from "@/lib/replies/auto-reply-store";
 import type { Enums } from "@/lib/supabase/database.types";
@@ -8,7 +8,7 @@ import type { AdminClient } from "@/lib/supabase/server";
 
 export interface AutomaticTarget extends SendTarget {
   accountExternalId: string;
-  channel: "whatsapp" | "instagram";
+  channel: Channel;
   to: string;
 }
 

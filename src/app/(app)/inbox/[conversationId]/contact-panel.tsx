@@ -1,5 +1,5 @@
 import { Avatar, DescriptionList } from "@/components/ui";
-import { formatDate, formatPhone, formatShortDate } from "@/lib/inbox/format";
+import { channelLabel, formatDate, formatPhone, formatShortDate } from "@/lib/inbox/format";
 import type { ConversationDetail } from "@/lib/inbox/queries";
 import { WindowBadge } from "../window-badge";
 
@@ -11,6 +11,7 @@ const SOURCE_LABEL: Record<ConversationDetail["contact"]["source"], string> = {
   capture_link: "Página de captação",
   manual: "Cadastrado manualmente",
   import: "Contatos do celular",
+  webchat_inbound: "Chamou pelo chat do site",
 };
 
 /** Client context next to the messages (wide screens). */
@@ -30,7 +31,7 @@ export function ContactPanel({ conversation }: { conversation: ConversationDetai
 
       <DescriptionList
         items={[
-          { term: "Canal", detail: conversation.channel === "whatsapp" ? "WhatsApp" : "Instagram" },
+          { term: "Canal", detail: channelLabel(conversation.channel) },
           { term: "Como chegou", detail: SOURCE_LABEL[contact.source] },
           { term: "Cliente desde", detail: formatDate(contact.createdAt) },
           {

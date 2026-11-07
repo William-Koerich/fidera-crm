@@ -1,4 +1,4 @@
-export type Channel = "whatsapp" | "instagram";
+export type Channel = "whatsapp" | "instagram" | "webchat";
 
 export type MessageType =
   | "text"
@@ -176,7 +176,7 @@ export interface ContactProfile {
 }
 
 export interface ChannelProvider {
-  readonly name: "mock" | "meta" | "chatpro";
+  readonly name: "mock" | "meta" | "chatpro" | "webchat";
   parseWebhook(payload: unknown): NormalizedEvent[];
   sendMessage(input: SendMessageInput): Promise<SendResult>;
   /**

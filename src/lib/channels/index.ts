@@ -1,3 +1,4 @@
+import { WebchatProvider } from "./webchat-provider";
 import "server-only";
 import { getWhatsAppProviderName } from "@/lib/env";
 import type { Enums } from "@/lib/supabase/database.types";
@@ -44,6 +45,9 @@ export function getProviderByName(name: Enums<"channel_provider">): ChannelProvi
       break;
     case "chatpro":
       provider = getChatProProvider();
+      break;
+    case "webchat":
+      provider = new WebchatProvider();
       break;
     case "coexy":
       throw new Error("The Coexy integration was removed. Use WHATSAPP_PROVIDER=mock, meta or chatpro.");

@@ -10,7 +10,7 @@ import { listServices, listUpcomingForContact } from "@/lib/agenda/queries";
 import { isAssistantEnabled } from "@/lib/ai/assistant";
 import { canManage, requireMembership } from "@/lib/auth";
 import { decodeCursor } from "@/lib/inbox/cursor";
-import { dayKey, formatDayLabel, formatPhone } from "@/lib/inbox/format";
+import { channelLabel, dayKey, formatDayLabel, formatPhone } from "@/lib/inbox/format";
 import {
   getConversation,
   listContactLabelIds,
@@ -145,7 +145,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
             <h1 className="truncate text-sm font-semibold sm:text-base">{title}</h1>
             <p className="truncate text-xs text-text-muted">
               {contact.phone ? `${formatPhone(contact.phone)} · ` : ""}
-              {conversation.channel === "whatsapp" ? "WhatsApp" : "Instagram"}
+              {channelLabel(conversation.channel)}
             </p>
           </div>
           <div className="shrink-0 sm:hidden">

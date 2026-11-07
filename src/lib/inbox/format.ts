@@ -94,3 +94,8 @@ export function formatDate(iso: string): string {
 export function formatTime(iso: string): string {
   return timeFmt.format(new Date(iso));
 }
+
+/** How a channel is named to people. */
+export function channelLabel(channel: string): string {
+  return channel === "whatsapp" ? "WhatsApp" : channel === "instagram" ? "Instagram" : channel === "webchat" ? "Chat do site" : channel;
+}
