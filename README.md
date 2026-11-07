@@ -146,6 +146,18 @@ its docs have no agenda route. Appointments are cancelled rather than deleted.
 duration. Appointments keep the service name as text, so changing the list does not rewrite them. After
 booking from a conversation, the message box offers a confirmation to fill in; a person reviews and sends it.
 
+### Bot
+
+*Ajustes -> Respostas* turns on a numbered menu (off by default) that answers a text, hands over
+to the team (optionally into a department) or books. Booking offers free times from the opening
+hours of the automatic replies, each bookable person's work hours and the agenda; the agenda's
+overlap trigger has the last word, and losing a time to someone faster offers the day's others.
+The bot only takes a conversation quiet for 12 hours, leaves it as soon as the team answers, hands
+over after two answers it cannot read, and stops at the hourly limit for automatic messages, now
+60 and shared. Its state lives in `bot_sessions`, server-only, with a version so two deliveries
+cannot both advance it. While it is on, the greeting and away messages are not sent. No buttons or
+lists: ChatPro marks them unavailable outside the official API.
+
 ### Chamar hoje
 
 `/chamar` lists clients past their return date: services carry a return period, and a visit is an

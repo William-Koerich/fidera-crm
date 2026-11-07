@@ -3,6 +3,7 @@
 import { refresh } from "next/cache";
 import { canManage, requireMembership } from "@/lib/auth";
 import { parseAutoReplyForm } from "@/lib/replies/auto-reply";
+import { parseBotForm } from "@/lib/bot/config";
 import { parseNpsForm } from "@/lib/replies/nps";
 import { MAX_REPLY_LENGTH, normalizeShortcut } from "@/lib/replies/quick-replies";
 import type { Json } from "@/lib/supabase/database.types";
@@ -109,6 +110,53 @@ export async function saveNpsAction(_prev: ReplyFormState, formData: FormData): 
     actor_id: me.user.id,
     action: "nps.updated",
     metadata: { enabled: parsed.enabled },
+  });
+  refresh();
+  return { status: "saved", savedAt: Date.now() };
+}
+
+export async function saveBotAction(_prev: ReplyFormState, formData: FormData): Promise<ReplyFormState> {
+  const me = await requireManager();
+  if (!me) return fail("Apenas donos e administradores podem alterar isto.");
+  const parsed = parseBotForm((name) => {
+    const value = formData.get(name);
+    return typeof value === "string" ? value : null;
+  });
+  if (!parsed.ok) return fail(parsed.message);
+  const { settings } = parsed;
+
+  const supabase = await createClient();
+  const [{ data: departments }, { data: members }] = await Promise.all([
+    supabase.from("departments").select("id").eq("organization_id", me.organizationId),
+    supabase.from("memberships").select("user_id").eq("organization_id", me.organizationId),
+  ]);
+  const validDepartments = new Set((departments ?? []).map((d) => d.id));
+  const options = settings.options.map((o) => ({ ...o, departmentId: o.departmentId && validDepartments.has(o.departmentId) ? o.departmentId : null }));
+
+  const { error } = await supabase.from("bot_settings").upsert({
+    organization_id: me.organizationId,
+    enabled: settings.enabled,
+    welcome: settings.welcome,
+    handoff_text: settings.handoffText,
+    options: options as unknown as Json,
+  });
+  if (error) return fail("Não foi possível salvar. Tente de novo.");
+
+  // Server client after the checks above: admins may not edit an owner's membership under RLS.
+  const bookable = new Set(formData.getAll("bookable").map(String));
+  const admin = createAdminClient();
+  for (const member of members ?? []) {
+    await admin
+      .from("memberships")
+      .update({ bookable: bookable.has(member.user_id) })
+      .eq("organization_id", me.organizationId)
+      .eq("user_id", member.user_id);
+  }
+  await admin.from("audit_log").insert({
+    organization_id: me.organizationId,
+    actor_id: me.user.id,
+    action: "bot.updated",
+    metadata: { enabled: settings.enabled },
   });
   refresh();
   return { status: "saved", savedAt: Date.now() };

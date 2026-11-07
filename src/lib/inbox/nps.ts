@@ -1,9 +1,6 @@
 import "server-only";
-import { getProviderByName } from "@/lib/channels";
-import type { SendResult } from "@/lib/channels/types";
+import { sendAutomatic, type AutomaticTarget } from "@/lib/inbox/automatic";
 import { logEvent } from "@/lib/log";
-import { MAX_AUTO_REPLIES_PER_HOUR } from "@/lib/replies/auto-reply";
-import { supabaseAutoReplyStore } from "@/lib/replies/auto-reply-store";
 import { NPS_ANSWER_WINDOW_MS, canAskAgain } from "@/lib/replies/nps";
 import type { Enums } from "@/lib/supabase/database.types";
 import type { AdminClient } from "@/lib/supabase/server";
@@ -12,41 +9,7 @@ const MAX_THANKS_PER_RUN = 5;
 
 export type SurveyOutcome = "sent" | "asked_recently" | "hourly_limit" | "failed";
 
-interface ConversationRef {
-  organizationId: string;
-  accountId: string;
-  accountExternalId: string;
-  conversationId: string;
-  lastOutboundAt: string | null;
-  channel: "whatsapp" | "instagram";
-  to: string;
-}
-
-/** Sends a text the team did not write. Shares the hourly limit with the automatic replies. */
-async function sendAutomatic(
-  admin: AdminClient,
-  providerName: Enums<"channel_provider">,
-  ref: ConversationRef,
-  body: string,
-): Promise<SendResult | "hourly_limit"> {
-  const store = supabaseAutoReplyStore(admin, providerName);
-  const now = new Date();
-  const recent = await store.countRecent(ref.organizationId, new Date(now.getTime() - 3_600_000));
-  if (recent >= MAX_AUTO_REPLIES_PER_HOUR) return "hourly_limit";
-
-  const messageId = await store.createPending(ref, body, now);
-  const result = await getProviderByName(providerName).sendMessage({
-    channel: ref.channel,
-    accountExternalId: ref.accountExternalId,
-    to: ref.to,
-    type: "text",
-    body,
-    idempotencyKey: messageId,
-  });
-  if (result.ok) await store.markSent(ref, messageId, result.externalMessageId, now);
-  else await store.markFailed(messageId, result.errorCode);
-  return result;
-}
+type ConversationRef = AutomaticTarget;
 
 /** Asks for a rating on a conversation just finished. Records the survey before sending, so a fast answer finds it. */
 export async function sendNpsSurvey(

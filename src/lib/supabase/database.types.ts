@@ -29,6 +29,18 @@ export type Database = {
         Update: { organization_id?: string; greeting_enabled?: boolean; greeting_text?: string; away_enabled?: boolean; away_text?: string; business_hours?: Json; updated_at?: string };
         Relationships: [{ foreignKeyName: "auto_reply_settings_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
+      bot_sessions: {
+        Row: { conversation_id: string; organization_id: string; state: Json; version: number; updated_at: string };
+        Insert: { conversation_id: string; organization_id: string; state: Json; version?: number; updated_at?: string };
+        Update: { conversation_id?: string; organization_id?: string; state?: Json; version?: number; updated_at?: string };
+        Relationships: [{ foreignKeyName: "bot_sessions_conversation_id_fkey"; columns: ["conversation_id"]; isOneToOne: false; referencedRelation: "conversations"; referencedColumns: ["id"] }, { foreignKeyName: "bot_sessions_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
+      };
+      bot_settings: {
+        Row: { organization_id: string; enabled: boolean; welcome: string; handoff_text: string; options: Json; updated_at: string };
+        Insert: { organization_id: string; enabled?: boolean; welcome?: string; handoff_text?: string; options?: Json; updated_at?: string };
+        Update: { organization_id?: string; enabled?: boolean; welcome?: string; handoff_text?: string; options?: Json; updated_at?: string };
+        Relationships: [{ foreignKeyName: "bot_settings_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
+      };
       callbacks: {
         Row: { id: string; organization_id: string; contact_id: string; service_id: string; last_visit_at: string; status: string; created_by: string | null; created_at: string };
         Insert: { id?: string; organization_id: string; contact_id: string; service_id: string; last_visit_at: string; status: string; created_by?: string | null; created_at?: string };
@@ -108,9 +120,9 @@ export type Database = {
         Relationships: [{ foreignKeyName: "member_departments_organization_id_department_id_fkey"; columns: ["organization_id", "department_id"]; isOneToOne: false; referencedRelation: "departments"; referencedColumns: ["organization_id", "id"] }, { foreignKeyName: "member_departments_organization_id_user_id_fkey"; columns: ["organization_id", "user_id"]; isOneToOne: false; referencedRelation: "memberships"; referencedColumns: ["organization_id", "user_id"] }];
       };
       memberships: {
-        Row: { organization_id: string; user_id: string; role: Database["crm"]["Enums"]["membership_role"]; created_at: string; accepts_conversations: boolean; last_assigned_at: string | null; work_hours: Json | null };
-        Insert: { organization_id: string; user_id: string; role?: Database["crm"]["Enums"]["membership_role"]; created_at?: string; accepts_conversations?: boolean; last_assigned_at?: string | null; work_hours?: Json | null };
-        Update: { organization_id?: string; user_id?: string; role?: Database["crm"]["Enums"]["membership_role"]; created_at?: string; accepts_conversations?: boolean; last_assigned_at?: string | null; work_hours?: Json | null };
+        Row: { organization_id: string; user_id: string; role: Database["crm"]["Enums"]["membership_role"]; created_at: string; accepts_conversations: boolean; last_assigned_at: string | null; work_hours: Json | null; bookable: boolean };
+        Insert: { organization_id: string; user_id: string; role?: Database["crm"]["Enums"]["membership_role"]; created_at?: string; accepts_conversations?: boolean; last_assigned_at?: string | null; work_hours?: Json | null; bookable?: boolean };
+        Update: { organization_id?: string; user_id?: string; role?: Database["crm"]["Enums"]["membership_role"]; created_at?: string; accepts_conversations?: boolean; last_assigned_at?: string | null; work_hours?: Json | null; bookable?: boolean };
         Relationships: [{ foreignKeyName: "memberships_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
       messages: {

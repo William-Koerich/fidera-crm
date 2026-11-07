@@ -33,3 +33,31 @@ export async function isRatingEnabled(organizationId: string): Promise<boolean> 
   const { data } = await createAdminClient().from("nps_settings").select("enabled").eq("organization_id", organizationId).maybeSingle();
   return data?.enabled ?? false;
 }
+
+export async function getBotSettings(organizationId: string): Promise<{
+  settings: import("@/lib/bot/config").BotSettings;
+  members: { id: string; email: string; bookable: boolean }[];
+  hasBusinessHours: boolean;
+  serviceCount: number;
+}> {
+  const supabase = await createClient();
+  const [bot, memberships, team, autoReply, services] = await Promise.all([
+    supabase.from("bot_settings").select("*").eq("organization_id", organizationId).maybeSingle(),
+    supabase.from("memberships").select("user_id, bookable").eq("organization_id", organizationId),
+    supabase.rpc("list_members", { org_id: organizationId }),
+    supabase.from("auto_reply_settings").select("business_hours").eq("organization_id", organizationId).maybeSingle(),
+    supabase.from("services").select("id", { count: "exact", head: true }).eq("organization_id", organizationId),
+  ]);
+  const bookable = new Map((memberships.data ?? []).map((m) => [m.user_id, m.bookable]));
+  return {
+    settings: {
+      enabled: bot.data?.enabled ?? false,
+      welcome: bot.data?.welcome ?? "",
+      handoffText: bot.data?.handoff_text ?? "",
+      options: (bot.data?.options ?? []) as unknown as import("@/lib/bot/config").BotSettings["options"],
+    },
+    members: (team.data ?? []).map((m) => ({ id: m.user_id, email: m.email, bookable: bookable.get(m.user_id) ?? true })),
+    hasBusinessHours: Object.keys((autoReply.data?.business_hours ?? {}) as object).length > 0,
+    serviceCount: services.count ?? 0,
+  };
+}

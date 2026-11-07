@@ -6,6 +6,7 @@ import { refreshStaleProfiles } from "@/lib/contacts/profile-sync";
 import { mirrorAutoAssignments } from "@/lib/inbox/assignment-mirror";
 import { sendNpsThanks } from "@/lib/inbox/nps";
 import { logEvent } from "@/lib/log";
+import { runBot } from "@/lib/bot/runner";
 import { runAutoReplies } from "@/lib/replies/auto-reply";
 import { supabaseAutoReplyStore } from "@/lib/replies/auto-reply-store";
 import { fetchPendingMedia } from "./media";
@@ -81,7 +82,10 @@ export async function processWebhookEvents(
         ms: Date.now() - started,
       });
 
-      // After the event is complete: a failed auto reply must not make the webhook retry.
+      // After the event is complete: a failed bot or auto reply must not make the webhook retry.
+      await runBot(admin, event.provider, normalized).catch((e: unknown) => {
+        logEvent("bot.failed", { eventId: event.id, error: e instanceof Error ? e.message : "unknown" }, "error");
+      });
       await runAutoReplies(normalized, provider, supabaseAutoReplyStore(admin, event.provider), {
         onOutcome: (outcome) => logEvent("auto_reply.outcome", { eventId: event.id, outcome }, outcome === "sent" ? "info" : "warn"),
         onError: (e) =>

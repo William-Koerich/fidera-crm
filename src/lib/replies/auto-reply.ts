@@ -12,8 +12,11 @@ export const BUSINESS_TIMEZONE = "America/Sao_Paulo";
 export const AWAY_COOLDOWN_MS = 12 * 3_600_000;
 /** A retry or backlog must not answer a message from long ago. */
 export const MAX_MESSAGE_AGE_MS = 10 * 60_000;
-/** Protects the number: a QR Code session can be restricted for high automated volume. */
-export const MAX_AUTO_REPLIES_PER_HOUR = 30;
+/**
+ * Protects the number: a QR Code session can be restricted for high automated volume. Shared by
+ * automatic replies, ratings and the bot; a booking through the bot takes about five messages.
+ */
+export const MAX_AUTO_REPLIES_PER_HOUR = 60;
 
 export const WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"] as const;
 

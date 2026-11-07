@@ -124,6 +124,9 @@ async function deliver(
     .update({ last_outbound_at: now.toISOString(), last_message_at: now.toISOString(), awaiting_reply: false, unread_count: 0, status: "open", closed_at: null, closed_by: null, ending_id: null })
     .eq("id", conversation.id);
 
+  // Someone from the team answered: the bot leaves this conversation.
+  await admin.from("bot_sessions").delete().eq("conversation_id", conversation.id);
+
   await recordSendUsage(admin, {
     organizationId: conversation.organizationId,
     accountId: conversation.account.id,

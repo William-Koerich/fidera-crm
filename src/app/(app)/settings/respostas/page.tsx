@@ -4,9 +4,11 @@ import { Alert, Panel, Skeleton } from "@/components/ui";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { canManage, requireMembership } from "@/lib/auth";
 import { getWhatsAppProviderName } from "@/lib/env";
-import { getAutoReplySettings, getNpsSettings, listQuickReplies } from "@/lib/replies/queries";
+import { listInboxOptions } from "@/lib/inbox/queries";
+import { getAutoReplySettings, getBotSettings, getNpsSettings, listQuickReplies } from "@/lib/replies/queries";
 import { deleteQuickReplyAction } from "./actions";
 import { AutoReplyForm } from "./auto-reply-form";
+import { BotForm } from "./bot-form";
 import { NpsForm } from "./nps-form";
 import { QuickReplyForm } from "./quick-reply-form";
 
@@ -23,11 +25,14 @@ export default function RepliesPage() {
 async function Replies() {
   const me = await requireMembership();
   const manage = canManage(me.role);
-  const [replies, autoReplies, nps] = await Promise.all([
+  const [replies, autoReplies, nps, bot, options] = await Promise.all([
     listQuickReplies(me.organizationId),
     manage ? getAutoReplySettings(me.organizationId) : null,
     manage ? getNpsSettings(me.organizationId) : null,
+    manage ? getBotSettings(me.organizationId) : null,
+    manage ? listInboxOptions(me.organizationId) : null,
   ]);
+  const bookingOption = bot?.settings.options.some((o) => o.action === "book");
 
   return (
     <>
@@ -93,10 +98,34 @@ async function Replies() {
             {getWhatsAppProviderName() === "chatpro" ? (
               <Alert tone="warning" title="Cuidado com o número conectado por QR Code">
                 Mensagens automáticas aumentam o risco de o WhatsApp restringir ou bloquear o número. Por isso o Fidera envia no
-                máximo 30 por hora neste negócio.
+                máximo 60 por hora neste negócio, somando respostas automáticas, avaliações e robô.
               </Alert>
             ) : null}
             <AutoReplyForm settings={autoReplies} />
+          </div>
+        </Panel>
+      ) : null}
+
+      {bot && options ? (
+        <Panel
+          title="Robô de atendimento"
+          description="Responde com um menu numerado quando um cliente chama depois de 12 horas sem conversa. Agenda horários livres, responde dúvidas e passa para a equipe. Sai da conversa assim que alguém da equipe responde. Enquanto estiver ligado, a saudação e o aviso de fora do horário não são enviados."
+        >
+          <div className="grid gap-4">
+            {getWhatsAppProviderName() === "chatpro" ? (
+              <Alert tone="warning" title="Mais mensagens automáticas no número conectado por QR Code">
+                Um agendamento pelo robô troca cerca de cinco mensagens. Ele para sozinho se o limite por hora for atingido, e a conversa
+                fica esperando a equipe.
+              </Alert>
+            ) : null}
+            {bookingOption && (!bot.hasBusinessHours || bot.serviceCount === 0) ? (
+              <Alert tone="warning" title="O agendamento ainda não tem horários para oferecer">
+                {!bot.hasBusinessHours ? "Marque o horário de atendimento em Respostas automáticas, acima. " : ""}
+                {bot.serviceCount === 0 ? "Cadastre os serviços em Ajustes, na aba Atendimento. " : ""}
+                Sem isso, o robô passa a conversa para a equipe.
+              </Alert>
+            ) : null}
+            <BotForm settings={bot.settings} departments={options.departments} members={bot.members} />
           </div>
         </Panel>
       ) : null}

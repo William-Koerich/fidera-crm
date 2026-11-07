@@ -33,6 +33,9 @@ export function supabaseAutoReplyStore(admin: AdminClient, provider: Enums<"chan
         .eq("organization_id", account.organization_id)
         .maybeSingle();
       if (!row || (!row.greeting_enabled && !row.away_enabled)) return null;
+      // The bot greets and answers instead, when it is on.
+      const { data: bot } = await admin.from("bot_settings").select("enabled").eq("organization_id", account.organization_id).maybeSingle();
+      if (bot?.enabled) return null;
 
       const { data: message } = await admin
         .from("messages")

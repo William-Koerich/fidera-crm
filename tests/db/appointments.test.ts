@@ -107,6 +107,19 @@ describe.skipIf(!hasDatabase())("appointments", () => {
       expect((await db.query("select 1 from crm.services")).rowCount).toBe(0);
     }));
 
+  it("the bot's settings are for managers, and its sessions are server-only", () =>
+    withRollback(db, async (db) => {
+      const s = await setup(db);
+      await actAs(db, s.ana);
+      expect(await errorCode(db, "insert into crm.bot_settings (organization_id) values ($1)", [s.org])).toBe("42501");
+      expect(await errorCode(db, "select * from crm.bot_sessions")).toBe("42501");
+      await actAs(db, s.owner);
+      expect(await errorCode(db, "insert into crm.bot_settings (organization_id, enabled) values ($1, true)", [s.org])).toBe("23514");
+      await db.query("insert into crm.bot_settings (organization_id) values ($1)", [s.org]);
+      await actAs(db, s.stranger);
+      expect((await db.query("select 1 from crm.bot_settings")).rowCount).toBe(0);
+    }));
+
   it("keeps the appointment when the person leaves the team", () =>
     withRollback(db, async (db) => {
       const s = await setup(db);
