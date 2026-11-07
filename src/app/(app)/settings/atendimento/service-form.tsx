@@ -1,5 +1,6 @@
 "use client";
 
+import { KeepValuesForm } from "@/components/ui/keep-values-form";
 import { useActionState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
@@ -17,7 +18,7 @@ export function ServiceForm() {
 
   return (
     <div className="grid gap-3">
-      <form ref={formRef} action={action} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <KeepValuesForm ref={formRef} action={action} className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <Field id="service-name" label="Serviço" hint="Salve com o mesmo nome para mudar a duração." className="flex-1">
           <Input {...fieldA11y("service-name", { hint: true })} name="name" maxLength={120} autoComplete="off" required />
         </Field>
@@ -38,7 +39,7 @@ export function ServiceForm() {
             Salvar
           </Button>
         </div>
-      </form>
+      </KeepValuesForm>
       {state.status === "error" ? <Alert tone="danger">{state.message}</Alert> : null}
     </div>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { KeepValuesForm } from "@/components/ui/keep-values-form";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
@@ -9,7 +10,7 @@ import { saveNpsAction, type ReplyFormState } from "./actions";
 export function NpsForm({ enabled, question, thanks }: { enabled: boolean; question: string; thanks: string }) {
   const [state, action, pending] = useActionState<ReplyFormState, FormData>(saveNpsAction, { status: "idle" });
   return (
-    <form action={action} className="grid gap-4">
+    <KeepValuesForm action={action} className="grid gap-4">
       <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium">
         <input type="checkbox" name="enabled" defaultChecked={enabled} className="size-5 accent-brand" />
         Pedir avaliação ao finalizar uma conversa
@@ -41,6 +42,6 @@ export function NpsForm({ enabled, question, thanks }: { enabled: boolean; quest
           Salvar avaliação
         </Button>
       </div>
-    </form>
+    </KeepValuesForm>
   );
 }

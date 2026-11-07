@@ -1,5 +1,6 @@
 "use client";
 
+import { KeepValuesForm } from "@/components/ui/keep-values-form";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
@@ -11,7 +12,7 @@ export function InviteForm() {
   const [state, action, pending] = useActionState<FormState, FormData>(inviteMemberAction, { status: "idle" });
   return (
     <div className="grid gap-4">
-      <form action={action} className="grid gap-4 sm:grid-cols-[1fr_200px_auto] sm:items-end">
+      <KeepValuesForm action={action} className="grid gap-4 sm:grid-cols-[1fr_200px_auto] sm:items-end">
         <Field id="invite-email" label="E-mail da pessoa">
           <Input {...fieldA11y("invite-email")} name="email" type="email" autoComplete="off" required />
         </Field>
@@ -24,7 +25,7 @@ export function InviteForm() {
         <Button type="submit" loading={pending}>
           Criar convite
         </Button>
-      </form>
+      </KeepValuesForm>
 
       {state.status === "error" ? <Alert tone="danger">{state.message}</Alert> : null}
       {state.status === "success" && state.inviteLink ? (

@@ -1,5 +1,6 @@
 "use client";
 
+import { KeepValuesForm } from "@/components/ui/keep-values-form";
 import { useActionState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
@@ -19,7 +20,7 @@ export function QuickReplyForm({ reply }: { reply?: QuickReply }) {
   }, [state.savedAt, state.status, isNew]);
 
   return (
-    <form ref={formRef} action={action} className="grid gap-4">
+    <KeepValuesForm ref={formRef} action={action} className="grid gap-4">
       {reply ? <input type="hidden" name="id" value={reply.id} /> : null}
       <Field id={`${prefix}-shortcut`} label="Atalho" hint="O que vem depois da barra na inbox. Exemplo: horario">
         <Input
@@ -49,6 +50,6 @@ export function QuickReplyForm({ reply }: { reply?: QuickReply }) {
           {reply ? "Salvar alterações" : "Adicionar resposta"}
         </Button>
       </div>
-    </form>
+    </KeepValuesForm>
   );
 }

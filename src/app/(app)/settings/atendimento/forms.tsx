@@ -1,5 +1,6 @@
 "use client";
 
+import { KeepValuesForm } from "@/components/ui/keep-values-form";
 import { useActionState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
@@ -17,7 +18,7 @@ export function TeamItemForm({ kind, label, withColor }: { kind: TeamItemKind; l
 
   return (
     <div className="grid gap-3">
-      <form ref={formRef} action={action} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <KeepValuesForm ref={formRef} action={action} className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <input type="hidden" name="kind" value={kind} />
         <Field id={`${kind}-name`} label={label} className="flex-1">
           <Input {...fieldA11y(`${kind}-name`)} name="name" maxLength={80} autoComplete="off" required />
@@ -30,7 +31,7 @@ export function TeamItemForm({ kind, label, withColor }: { kind: TeamItemKind; l
         <Button type="submit" variant="secondary" loading={pending}>
           Adicionar
         </Button>
-      </form>
+      </KeepValuesForm>
       {state.status === "error" ? <Alert tone="danger">{state.message}</Alert> : null}
       {state.status === "saved" && state.message ? <Alert tone="warning">{state.message}</Alert> : null}
     </div>
@@ -40,7 +41,7 @@ export function TeamItemForm({ kind, label, withColor }: { kind: TeamItemKind; l
 export function ImportFromChannel({ kind }: { kind: "endings" | "departments" }) {
   const [state, action, pending] = useActionState<TeamItemState, FormData>(importTeamItemsAction, { status: "idle" });
   return (
-    <form action={action} className="grid gap-3">
+    <KeepValuesForm action={action} className="grid gap-3">
       <input type="hidden" name="kind" value={kind} />
       <div>
         <Button type="submit" variant="secondary" size="sm" loading={pending}>
@@ -49,6 +50,6 @@ export function ImportFromChannel({ kind }: { kind: "endings" | "departments" })
       </div>
       {state.status === "error" ? <Alert tone="danger">{state.message}</Alert> : null}
       {state.status === "saved" && state.message ? <Alert tone="success">{state.message}</Alert> : null}
-    </form>
+    </KeepValuesForm>
   );
 }

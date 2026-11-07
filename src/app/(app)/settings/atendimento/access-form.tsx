@@ -1,5 +1,6 @@
 "use client";
 
+import { KeepValuesForm } from "@/components/ui/keep-values-form";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
@@ -23,7 +24,7 @@ export function AccessForm({
 }) {
   const [state, action, pending] = useActionState<TeamItemState, FormData>(saveAccessAction, { status: "idle" });
   return (
-    <form action={action} className="grid gap-4">
+    <KeepValuesForm action={action} className="grid gap-4">
       <fieldset className="grid gap-1">
         <legend className="mb-1 text-sm font-medium">O que os membros veem</legend>
         {OPTIONS.map((option) => (
@@ -72,6 +73,6 @@ export function AccessForm({
           Salvar permissões
         </Button>
       </div>
-    </form>
+    </KeepValuesForm>
   );
 }

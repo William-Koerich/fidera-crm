@@ -1,5 +1,6 @@
 "use client";
 
+import { KeepValuesForm } from "@/components/ui/keep-values-form";
 import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
@@ -67,7 +68,7 @@ export function AppointmentDialog({
       }}
       className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-xl border border-border bg-surface p-0 text-text shadow-xl backdrop:bg-text/40"
     >
-      <form action={action} className="grid gap-4 p-5">
+      <KeepValuesForm action={action} className="grid gap-4 p-5">
         <h2 id="appointment-title" className="text-base font-semibold">
           {draft.appointmentId ? "Editar agendamento" : "Novo agendamento"}
         </h2>
@@ -141,7 +142,7 @@ export function AppointmentDialog({
           </Button>
         </div>
         {footer ? <div className="border-t border-border pt-4">{footer}</div> : null}
-      </form>
+      </KeepValuesForm>
     </dialog>
   );
 }

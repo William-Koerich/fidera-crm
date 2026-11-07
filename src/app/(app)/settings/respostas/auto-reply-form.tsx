@@ -1,5 +1,6 @@
 "use client";
 
+import { KeepValuesForm } from "@/components/ui/keep-values-form";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
@@ -21,7 +22,7 @@ export function AutoReplyForm({ settings }: { settings: AutoReplySettings }) {
   const [state, action, pending] = useActionState<ReplyFormState, FormData>(saveAutoRepliesAction, { status: "idle" });
 
   return (
-    <form action={action} className="grid gap-6">
+    <KeepValuesForm action={action} className="grid gap-6">
       <fieldset className="grid gap-3 rounded-lg border border-border p-4">
         <legend className="px-1 text-sm font-medium">Saudação</legend>
         <Toggle name="greeting_enabled" label="Responder o primeiro contato" defaultChecked={settings.greetingEnabled} />
@@ -55,6 +56,6 @@ export function AutoReplyForm({ settings }: { settings: AutoReplySettings }) {
           Salvar respostas automáticas
         </Button>
       </div>
-    </form>
+    </KeepValuesForm>
   );
 }

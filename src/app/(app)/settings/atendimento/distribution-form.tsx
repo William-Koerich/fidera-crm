@@ -1,5 +1,6 @@
 "use client";
 
+import { KeepValuesForm } from "@/components/ui/keep-values-form";
 import { useActionState } from "react";
 import { BusinessHoursFields } from "@/components/business-hours-fields";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ export function DistributionForm({
 }) {
   const [state, action, pending] = useActionState<TeamItemState, FormData>(saveDistributionAction, { status: "idle" });
   return (
-    <form action={action} className="grid gap-4">
+    <KeepValuesForm action={action} className="grid gap-4">
       <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium">
         <input type="checkbox" name="enabled" defaultChecked={enabled} className="size-5 accent-brand" />
         Distribuir novas conversas automaticamente
@@ -69,6 +70,6 @@ export function DistributionForm({
           Salvar distribuição
         </Button>
       </div>
-    </form>
+    </KeepValuesForm>
   );
 }
