@@ -52,6 +52,8 @@ export interface ServiceOption {
   id: string;
   name: string;
   durationMinutes: number;
+  /** When a client should come back for it. Null keeps it out of "Chamar hoje". */
+  returnAfterDays?: number | null;
 }
 
 export function durationLabel(minutes: number): string {
@@ -67,12 +69,17 @@ export function matchService(services: ServiceOption[], typed: string): ServiceO
 
 export function parseServiceForm(
   get: (name: string) => string | null,
-): { ok: true; name: string; durationMinutes: number } | { ok: false; message: string } {
+): { ok: true; name: string; durationMinutes: number; returnAfterDays: number | null } | { ok: false; message: string } {
   const name = (get("name") ?? "").trim().replace(/\s+/g, " ");
   if (!name || name.length > 120) return { ok: false, message: "Escreva o nome do serviço." };
   const durationMinutes = DURATIONS.find((d) => d === Number(get("duration")));
   if (!durationMinutes) return { ok: false, message: "Escolha a duração." };
-  return { ok: true, name, durationMinutes };
+  const rawReturn = (get("returnAfterDays") ?? "").trim();
+  const returnAfterDays = rawReturn ? Number(rawReturn) : null;
+  if (returnAfterDays !== null && (!Number.isInteger(returnAfterDays) || returnAfterDays < 1 || returnAfterDays > 365)) {
+    return { ok: false, message: "O retorno precisa ser de 1 a 365 dias, ou vazio." };
+  }
+  return { ok: true, name, durationMinutes, returnAfterDays };
 }
 
 export interface SavedAppointment {

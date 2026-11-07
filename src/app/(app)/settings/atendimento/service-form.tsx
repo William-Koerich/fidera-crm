@@ -30,6 +30,9 @@ export function ServiceForm() {
             ))}
           </Select>
         </Field>
+        <Field id="service-return" label="Retorno" hint="Em dias. Vazio: não chamar." className="sm:w-32">
+          <Input {...fieldA11y("service-return", { hint: true })} name="returnAfterDays" type="number" inputMode="numeric" min={1} max={365} />
+        </Field>
         <div className="sm:mb-7">
           <Button type="submit" variant="secondary" loading={pending}>
             Salvar

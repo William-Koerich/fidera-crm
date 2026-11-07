@@ -66,10 +66,13 @@ describe("services", () => {
   });
 
   it("validates the form", () => {
-    const form = (name: string, duration: string) => parseServiceForm((n) => ({ name, duration })[n] ?? null);
-    expect(form("  Corte   e barba ", "45")).toEqual({ ok: true, name: "Corte e barba", durationMinutes: 45 });
+    const form = (name: string, duration: string, returnAfterDays = "") =>
+      parseServiceForm((n) => ({ name, duration, returnAfterDays })[n] ?? null);
+    expect(form("  Corte   e barba ", "45")).toEqual({ ok: true, name: "Corte e barba", durationMinutes: 45, returnAfterDays: null });
+    expect(form("Corte", "30", " 30 ")).toMatchObject({ ok: true, returnAfterDays: 30 });
     expect(form(" ", "45")).toMatchObject({ ok: false });
     expect(form("Corte", "7")).toMatchObject({ ok: false });
+    for (const bad of ["0", "366", "2.5", "trinta"]) expect(form("Corte", "30", bad), bad).toMatchObject({ ok: false });
   });
 
   it("labels durations", () => {

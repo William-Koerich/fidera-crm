@@ -182,7 +182,12 @@ export async function saveServiceAction(_prev: TeamItemState, formData: FormData
   const { error } = await supabase
     .from("services")
     .upsert(
-      { organization_id: me.organizationId, name: parsed.name, duration_minutes: parsed.durationMinutes },
+      {
+        organization_id: me.organizationId,
+        name: parsed.name,
+        duration_minutes: parsed.durationMinutes,
+        return_after_days: parsed.returnAfterDays,
+      },
       { onConflict: "organization_id,name" },
     );
   if (error) return fail("Não foi possível salvar. Tente de novo.");

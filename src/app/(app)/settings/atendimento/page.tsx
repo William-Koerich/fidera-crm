@@ -71,7 +71,10 @@ async function Service() {
 
   return (
     <>
-      <Panel title="Serviços" description="Ao agendar, escolher um serviço já preenche a duração. Excluir não muda os agendamentos já feitos.">
+      <Panel
+        title="Serviços"
+        description="Ao agendar, escolher um serviço já preenche a duração. Com prazo de retorno, o cliente aparece em Chamar hoje quando passar do prazo. Excluir não muda os agendamentos já feitos."
+      >
         <div className="grid gap-4">
           {services.length === 0 ? (
             <p className="text-sm text-text-muted">Nenhum serviço cadastrado ainda.</p>
@@ -80,7 +83,10 @@ async function Service() {
               {services.map((service) => (
                 <li key={service.id} className="flex items-center gap-3 px-4 py-2">
                   <span className="min-w-0 flex-1 truncate text-sm">{service.name}</span>
-                  <span className="shrink-0 text-sm text-text-muted tabular">{durationLabel(service.durationMinutes)}</span>
+                  <span className="shrink-0 text-sm text-text-muted tabular">
+                    {durationLabel(service.durationMinutes)}
+                    {service.returnAfterDays ? ` · volta em ${service.returnAfterDays} dias` : ""}
+                  </span>
                   {manage ? (
                     <ConfirmDialog
                       trigger="Excluir"

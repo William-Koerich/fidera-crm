@@ -25,7 +25,10 @@ export function Composer({
   conversationId,
   quickReplies,
   canSendFiles,
+  initialText = "",
 }: {
+  /** Text to start with, for the person to review, e.g. from "Chamar hoje". */
+  initialText?: string;
   conversationId: string;
   quickReplies: QuickReply[];
   canSendFiles: boolean;
@@ -33,7 +36,7 @@ export function Composer({
   const [state, action, pending] = useActionState<ComposerState, FormData>(sendReplyAction, { status: "idle" });
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText);
   const [highlight, setHighlight] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const [file, setFile] = useState<File | null>(null);

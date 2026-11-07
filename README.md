@@ -146,6 +146,14 @@ its docs have no agenda route. Appointments are cancelled rather than deleted.
 duration. Appointments keep the service name as text, so changing the list does not rewrite them. After
 booking from a conversation, the message box offers a confirmation to fill in; a person reviews and sends it.
 
+### Chamar hoje
+
+`/chamar` lists clients past their return date: services carry a return period, and a visit is an
+appointment marked done in the agenda, matched to a service by name. People with an upcoming appointment,
+those already called or skipped for that visit, and those who asked not to be called are left out.
+"Chamar" records the call and opens the conversation with a message filled in; a person sends it.
+Without a conversation, it opens WhatsApp with the text. The list runs under RLS, so team permissions apply.
+
 ### Service rating (NPS)
 
 *Ajustes -> Respostas* turns it on, off by default. ChatPro's docs say its own rating only goes out

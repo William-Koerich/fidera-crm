@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import type { Callback } from "./callbacks";
 import { addDays, isoToLocal, localDateTimeToIso, type AppointmentStatus, type ServiceOption } from "./form";
 
 export interface AppointmentItem {
@@ -77,9 +78,27 @@ export async function listServices(organizationId: string): Promise<ServiceOptio
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("services")
-    .select("id, name, duration_minutes")
+    .select("id, name, duration_minutes, return_after_days")
     .eq("organization_id", organizationId)
     .order("name");
   if (error) throw new Error(`Could not load the services (${error.code})`);
-  return data.map((s) => ({ id: s.id, name: s.name, durationMinutes: s.duration_minutes }));
+  return data.map((s) => ({ id: s.id, name: s.name, durationMinutes: s.duration_minutes, returnAfterDays: s.return_after_days }));
+}
+
+/** Who is due for a return as of `today`. A member only sees contacts the team permissions allow. */
+export async function listCallbacks(organizationId: string, today: string): Promise<Callback[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("list_callbacks", { p_org: organizationId, p_today: today });
+  if (error) throw new Error(`Could not load the call list (${error.code})`);
+  return data.map((row) => ({
+    contactId: row.contact_id,
+    contactName: row.contact_name,
+    phone: row.phone,
+    conversationId: row.conversation_id,
+    serviceId: row.service_id,
+    serviceName: row.service_name,
+    lastVisitAt: row.last_visit_at,
+    lastVisitOn: isoToLocal(row.last_visit_at).date,
+    dueOn: row.due_on,
+  }));
 }

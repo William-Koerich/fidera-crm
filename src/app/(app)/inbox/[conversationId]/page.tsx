@@ -86,6 +86,8 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
   if (!conversation) notFound();
 
   const before = typeof query.before === "string" ? decodeCursor(query.before) : null;
+  // A message prepared elsewhere (Chamar hoje). It only fills the box: nothing is sent without a click.
+  const draftText = typeof query.texto === "string" ? query.texto.slice(0, 1000) : "";
   const [{ items, olderCursor }, quickReplies, members, options, contactLabelIds, rating, upcoming, services] = await Promise.all([
     listMessages(conversation.id, before),
     listQuickReplies(me.organizationId),
@@ -213,7 +215,13 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
         <footer className="border-t border-border bg-surface px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
           <div className="mx-auto max-w-3xl">
             {windowOpen && connected ? (
-              <Composer conversationId={conversation.id} quickReplies={quickReplies} canSendFiles={conversation.canSendFiles} />
+              <Composer
+                key={draftText}
+                conversationId={conversation.id}
+                quickReplies={quickReplies}
+                canSendFiles={conversation.canSendFiles}
+                initialText={draftText}
+              />
             ) : (
               <p className="text-sm text-text-muted">
                 {!connected
