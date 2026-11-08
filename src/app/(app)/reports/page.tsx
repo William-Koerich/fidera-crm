@@ -25,9 +25,9 @@ export default function ReportsPage({ searchParams }: PageProps<"/reports">) {
 
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="rounded-2xl bg-surface p-4 shadow-sm">
       <p className="text-sm text-text-muted">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tracking-tight tabular">{value}</p>
+      <p className="mt-1 font-display text-3xl font-medium tracking-[-0.02em] tabular">{value}</p>
       {note ? <p className="mt-0.5 text-xs text-text-muted">{note}</p> : null}
     </div>
   );

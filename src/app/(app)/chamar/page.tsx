@@ -53,7 +53,7 @@ async function List() {
   }
 
   return (
-    <ul className="mt-6 divide-y divide-border rounded-xl border border-border bg-surface">
+    <ul className="mt-6 divide-y divide-border overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-sm">
       {callbacks.map((c) => {
         const name = c.contactName || formatPhone(c.phone) || "Cliente";
         const fields = (

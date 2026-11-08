@@ -83,8 +83,8 @@ export function AgendaWeek({
         {days.map((day) => {
           const list = items.filter((item) => item.date === day);
           return (
-            <li key={day} className={cx("rounded-xl border bg-surface p-2 lg:min-h-48", day === today ? "border-brand" : "border-border")}>
-              <h2 className={cx("px-1 py-1 text-sm font-medium", day === today ? "text-brand" : "text-text")}>
+            <li key={day} className={cx("rounded-2xl bg-surface p-2 shadow-sm lg:min-h-48", day === today ? "ring-2 ring-brand/60" : "ring-1 ring-border/70")}>
+              <h2 className={cx("px-1 py-1 font-display text-base font-medium tracking-[-0.01em]", day === today ? "text-brand" : "text-text")}>
                 {formatDay(day)}
                 {day === today ? <span className="sr-only"> (hoje)</span> : null}
               </h2>
@@ -99,7 +99,7 @@ export function AgendaWeek({
                         <button
                           type="button"
                           onClick={() => open(item)}
-                          className="grid min-h-11 w-full gap-0.5 rounded-lg bg-brand-soft p-2 text-left text-sm transition-colors hover:bg-info-soft"
+                          className="grid min-h-11 w-full gap-0.5 rounded-xl bg-brand-soft p-2 text-left text-sm transition-colors hover:bg-[#e6dafa]"
                         >
                           <span className="font-medium tabular">
                             {item.time} – {endTime(item)}

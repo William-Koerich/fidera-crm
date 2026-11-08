@@ -66,7 +66,7 @@ export function AppointmentDialog({
       onClick={(e) => {
         if (e.target === ref.current) ref.current?.close();
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-xl border border-border bg-surface p-0 text-text shadow-xl backdrop:bg-text/40"
+      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-[var(--radius-card)] border border-border bg-surface p-0 text-text shadow-xl backdrop:bg-plum/50"
     >
       <KeepValuesForm action={action} className="grid gap-4 p-5">
         <h2 id="appointment-title" className="text-base font-semibold">
