@@ -21,17 +21,17 @@ export function Panel({
   flush?: boolean;
 }) {
   return (
-    <section className={cx("rounded-xl border border-border bg-surface", className)}>
+    <section className={cx("rounded-[var(--radius-card)] border border-border bg-surface shadow-xs", className)}>
       {title || actions ? (
-        <header className="flex flex-wrap items-start gap-x-4 gap-y-2 border-b border-border px-4 py-3 sm:px-5">
+        <header className="flex flex-wrap items-start gap-x-4 gap-y-2 px-5 pt-5 pb-1 sm:px-6">
           <div className="min-w-0 flex-1">
-            {title ? <h2 className="text-sm font-semibold text-text">{title}</h2> : null}
-            {description ? <p className="mt-0.5 text-sm text-text-muted">{description}</p> : null}
+            {title ? <h2 className="text-base font-semibold text-text">{title}</h2> : null}
+            {description ? <p className="mt-1 max-w-prose text-sm text-text-muted">{description}</p> : null}
           </div>
           {actions ? <div className="flex shrink-0 gap-2">{actions}</div> : null}
         </header>
       ) : null}
-      <div className={flush ? undefined : "p-4 sm:p-5"}>{children}</div>
+      <div className={flush ? (title || actions ? "pt-3" : undefined) : "p-5 sm:p-6"}>{children}</div>
     </section>
   );
 }
@@ -61,8 +61,8 @@ export function PageHeader({
             {back.label}
           </Link>
         ) : null}
-        <h1 className="text-xl font-semibold tracking-tight text-text sm:text-2xl">{title}</h1>
-        {description ? <p className="mt-1 text-sm text-text-muted">{description}</p> : null}
+        <h1 className="font-display text-[1.75rem] leading-tight font-medium tracking-[-0.02em] text-text sm:text-[2rem]">{title}</h1>
+        {description ? <p className="mt-1.5 max-w-prose text-[0.95rem] text-text-muted">{description}</p> : null}
       </div>
       {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
     </header>
@@ -91,13 +91,13 @@ export function TabLinks({
             href={item.href}
             aria-current={isActive ? "page" : undefined}
             className={cx(
-              "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors sm:min-h-9",
-              isActive ? "bg-info-soft text-info" : "text-text-muted hover:bg-background hover:text-text",
+              "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors sm:min-h-9",
+              isActive ? "bg-plum text-on-plum" : "border border-border bg-surface text-text-muted hover:text-text",
             )}
           >
             {item.label}
             {item.count ? (
-              <span className={cx("rounded-full px-1.5 text-xs", isActive ? "bg-info/10" : "bg-background")}>{item.count}</span>
+              <span className={cx("rounded-full px-1.5 text-xs", isActive ? "bg-white/15" : "bg-sunken")}>{item.count}</span>
             ) : null}
           </Link>
         );

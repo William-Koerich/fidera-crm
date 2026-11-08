@@ -2,13 +2,13 @@ import type { ComponentProps, ReactNode } from "react";
 import { cx } from "./cx";
 
 const control =
-  "w-full rounded-lg border border-border bg-surface px-3 text-base text-text shadow-xs transition-colors placeholder:text-text-muted/70 " +
+  "w-full rounded-xl border border-border bg-surface px-3.5 text-base text-text shadow-xs transition-colors placeholder:text-text-muted/70 " +
   "hover:border-text-muted/40 focus:border-info focus:outline-none focus:ring-3 focus:ring-info/15 " +
   "disabled:cursor-not-allowed disabled:bg-background disabled:opacity-70 " +
   "aria-invalid:border-danger aria-invalid:focus:ring-danger/15 sm:text-sm";
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
-  return <input className={cx(control, "min-h-11 sm:min-h-10", className)} {...props} />;
+  return <input className={cx(control, "min-h-12 sm:min-h-11", className)} {...props} />;
 }
 
 export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
@@ -18,7 +18,7 @@ export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
 export function Select({ className, children, ...props }: ComponentProps<"select">) {
   return (
     <div className="relative">
-      <select className={cx(control, "min-h-11 appearance-none pr-9 sm:min-h-10", className)} {...props}>
+      <select className={cx(control, "min-h-12 appearance-none pr-9 sm:min-h-11", className)} {...props}>
         {children}
       </select>
       <svg

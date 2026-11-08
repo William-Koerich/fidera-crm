@@ -17,11 +17,11 @@ export function buttonClasses({
   block = false,
 }: { variant?: ButtonVariant; size?: ButtonSize; block?: boolean } = {}) {
   return cx(
-    "inline-flex select-none items-center justify-center gap-2 rounded-lg font-medium whitespace-nowrap transition-colors",
+    "inline-flex select-none items-center justify-center gap-2 rounded-xl font-semibold whitespace-nowrap transition-[background-color,box-shadow,color]",
     "disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50",
-    size === "md" ? "min-h-11 px-4 text-sm" : "min-h-11 px-3 text-sm sm:min-h-9",
-    variant === "primary" && "bg-brand text-white shadow-sm hover:bg-brand-hover",
-    variant === "secondary" && "border border-border bg-surface text-text shadow-xs hover:bg-background",
+    size === "md" ? "min-h-11 px-5 text-sm" : "min-h-11 px-3.5 text-sm sm:min-h-9",
+    variant === "primary" && "bg-brand text-white shadow-[0_6px_16px_-6px_rgb(109_40_217/0.55)] hover:bg-brand-hover",
+    variant === "secondary" && "border border-border bg-surface text-text shadow-xs hover:border-text-muted/30 hover:bg-background",
     variant === "ghost" && "text-text-muted hover:bg-background hover:text-text",
     variant === "danger" && "bg-danger text-white shadow-sm hover:bg-danger/90",
     variant === "danger-ghost" && "text-danger hover:bg-danger/10",
@@ -93,7 +93,7 @@ export function IconButton({
     <button
       type={type}
       className={cx(
-        "inline-grid size-11 place-items-center rounded-lg text-text-muted transition-colors hover:bg-background hover:text-text disabled:opacity-50",
+        "inline-grid size-11 place-items-center rounded-xl text-text-muted transition-colors hover:bg-sunken hover:text-text disabled:opacity-50",
         className,
       )}
       {...props}

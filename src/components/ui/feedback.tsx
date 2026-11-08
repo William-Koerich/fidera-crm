@@ -50,7 +50,7 @@ export function Alert({
 }) {
   const { box, icon } = ALERT[tone];
   return (
-    <div role={tone === "danger" ? "alert" : "status"} className={cx("flex gap-3 rounded-lg border px-3 py-2.5 text-sm", box, className)}>
+    <div role={tone === "danger" ? "alert" : "status"} className={cx("flex gap-3 rounded-xl border px-4 py-3 text-sm", box, className)}>
       <Icon name={icon} className="mt-0.5 size-4" />
       <div className="min-w-0 flex-1">
         {title ? <p className="font-medium">{title}</p> : null}
@@ -76,10 +76,10 @@ export function EmptyState({
 }) {
   return (
     <div className={cx("flex flex-col items-center px-6 py-12 text-center", className)}>
-      <span className="mb-4 grid size-12 place-items-center rounded-full bg-background text-text-muted ring-1 ring-border">
+      <span className="mb-4 grid size-14 place-items-center rounded-2xl bg-brand-soft text-brand">
         <Icon name={icon} className="size-6" />
       </span>
-      <h2 className="text-base font-semibold text-text">{title}</h2>
+      <h2 className="font-display text-xl font-medium text-text">{title}</h2>
       {description ? <p className="mt-1 max-w-sm text-sm text-text-muted">{description}</p> : null}
       {action ? <div className="mt-5">{action}</div> : null}
     </div>
