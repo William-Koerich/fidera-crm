@@ -12,7 +12,10 @@ export function UserMenu({
   email,
   organizationName,
   placement = "up",
+  tone = "light",
 }: {
+  /** "plum" when shown on the dark menu. */
+  tone?: "light" | "plum";
   email: string | null;
   organizationName: string;
   placement?: "up" | "down";
@@ -46,18 +49,19 @@ export function UserMenu({
         aria-controls={menuId}
         onClick={() => setOpen((v) => !v)}
         className={cx(
-          "flex min-h-11 items-center gap-2.5 rounded-lg text-left transition-colors hover:bg-background",
-          placement === "up" ? "w-full px-2" : "px-1",
+          "flex min-h-11 items-center gap-2.5 rounded-xl text-left transition-colors",
+          tone === "plum" ? "bg-white/6 py-2 hover:bg-white/10" : "hover:bg-sunken",
+          placement === "up" ? "w-full px-2.5" : "px-1",
         )}
       >
         <Avatar name={email?.split("@")[0]} size="sm" />
         {placement === "up" ? (
           <>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-text">{email ?? "Sua conta"}</span>
-              <span className="block truncate text-xs text-text-muted">{organizationName}</span>
+              <span className={cx("block truncate text-sm font-semibold", tone === "plum" ? "text-white" : "text-text")}>{email ?? "Sua conta"}</span>
+              <span className={cx("block truncate text-xs", tone === "plum" ? "text-on-plum-muted" : "text-text-muted")}>{organizationName}</span>
             </span>
-            <Icon name="chevron-down" className="size-4 rotate-180 text-text-muted" />
+            <Icon name="chevron-down" className={cx("size-4 rotate-180", tone === "plum" ? "text-on-plum-muted" : "text-text-muted")} />
           </>
         ) : (
           <span className="sr-only">Abrir menu da conta</span>
@@ -69,7 +73,7 @@ export function UserMenu({
           id={menuId}
           role="menu"
           className={cx(
-            "absolute z-30 w-64 rounded-xl border border-border bg-surface p-1.5 shadow-lg",
+            "absolute z-30 w-64 rounded-2xl border border-border bg-surface p-1.5 text-text shadow-lg",
             placement === "up" ? "bottom-full left-0 mb-2" : "top-full right-0 mt-2",
           )}
         >

@@ -38,11 +38,20 @@ export function LogoMark({ className, title }: { className?: string; title?: str
   );
 }
 
-export function Logo({ className, size = "md" }: { className?: string; size?: "sm" | "md" | "lg" }) {
+export function Logo({
+  className,
+  size = "md",
+  tone = "dark",
+}: {
+  className?: string;
+  size?: "sm" | "md" | "lg";
+  /** "light" for use on the plum menu and panels. */
+  tone?: "dark" | "light";
+}) {
   return (
-    <span className={cx("inline-flex items-center gap-2 font-semibold tracking-tight text-text", className)}>
-      <LogoMark className={size === "sm" ? "size-6" : size === "lg" ? "size-9" : "size-7"} />
-      <span className={size === "sm" ? "text-base" : size === "lg" ? "text-2xl" : "text-lg"}>fidera</span>
+    <span className={cx("inline-flex items-center gap-2.5 font-display font-semibold tracking-[-0.01em]", tone === "light" ? "text-on-plum" : "text-text", className)}>
+      <LogoMark className={size === "sm" ? "size-7" : size === "lg" ? "size-10" : "size-8"} />
+      <span className={size === "sm" ? "text-xl" : size === "lg" ? "text-3xl" : "text-2xl"}>fidera</span>
     </span>
   );
 }

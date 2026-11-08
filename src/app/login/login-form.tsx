@@ -40,7 +40,7 @@ export function LoginForm() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight">{copy.title}</h1>
+      <h1 className="font-display text-[2rem] leading-tight font-medium tracking-[-0.02em]">{copy.title}</h1>
       <p className="mt-1.5 text-sm text-text-muted">{copy.description}</p>
 
       {mode !== "magic" ? (

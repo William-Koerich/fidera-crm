@@ -16,7 +16,7 @@ const isActive = (pathname: string, href: string) => pathname === href || pathna
 
 function SidebarLinks({ items, pathname }: { items: NavItem[]; pathname: string | null }) {
   return (
-    <ul className="grid gap-0.5">
+    <ul className="grid gap-1">
       {items.map((item) => {
         const active = pathname !== null && isActive(pathname, item.href);
         return (
@@ -25,8 +25,8 @@ function SidebarLinks({ items, pathname }: { items: NavItem[]; pathname: string 
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cx(
-                "flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
-                active ? "bg-brand-soft text-brand" : "text-text-muted hover:bg-background hover:text-text",
+                "flex min-h-11 items-center gap-3 rounded-xl px-3.5 text-[0.95rem] font-medium transition-colors",
+                active ? "bg-white/12 text-white" : "text-on-plum-muted hover:bg-white/8 hover:text-white",
               )}
             >
               <Icon name={item.icon} className="size-[18px]" />
@@ -43,7 +43,7 @@ function ActiveSidebarLinks({ items }: { items: NavItem[] }) {
   return <SidebarLinks items={items} pathname={usePathname()} />;
 }
 
-/** Desktop sidebar navigation. Active item uses the brand color. */
+/** Desktop sidebar navigation, on the plum menu. */
 export function SidebarNav({ items }: { items: NavItem[] }) {
   return (
     <Suspense fallback={<SidebarLinks items={items} pathname={null} />}>
@@ -63,7 +63,7 @@ function BottomLinks({ items, pathname }: { items: NavItem[]; pathname: string |
       <div aria-hidden className="h-[calc(4rem+env(safe-area-inset-bottom))] lg:hidden" />
       <nav
         aria-label="Navegação principal"
-        className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
       >
         <ul className="mx-auto grid h-16 max-w-md grid-flow-col auto-cols-fr">
           {items.map((item) => {
@@ -74,7 +74,7 @@ function BottomLinks({ items, pathname }: { items: NavItem[]; pathname: string |
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cx(
-                    "flex h-full flex-col items-center justify-center gap-1 text-xs font-medium",
+                    "flex h-full flex-col items-center justify-center gap-1 text-[11px] font-semibold",
                     active ? "text-brand" : "text-text-muted",
                   )}
                 >
