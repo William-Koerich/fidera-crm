@@ -21,7 +21,7 @@ const ORIGIN_LABEL: Partial<Record<MessageItem["origin"], string>> = {
 export function DaySeparator({ label }: { label: string }) {
   return (
     <div className="my-3 flex justify-center" role="separator" aria-label={label}>
-      <span className="rounded-full bg-surface px-3 py-1 text-xs font-medium text-text-muted ring-1 ring-border">{label}</span>
+      <span className="rounded-full bg-surface/90 px-3 py-1 text-xs font-medium text-text-muted shadow-xs">{label}</span>
     </div>
   );
 }
@@ -29,7 +29,7 @@ export function DaySeparator({ label }: { label: string }) {
 /** Seen only by the team: never sent to the customer. */
 export function NoteBubble({ body, at, author }: { body: string; at: string; author: string }) {
   return (
-    <div className="mx-auto w-full max-w-[85%] rounded-xl border border-warning/30 bg-warning/10 px-3.5 py-2 text-[15px] leading-snug sm:max-w-[70%] sm:text-sm">
+    <div className="mx-auto w-full max-w-[85%] rounded-xl border border-warning/25 bg-[#fdf3e6] px-3.5 py-2 text-[15px] leading-snug sm:max-w-[70%] sm:text-sm">
       <p className="text-xs font-medium text-warning">Nota interna · o cliente não vê</p>
       <p className="mt-0.5 whitespace-pre-wrap break-words">{body}</p>
       <p className="mt-1 text-right text-[11px] text-text-muted">
@@ -48,8 +48,8 @@ export function MessageBubble({ message: m }: { message: MessageItem }) {
     <div className={cx("flex", outbound ? "justify-end" : "justify-start")}>
       <div
         className={cx(
-          "max-w-[85%] rounded-2xl px-3.5 py-2 text-[15px] leading-snug sm:max-w-[70%] sm:text-sm",
-          outbound ? "rounded-br-md bg-brand-soft text-text" : "rounded-bl-md bg-surface text-text ring-1 ring-border",
+          "max-w-[85%] rounded-[18px] px-3.5 py-2 text-[15px] leading-snug sm:max-w-[70%] sm:text-sm",
+          outbound ? "rounded-br-md bg-[#ece2fb] text-text" : "rounded-bl-md bg-surface text-text shadow-xs",
           m.status === "failed" && "ring-1 ring-danger/40",
         )}
       >

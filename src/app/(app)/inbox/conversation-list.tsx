@@ -69,8 +69,8 @@ export async function ConversationList({
     <div className="flex min-h-full flex-col">
       <RealtimeRefresh table="conversations" filter={`organization_id=eq.${organizationId}`} />
 
-      <div className="sticky top-14 z-10 border-b border-border bg-surface/95 px-4 pt-4 pb-3 backdrop-blur lg:top-0">
-        <h1 className="text-xl font-semibold tracking-tight">Inbox</h1>
+      <div className="sticky top-14 z-10 border-b border-border bg-background/95 px-4 pt-5 pb-3 backdrop-blur lg:top-0">
+        <h1 className="font-display text-[1.75rem] leading-tight font-medium tracking-[-0.02em]">Conversas</h1>
         <form action="/inbox" role="search" className="mt-3">
           <label htmlFor="inbox-search" className="sr-only">
             Buscar por nome, número ou mensagem
@@ -157,7 +157,7 @@ export async function ConversationList({
           />
         )
       ) : (
-        <ul className="divide-y divide-border">
+        <ul className="flex flex-col gap-1 p-2">
           {items.map((c) => {
             const name = c.contactName || formatPhone(c.contactPhone) || "Contato";
             const active = c.id === activeId;
@@ -168,8 +168,8 @@ export async function ConversationList({
                   href={`/inbox/${c.id}${filter !== "all" ? `?filter=${filter}` : ""}`}
                   aria-current={active ? "page" : undefined}
                   className={cx(
-                    "flex gap-3 px-4 py-3 transition-colors",
-                    active ? "bg-info-soft" : "hover:bg-background active:bg-background",
+                    "flex gap-3 rounded-2xl px-3 py-3 transition-colors",
+                    active ? "bg-surface shadow-sm ring-1 ring-brand/25" : "hover:bg-surface/70 active:bg-surface/70",
                   )}
                 >
                   <Avatar name={c.contactName} phone={c.contactPhone} src={c.contactAvatarUrl} />

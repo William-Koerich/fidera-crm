@@ -75,7 +75,7 @@ export function ConversationBar({
   const assignee = members.find((m) => m.id === assignedTo);
 
   return (
-    <details className="group border-b border-border bg-surface">
+    <details className="group border-b border-border bg-background">
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm sm:px-4 [&::-webkit-details-marker]:hidden">
         <span className="font-medium">Atendimento</span>
         <span className="min-w-0 flex-1 truncate text-text-muted">

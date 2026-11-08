@@ -41,7 +41,7 @@ export default function ConversationPage({ params, searchParams }: PageProps<"/i
     <div className="flex flex-1 lg:h-dvh lg:overflow-hidden">
       <section
         aria-label="Conversas"
-        className="hidden w-[380px] shrink-0 overflow-y-auto border-r border-border bg-surface lg:block"
+        className="hidden w-[380px] shrink-0 overflow-y-auto border-r border-border bg-background lg:block"
       >
         <Suspense fallback={<ListSkeleton />}>
           <SideList params={params} searchParams={searchParams} />
@@ -65,7 +65,7 @@ async function SideList({ params, searchParams }: { params: Params; searchParams
 function ConversationSkeleton() {
   return (
     <div className="fixed inset-0 z-30 flex flex-col bg-background lg:static lg:z-auto lg:min-w-0 lg:flex-1">
-      <div className="flex h-16 items-center gap-3 border-b border-border bg-surface px-4">
+      <div className="flex h-16 items-center gap-3 border-b border-border bg-background px-4">
         <Skeleton className="size-8 rounded-full" />
         <Skeleton className="h-4 w-40" />
       </div>
@@ -132,17 +132,17 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
         <RealtimeRefresh table="conversation_notes" filter={`conversation_id=eq.${conversation.id}`} />
         <MarkRead conversationId={conversation.id} />
 
-        <header className="flex min-h-16 items-center gap-2 border-b border-border bg-surface px-2 pt-[env(safe-area-inset-top)] sm:px-4">
+        <header className="flex min-h-16 items-center gap-2 border-b border-border bg-background px-2 pt-[env(safe-area-inset-top)] sm:px-4">
           <Link
             href={backHref}
-            aria-label="Voltar para a inbox"
+            aria-label="Voltar para as conversas"
             className="grid size-11 shrink-0 place-items-center rounded-lg text-text-muted hover:bg-background hover:text-text lg:hidden"
           >
             <Icon name="back" />
           </Link>
           <Avatar name={contact.name} phone={contact.phone} src={contact.avatarUrl} size="sm" />
           <div className="min-w-0 flex-1 pl-1">
-            <h1 className="truncate text-sm font-semibold sm:text-base">{title}</h1>
+            <h1 className="truncate font-display text-base font-medium tracking-[-0.01em] sm:text-lg">{title}</h1>
             <p className="truncate text-xs text-text-muted">
               {contact.phone ? `${formatPhone(contact.phone)} · ` : ""}
               {channelLabel(conversation.channel)}
@@ -175,7 +175,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
           upcoming={upcoming.map((a) => `${formatDay(a.date)} às ${a.time}${a.service ? ` · ${a.service}` : ""}`)}
         />
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto bg-sunken">
           <div className="mx-auto flex max-w-3xl flex-col gap-1.5 px-3 py-4 sm:px-6">
             {olderCursor ? (
               <Link
@@ -214,7 +214,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
           </div>
         </div>
 
-        <footer className="border-t border-border bg-surface px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
+        <footer className="border-t border-border bg-background px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
           <div className="mx-auto max-w-3xl">
             {windowOpen && connected ? (
               <Composer
