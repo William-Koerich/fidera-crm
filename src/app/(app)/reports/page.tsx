@@ -155,7 +155,7 @@ async function Report({ searchParams }: { searchParams: PageProps<"/reports">["s
         description="NPS: a parcela que deu 9 ou 10 menos a que deu de 0 a 6. Vai de -100 a 100. Poucas respostas dizem pouco."
       >
         {nps.sent === 0 ? (
-          <p className="text-sm text-text-muted">Nenhuma avaliação enviada no período. Ligue em Ajustes, na aba Respostas.</p>
+          <p className="text-sm text-text-muted">Nenhuma avaliação enviada no período. Ligue em Ajustes, em Avaliação do atendimento.</p>
         ) : (
           <div className="grid gap-4">
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">

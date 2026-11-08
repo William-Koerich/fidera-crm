@@ -4,7 +4,11 @@ const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   async redirects() {
-    return [{ source: "/settings", destination: "/settings/canais", permanent: false }];
+    // Ajustes used to group several subjects per page; old links land on the first of each.
+    return [
+      { source: "/settings/respostas", destination: "/settings/respostas-rapidas", permanent: false },
+      { source: "/settings/atendimento", destination: "/settings/servicos", permanent: false },
+    ];
   },
   partialPrefetching: true,
   async headers() {

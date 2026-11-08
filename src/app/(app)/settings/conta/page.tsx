@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { Icon } from "@/components/icons";
-import { Button, ButtonLink, DescriptionList, Panel, Skeleton } from "@/components/ui";
+import { Button, ButtonLink, DescriptionList, Panel } from "@/components/ui";
 import { getMemberships, requireMembership } from "@/lib/auth";
 import { getWhatsAppProviderName } from "@/lib/env";
 import { signOutAction } from "../../../login/actions";
 import { OrgSwitcher } from "../../shell/org-switcher";
+import { SettingsPage } from "../settings-page";
 
 export const metadata: Metadata = { title: "Minha conta" };
 
@@ -13,9 +13,9 @@ const ROLE_LABEL = { owner: "Dono", admin: "Administrador", member: "Membro" } a
 
 export default function AccountPage() {
   return (
-    <Suspense fallback={<Skeleton className="h-64" />}>
+    <SettingsPage title="Minha conta">
       <Account />
-    </Suspense>
+    </SettingsPage>
   );
 }
 

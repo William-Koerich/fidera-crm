@@ -36,8 +36,8 @@ async function List() {
         className="mt-6"
         icon="clock"
         title="Defina quando cada serviço deve voltar"
-        description="Em Ajustes, na aba Atendimento, informe o prazo de retorno dos serviços, como corte a cada 30 dias. Quem tiver um atendimento concluído na Agenda e passar do prazo aparece aqui."
-        action={canManage(me.role) ? <Link href="/settings/atendimento" className="text-sm font-medium text-info hover:underline">Abrir Atendimento</Link> : undefined}
+        description="Em Ajustes, em Serviços, informe o prazo de retorno de cada um, como corte a cada 30 dias. Quem tiver um atendimento concluído na Agenda e passar do prazo aparece aqui."
+        action={canManage(me.role) ? <Link href="/settings/servicos" className="text-sm font-medium text-info hover:underline">Abrir Serviços</Link> : undefined}
       />
     );
   }

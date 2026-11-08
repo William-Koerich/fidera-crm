@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
-import { Avatar, Badge, Panel, Skeleton } from "@/components/ui";
+import { Avatar, Badge, Panel } from "@/components/ui";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { canManage, requireMembership } from "@/lib/auth";
 import { formatDate } from "@/lib/inbox/format";
@@ -8,6 +7,7 @@ import type { Enums } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { changeRoleAction, removeMemberAction, revokeInvitationAction } from "../../org-actions";
 import { InviteForm } from "../invite-form";
+import { SettingsPage } from "../settings-page";
 import { RoleSelect } from "./role-select";
 
 export const metadata: Metadata = { title: "Equipe" };
@@ -17,9 +17,9 @@ const ROLE_LABEL: Record<Role, string> = { owner: "Dono", admin: "Administrador"
 
 export default function TeamPage() {
   return (
-    <Suspense fallback={<Skeleton className="h-64" />}>
+    <SettingsPage title="Pessoas" description="Dono: tudo, inclusive a equipe. Administrador: equipe e configurações. Membro: atende as conversas.">
       <Team />
-    </Suspense>
+    </SettingsPage>
   );
 }
 
@@ -45,7 +45,6 @@ async function Team() {
       <Panel
         flush
         title="Pessoas com acesso"
-        description="Dono: tudo, inclusive a equipe. Administrador: equipe e canais. Membro: atende as conversas."
       >
         <ul className="divide-y divide-border">
           {(members ?? []).map((m) => {

@@ -1,15 +1,13 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
-import { Skeleton } from "@/components/ui";
-import { Channels, WebchatSettings } from "../channels";
+import { Channels } from "../channels";
+import { SettingsPage } from "../settings-page";
 
-export const metadata: Metadata = { title: "Canais" };
+export const metadata: Metadata = { title: "WhatsApp" };
 
 export default function ChannelsPage() {
   return (
-    <Suspense fallback={<Skeleton className="h-56" />}>
+    <SettingsPage title="WhatsApp" description="O número que recebe as mensagens dos clientes e envia as respostas.">
       <Channels />
-      <WebchatSettings />
-    </Suspense>
+    </SettingsPage>
   );
 }
