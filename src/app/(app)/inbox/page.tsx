@@ -9,10 +9,10 @@ export const metadata: Metadata = { title: "Conversas" };
 
 export default function InboxPage({ searchParams }: PageProps<"/inbox">) {
   return (
-    <div className="flex flex-1 lg:h-dvh lg:flex-none lg:overflow-hidden">
+    <div className="relative flex flex-1 lg:h-dvh lg:flex-none lg:overflow-hidden">
       <section
         aria-label="Conversas"
-        className="w-full bg-background lg:w-[380px] lg:shrink-0 lg:overflow-y-auto lg:border-r lg:border-border"
+        className="relative w-full bg-background lg:w-[380px] lg:shrink-0 lg:overflow-y-auto lg:border-r lg:border-border"
       >
         <Suspense fallback={<ListSkeleton />}>
           <List searchParams={searchParams} />

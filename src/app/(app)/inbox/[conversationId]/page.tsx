@@ -38,10 +38,10 @@ type Search = Promise<Record<string, string | string[] | undefined>>;
 
 export default function ConversationPage({ params, searchParams }: PageProps<"/inbox/[conversationId]">) {
   return (
-    <div className="flex flex-1 lg:h-dvh lg:flex-none lg:overflow-hidden">
+    <div className="relative flex flex-1 lg:h-dvh lg:flex-none lg:overflow-hidden">
       <section
         aria-label="Conversas"
-        className="hidden w-[380px] shrink-0 overflow-y-auto border-r border-border bg-background lg:block"
+        className="relative hidden w-[380px] shrink-0 overflow-y-auto border-r border-border bg-background lg:block"
       >
         <Suspense fallback={<ListSkeleton />}>
           <SideList params={params} searchParams={searchParams} />
@@ -175,7 +175,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
           upcoming={upcoming.map((a) => `${formatDay(a.date)} às ${a.time}${a.service ? ` · ${a.service}` : ""}`)}
         />
 
-        <div data-thread-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-sunken">
+        <div data-thread-scroll className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-sunken">
           <div className="mx-auto flex max-w-3xl flex-col gap-1.5 px-3 py-4 sm:px-6">
             {olderCursor ? (
               <Link
@@ -238,7 +238,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
 
       <aside
         aria-label="Detalhes do cliente"
-        className="hidden w-[300px] shrink-0 overflow-y-auto border-l border-border bg-surface xl:block"
+        className="relative hidden w-[300px] shrink-0 overflow-y-auto border-l border-border bg-surface xl:block"
       >
         <ContactPanel conversation={conversation} />
       </aside>

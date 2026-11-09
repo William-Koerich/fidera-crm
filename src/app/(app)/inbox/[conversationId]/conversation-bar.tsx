@@ -86,7 +86,7 @@ export function ConversationBar({
         </span>
       </summary>
 
-      <div className="grid max-h-[45dvh] gap-4 overflow-y-auto overscroll-contain border-t border-border p-3 sm:px-4">
+      <div className="relative grid max-h-[45dvh] gap-4 overflow-y-auto overscroll-contain border-t border-border p-3 sm:px-4">
         <div className="grid gap-2">
           {upcoming.length > 0 ? (
             <div>
