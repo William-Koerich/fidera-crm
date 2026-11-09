@@ -132,7 +132,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
         <RealtimeRefresh table="conversation_notes" filter={`conversation_id=eq.${conversation.id}`} />
         <MarkRead conversationId={conversation.id} />
 
-        <header className="flex min-h-16 items-center gap-2 border-b border-border bg-background px-2 pt-[env(safe-area-inset-top)] sm:px-4">
+        <header className="flex min-h-16 shrink-0 items-center gap-2 border-b border-border bg-background px-2 pt-[env(safe-area-inset-top)] sm:px-4">
           <Link
             href={backHref}
             aria-label="Voltar para as conversas"
@@ -175,7 +175,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
           upcoming={upcoming.map((a) => `${formatDay(a.date)} às ${a.time}${a.service ? ` · ${a.service}` : ""}`)}
         />
 
-        <div className="flex-1 overflow-y-auto bg-sunken">
+        <div data-thread-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-sunken">
           <div className="mx-auto flex max-w-3xl flex-col gap-1.5 px-3 py-4 sm:px-6">
             {olderCursor ? (
               <Link
@@ -210,11 +210,11 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
                 </Fragment>
               );
             })}
-            <ScrollToBottom token={timeline.at(-1)?.message?.id ?? timeline.at(-1)?.note?.id} />
+            <ScrollToBottom key={`${conversation.id}-${before ?? ""}`} token={timeline.at(-1)?.message?.id ?? timeline.at(-1)?.note?.id} />
           </div>
         </div>
 
-        <footer className="border-t border-border bg-background px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
+        <footer className="shrink-0 border-t border-border bg-background px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
           <div className="mx-auto max-w-3xl">
             {windowOpen && connected ? (
               <Composer
