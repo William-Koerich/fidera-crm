@@ -38,7 +38,7 @@ type Search = Promise<Record<string, string | string[] | undefined>>;
 
 export default function ConversationPage({ params, searchParams }: PageProps<"/inbox/[conversationId]">) {
   return (
-    <div className="flex flex-1 lg:h-dvh lg:overflow-hidden">
+    <div className="flex flex-1 lg:h-dvh lg:flex-none lg:overflow-hidden">
       <section
         aria-label="Conversas"
         className="hidden w-[380px] shrink-0 overflow-y-auto border-r border-border bg-background lg:block"
