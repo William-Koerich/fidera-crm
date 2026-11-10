@@ -24,6 +24,8 @@ import { ConversationList, ListSkeleton, parseInboxParams } from "../conversatio
 import { RealtimeRefresh } from "../realtime-refresh";
 import { WindowBadge } from "../window-badge";
 import { Composer } from "./composer";
+import { getConversationAiStatus } from "@/lib/ai/agent/status";
+import { AiControl } from "./ai-control";
 import { ContactPanel } from "./contact-panel";
 import { ConversationBar } from "./conversation-bar";
 import { MarkRead } from "./mark-read";
@@ -89,7 +91,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
   const before = typeof query.before === "string" ? decodeCursor(query.before) : null;
   // A message prepared elsewhere (Chamar hoje). It only fills the box: nothing is sent without a click.
   const draftText = typeof query.texto === "string" ? query.texto.slice(0, 1000) : "";
-  const [{ items, olderCursor }, quickReplies, members, options, contactLabelIds, rating, upcoming, services] = await Promise.all([
+  const [{ items, olderCursor }, quickReplies, members, options, contactLabelIds, rating, upcoming, services, aiStatus] = await Promise.all([
     listMessages(conversation.id, before),
     listQuickReplies(me.organizationId),
     listTeamMembers(conversation.organizationId),
@@ -98,6 +100,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
     isRatingEnabled(conversation.organizationId),
     listUpcomingForContact(conversation.contact.id),
     listServices(conversation.organizationId),
+    getConversationAiStatus(conversation.organizationId, conversation.id),
   ]);
   const notes = await listNotes(
     conversation.id,
@@ -174,6 +177,9 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
           aiEnabled={isAssistantEnabled()}
           upcoming={upcoming.map((a) => `${formatDay(a.date)} às ${a.time}${a.service ? ` · ${a.service}` : ""}`)}
         />
+        {aiStatus ? (
+          <AiControl key={conversation.id} conversationId={conversation.id} pausedUntil={aiStatus.pausedUntil} teamQuietUntil={aiStatus.teamQuietUntil} />
+        ) : null}
 
         <div data-thread-scroll className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-sunken">
           <div className="mx-auto flex max-w-3xl flex-col gap-1.5 px-3 py-4 sm:px-6">

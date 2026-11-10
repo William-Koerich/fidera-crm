@@ -11,6 +11,18 @@ export type Database = {
         Update: { organization_id?: string; member_visibility?: string; updated_at?: string };
         Relationships: [{ foreignKeyName: "access_settings_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
+      ai_agent_settings: {
+        Row: { organization_id: string; enabled: boolean; instructions: string; mode: string; can_book: boolean; can_cancel: boolean; pause_after_team_hours: number; handoff_department_id: string | null; updated_at: string };
+        Insert: { organization_id: string; enabled?: boolean; instructions?: string; mode?: string; can_book?: boolean; can_cancel?: boolean; pause_after_team_hours?: number; handoff_department_id?: string | null; updated_at?: string };
+        Update: { organization_id?: string; enabled?: boolean; instructions?: string; mode?: string; can_book?: boolean; can_cancel?: boolean; pause_after_team_hours?: number; handoff_department_id?: string | null; updated_at?: string };
+        Relationships: [{ foreignKeyName: "ai_agent_settings_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }, { foreignKeyName: "ai_agent_settings_organization_id_handoff_department_id_fkey"; columns: ["organization_id", "handoff_department_id"]; isOneToOne: false; referencedRelation: "departments"; referencedColumns: ["organization_id", "id"] }];
+      };
+      ai_conversation_state: {
+        Row: { conversation_id: string; organization_id: string; paused_until: string | null; running_until: string | null; updated_at: string };
+        Insert: { conversation_id: string; organization_id: string; paused_until?: string | null; running_until?: string | null; updated_at?: string };
+        Update: { conversation_id?: string; organization_id?: string; paused_until?: string | null; running_until?: string | null; updated_at?: string };
+        Relationships: [{ foreignKeyName: "ai_conversation_state_organization_id_conversation_id_fkey"; columns: ["organization_id", "conversation_id"]; isOneToOne: false; referencedRelation: "conversations"; referencedColumns: ["organization_id", "id"] }];
+      };
       appointments: {
         Row: { id: string; organization_id: string; client_name: string; contact_id: string | null; conversation_id: string | null; staff_id: string | null; service: string | null; notes: string | null; starts_at: string; ends_at: string; status: string; created_by: string | null; created_at: string; updated_at: string };
         Insert: { id?: string; organization_id: string; client_name: string; contact_id?: string | null; conversation_id?: string | null; staff_id?: string | null; service?: string | null; notes?: string | null; starts_at: string; ends_at: string; status?: string; created_by?: string | null; created_at?: string; updated_at?: string };

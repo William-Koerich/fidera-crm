@@ -6,6 +6,7 @@ import { refreshStaleProfiles } from "@/lib/contacts/profile-sync";
 import { mirrorAutoAssignments } from "@/lib/inbox/assignment-mirror";
 import { sendNpsThanks } from "@/lib/inbox/nps";
 import { logEvent } from "@/lib/log";
+import { runAiAgent } from "@/lib/ai/agent/runner";
 import { runBot } from "@/lib/bot/runner";
 import { runAutoReplies } from "@/lib/replies/auto-reply";
 import { supabaseAutoReplyStore } from "@/lib/replies/auto-reply-store";
@@ -83,6 +84,9 @@ export async function processWebhookEvents(
       });
 
       // After the event is complete: a failed bot or auto reply must not make the webhook retry.
+      await runAiAgent(admin, event.provider, normalized).catch((e: unknown) => {
+        logEvent("ai_agent.failed", { eventId: event.id, error: e instanceof Error ? e.message : "unknown" }, "error");
+      });
       await runBot(admin, event.provider, normalized).catch((e: unknown) => {
         logEvent("bot.failed", { eventId: event.id, error: e instanceof Error ? e.message : "unknown" }, "error");
       });

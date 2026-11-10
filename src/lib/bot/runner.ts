@@ -1,6 +1,7 @@
 import "server-only";
 import { formatPhone } from "@/lib/inbox/format";
 import { sendAutomatic, type AutomaticTarget } from "@/lib/inbox/automatic";
+import { isAgentOn } from "@/lib/ai/agent/runner";
 import { logEvent } from "@/lib/log";
 import type { NormalizedEvent } from "@/lib/channels/types";
 import type { BusinessHours } from "@/lib/replies/auto-reply";
@@ -117,6 +118,8 @@ async function handle(
 
   const { data: row } = await admin.from("bot_settings").select("*").eq("organization_id", account.organization_id).maybeSingle();
   if (!row?.enabled) return false;
+  // The AI attendant answers instead, when it is on.
+  if (await isAgentOn(admin, account.organization_id)) return false;
   const settings: BotSettings = {
     enabled: row.enabled,
     welcome: row.welcome,

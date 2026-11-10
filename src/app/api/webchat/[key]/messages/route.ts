@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { NextRequest } from "next/server";
+import { after, type NextRequest } from "next/server";
+import { runAiAgent } from "@/lib/ai/agent/runner";
+import type { NormalizedEvent } from "@/lib/channels/types";
+import type { Json } from "@/lib/supabase/database.types";
 import { logEvent } from "@/lib/log";
 import { createAdminClient } from "@/lib/supabase/server";
 import { findChat, findVisitorConversation, webchatSecret } from "@/lib/webchat/server";
@@ -72,28 +75,33 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
     return Response.json({ error: "rate_limited" }, { status: 429 });
   }
 
+  const event: NormalizedEvent = {
+    kind: "message",
+    channel: "webchat",
+    accountExternalId: key,
+    direction: "inbound",
+    origin: "customer",
+    contact: { externalId: auth.visitorId, phoneNormalized: parsed.phone, profileName: parsed.name },
+    externalMessageId: `webchat.${randomUUID()}`,
+    type: "text",
+    body: parsed.text,
+    mediaExternalId: null,
+    mediaMimeType: null,
+    occurredAt: new Date(now),
+  };
   const { error } = await admin.rpc("ingest_events", {
     p_provider: "webchat",
-    p_events: [
-      {
-        kind: "message",
-        channel: "webchat",
-        accountExternalId: key,
-        direction: "inbound",
-        origin: "customer",
-        contact: { externalId: auth.visitorId, phoneNormalized: parsed.phone, profileName: parsed.name },
-        externalMessageId: `webchat.${randomUUID()}`,
-        type: "text",
-        body: parsed.text,
-        mediaExternalId: null,
-        mediaMimeType: null,
-        occurredAt: new Date(now).toISOString(),
-      },
-    ],
+    p_events: JSON.parse(JSON.stringify([event])) as Json,
   });
   if (error) {
     logEvent("webchat.ingest_failed", { code: error.code }, "error");
     return Response.json({ error: "unavailable" }, { status: 500 });
   }
+  // The AI attendant answers after the response: the visitor's message shows at once.
+  after(() =>
+    runAiAgent(admin, "webchat", [event]).catch((e: unknown) => {
+      logEvent("ai_agent.failed", { error: e instanceof Error ? e.message : "unknown" }, "error");
+    }),
+  );
   return Response.json({ ok: true });
 }

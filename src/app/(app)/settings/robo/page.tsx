@@ -6,6 +6,7 @@ import { getWhatsAppProviderName } from "@/lib/env";
 import { listInboxOptions } from "@/lib/inbox/queries";
 import { getBotSettings } from "@/lib/replies/queries";
 import { BotForm } from "../respostas/bot-form";
+import { AgentOnNotice } from "../agent-on-notice";
 import { ManagersOnly, SettingsPage } from "../settings-page";
 
 export const metadata: Metadata = { title: "Robô de atendimento" };
@@ -28,6 +29,7 @@ async function Content() {
   const booking = bot.settings.options.length === 0 || bot.settings.options.some((o) => o.action === "book");
   return (
     <div className="grid gap-4">
+      <AgentOnNotice organizationId={me.organizationId} what="O robô de menu" />
       {booking && (!bot.hasBusinessHours || bot.serviceCount === 0) ? (
         <Alert tone="warning" title="O agendamento ainda não tem horários para oferecer">
           <ul className="mt-1 list-disc pl-5">

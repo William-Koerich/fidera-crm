@@ -1,4 +1,5 @@
 import "server-only";
+import { isAgentOn } from "@/lib/ai/agent/runner";
 import { recordSendUsage } from "@/lib/inbox/usage";
 import type { Enums, Tables } from "@/lib/supabase/database.types";
 import type { AdminClient } from "@/lib/supabase/server";
@@ -36,6 +37,7 @@ export function supabaseAutoReplyStore(admin: AdminClient, provider: Enums<"chan
       // The bot greets and answers instead, when it is on.
       const { data: bot } = await admin.from("bot_settings").select("enabled").eq("organization_id", account.organization_id).maybeSingle();
       if (bot?.enabled) return null;
+      if (await isAgentOn(admin, account.organization_id)) return null;
 
       const { data: message } = await admin
         .from("messages")

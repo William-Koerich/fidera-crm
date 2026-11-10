@@ -4,6 +4,7 @@ import { canManage, requireMembership } from "@/lib/auth";
 import { getWhatsAppProviderName } from "@/lib/env";
 import { getAutoReplySettings, getBotSettings } from "@/lib/replies/queries";
 import { AutoReplyForm } from "../respostas/auto-reply-form";
+import { AgentOnNotice } from "../agent-on-notice";
 import { ManagersOnly, SettingsPage } from "../settings-page";
 
 export const metadata: Metadata = { title: "Respostas automáticas" };
@@ -25,6 +26,7 @@ async function Content() {
   const [settings, bot] = await Promise.all([getAutoReplySettings(me.organizationId), getBotSettings(me.organizationId)]);
   return (
     <div className="grid gap-4">
+      <AgentOnNotice organizationId={me.organizationId} what="A saudação e o aviso de fora do horário" />
       {bot.settings.enabled ? (
         <Alert tone="info" title="O robô está ligado">
           Enquanto ele estiver ligado, a saudação e o aviso de fora do horário não são enviados. O horário de atendimento continua valendo
@@ -34,7 +36,7 @@ async function Content() {
       {getWhatsAppProviderName() === "chatpro" ? (
         <Alert tone="warning" title="Cuidado com o número conectado por QR Code">
           Mensagens automáticas aumentam o risco de o WhatsApp restringir ou bloquear o número. Por isso o Fidera envia no máximo 60 por
-          hora neste negócio, somando respostas automáticas, avaliações e robô.
+          hora neste negócio, somando respostas automáticas, avaliações, robô e IA.
         </Alert>
       ) : null}
       <Panel>
