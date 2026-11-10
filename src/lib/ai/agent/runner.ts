@@ -332,16 +332,22 @@ async function answer(
     if (!messages) return;
     const latestId = history.at(-1)?.id;
 
-    turn = await runAgentTurn({
-      createMessage: input.call,
-      system: [
-        { type: "text", text: stable, cache_control: { type: "ephemeral" } },
-        { type: "text", text: contextPrompt({ now: now(), clientName: input.clientName, channel: input.event.channel }) },
-      ],
-      messages,
-      tools,
-      runTool: (name, toolInput) => runAgentTool(name, toolInput, { settings, services: agentServices, port }),
-    });
+    try {
+      turn = await runAgentTurn({
+        createMessage: input.call,
+        system: [
+          { type: "text", text: stable, cache_control: { type: "ephemeral" } },
+          { type: "text", text: contextPrompt({ now: now(), clientName: input.clientName, channel: input.event.channel }) },
+        ],
+        messages,
+        tools,
+        runTool: (name, toolInput) => runAgentTool(name, toolInput, { settings, services: agentServices, port }),
+      });
+    } catch (error) {
+      // The API said no (no credit, bad key, overloaded): the team must know, or nobody answers.
+      await noteUnavailable(admin, organizationId, conversationId, apiProblem(error), now());
+      throw error;
+    }
 
     // A new message arrived while the AI thought: answer everything at once, unless it already acted.
     const { data: newest } = await admin
@@ -389,6 +395,33 @@ async function answer(
   if (result === "hourly_limit" || !result.ok) {
     logEvent("ai_agent.send_failed", { conversationId, reason: result === "hourly_limit" ? "hourly_limit" : result.errorCode }, "warn");
   }
+}
+
+/** What the team reads when the API refused the request. Never the raw error. */
+export function apiProblem(error: unknown): string {
+  if (error instanceof Anthropic.APIError) {
+    const message = String((error.error as { error?: { message?: string } } | undefined)?.error?.message ?? error.message);
+    if (/credit balance/i.test(message)) return "a conta da Anthropic está sem créditos";
+    if (error.status === 401 || error.status === 403) return "a chave da Anthropic (ANTHROPIC_API_KEY) foi recusada";
+    if (error.status === 429) return "o limite de uso da Anthropic foi atingido";
+    if (error.status && error.status >= 500) return "o serviço da Anthropic está instável";
+    return `a Anthropic recusou o pedido (erro ${error.status ?? "desconhecido"})`;
+  }
+  return "não foi possível falar com a Anthropic";
+}
+
+/** At most one such note per conversation per hour: a burst of messages would repeat it. */
+async function noteUnavailable(admin: AdminClient, organizationId: string, conversationId: string, reason: string, now: Date) {
+  const body = `A IA não respondeu porque ${reason}. Alguém da equipe precisa responder.`;
+  const { data: recent } = await admin
+    .from("conversation_notes")
+    .select("id")
+    .eq("conversation_id", conversationId)
+    .eq("body", body)
+    .gte("created_at", new Date(now.getTime() - 3_600_000).toISOString())
+    .limit(1);
+  if (recent?.length) return;
+  await admin.from("conversation_notes").insert({ organization_id: organizationId, conversation_id: conversationId, author_id: null, body });
 }
 
 function noteFor(action: AgentAction): string {
