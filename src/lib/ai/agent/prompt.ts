@@ -13,6 +13,12 @@ export interface AgentService {
   durationMinutes: number;
 }
 
+/** A professional the client may ask for. Only people with a name set are offered. */
+export interface AgentStaff {
+  id: string;
+  name: string;
+}
+
 export interface HistoryMessage {
   direction: "inbound" | "outbound";
   type: string;
@@ -59,8 +65,17 @@ function hoursText(hours: BusinessHours): string {
   return Object.keys(hours).length ? lines.join("\n") : "- Não informado (pergunte à equipe se o cliente quiser saber).";
 }
 
+function staffText(staff: AgentStaff[]): string {
+  if (staff.length === 0) {
+    return "Profissionais: não ofereça escolha de profissional; o horário é marcado com quem estiver livre. Use profissional_id vazio.";
+  }
+  return `Profissionais (o cliente pode escolher um pelo nome, ou deixar com quem estiver livre; use o id nas ferramentas, ou vazio para qualquer um):
+${staff.map((s) => `- ${s.name} (id: ${s.id})`).join("\n")}
+Se o cliente pedir alguém que não está nesta lista, diga que vai confirmar com a equipe.`;
+}
+
 /** The part that changes only when the business edits its settings: cached between requests. */
-export function stablePrompt(input: { settings: AgentSettings; services: AgentService[]; businessHours: BusinessHours }): string {
+export function stablePrompt(input: { settings: AgentSettings; services: AgentService[]; businessHours: BusinessHours; staff?: AgentStaff[] }): string {
   const { settings, services } = input;
   const can = [
     "consultar horários livres",
@@ -82,7 +97,9 @@ Serviços que podem ser agendados (use o id nas ferramentas):
 ${serviceLines}
 
 Horário de funcionamento:
-${hoursText(input.businessHours)}`;
+${hoursText(input.businessHours)}
+
+${staffText(input.staff ?? [])}`;
 }
 
 /** Today, the next days by name and who the client is: so "sábado" and "amanhã" are never guessed. */

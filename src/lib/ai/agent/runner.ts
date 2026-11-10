@@ -249,7 +249,16 @@ async function answer(
     .eq("organization_id", organizationId)
     .order("name");
   const agentServices = (services ?? []).map((s) => ({ id: s.id, name: s.name, durationMinutes: s.duration_minutes }));
-  const stable = stablePrompt({ settings, services: agentServices, businessHours: input.businessHours });
+  // Only people with a name are offered to the client: an e-mail is never shown.
+  const { data: named } = await admin
+    .from("memberships")
+    .select("user_id, display_name")
+    .eq("organization_id", organizationId)
+    .eq("bookable", true)
+    .not("display_name", "is", null)
+    .order("display_name");
+  const staff = (named ?? []).map((m) => ({ id: m.user_id, name: m.display_name! }));
+  const stable = stablePrompt({ settings, services: agentServices, businessHours: input.businessHours, staff });
   const tools = agentTools(settings);
 
   let availability: Availability | null = null;
@@ -261,14 +270,14 @@ async function answer(
     upcoming: async () => {
       const { data } = await admin
         .from("appointments")
-        .select("id, service, starts_at")
+        .select("id, service, starts_at, staff_id")
         .eq("organization_id", organizationId)
         .eq("contact_id", contactId)
         .eq("status", "scheduled")
         .gte("starts_at", now().toISOString())
         .order("starts_at")
         .limit(10);
-      return (data ?? []).map((a) => ({ id: a.id, service: a.service, startsAt: a.starts_at }));
+      return (data ?? []).map((a) => ({ id: a.id, service: a.service, startsAt: a.starts_at, staffId: a.staff_id }));
     },
     book: async (b) => {
       const { data, error } = await admin
@@ -341,7 +350,7 @@ async function answer(
         ],
         messages,
         tools,
-        runTool: (name, toolInput) => runAgentTool(name, toolInput, { settings, services: agentServices, port }),
+        runTool: (name, toolInput) => runAgentTool(name, toolInput, { settings, services: agentServices, port, staff }),
       });
     } catch (error) {
       // The API said no (no credit, bad key, overloaded): the team must know, or nobody answers.
@@ -428,7 +437,7 @@ function noteFor(action: AgentAction): string {
   const day = (d: string) => formatDay(d);
   switch (action.kind) {
     case "booked":
-      return `IA agendou: ${action.service}, ${day(action.day)} às ${action.time}.`;
+      return `IA agendou: ${action.service}, ${day(action.day)} às ${action.time}${action.staff ? `, com ${action.staff}` : ""}.`;
     case "cancelled":
       return `IA cancelou: ${action.service ?? "atendimento"}, ${day(action.day)} às ${action.time}.`;
     case "handoff":

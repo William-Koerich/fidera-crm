@@ -12,6 +12,7 @@ import type { TeamMember } from "@/lib/inbox/queries";
 import type { BusinessHours } from "@/lib/replies/auto-reply";
 import { setAppointmentStatusAction } from "./actions";
 import { AppointmentDialog, type AppointmentDraft } from "./appointment-dialog";
+import { memberName } from "@/lib/team";
 
 export type AgendaView = "dia" | "semana";
 
@@ -35,7 +36,7 @@ const UNASSIGNED = { box: "bg-sunken border-l-text-muted", dot: "bg-text-muted" 
 
 const monthTitle = (day: string) => `${MONTHS[Number(day.slice(5, 7)) - 1]} de ${day.slice(0, 4)}`;
 const dayTitle = (day: string) => `${WEEKDAY_LONG[weekdayOf(day)]}, ${Number(day.slice(8, 10))} de ${MONTHS[Number(day.slice(5, 7)) - 1]}`;
-const staffLabel = (member: TeamMember | undefined) => (member ? member.email.split("@")[0]! : "Ex-integrante");
+const staffLabel = (member: TeamMember | undefined) => memberName(member, "Ex-integrante");
 
 const narrowQuery = "(max-width: 767px)";
 function useNarrow() {

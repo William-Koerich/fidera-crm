@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/toast";
 import { DURATIONS, durationLabel, matchService, type SavedAppointment, type ServiceOption } from "@/lib/agenda/form";
 import type { TeamMember } from "@/lib/inbox/queries";
 import { saveAppointmentAction, type AppointmentFormState } from "./actions";
+import { memberName } from "@/lib/team";
 
 export interface AppointmentDraft {
   appointmentId?: string;
@@ -101,7 +102,7 @@ export function AppointmentDialog({
               <option value="">A definir</option>
               {members.map((member) => (
                 <option key={member.id} value={member.id}>
-                  {member.email}
+                  {memberName(member)}
                 </option>
               ))}
             </Select>

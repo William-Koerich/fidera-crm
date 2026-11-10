@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { changeRoleAction, removeMemberAction, revokeInvitationAction } from "../../org-actions";
 import { InviteForm } from "../invite-form";
 import { SettingsPage } from "../settings-page";
+import { NameField } from "./name-field";
 import { RoleSelect } from "./role-select";
 
 export const metadata: Metadata = { title: "Equipe" };
@@ -17,7 +18,7 @@ const ROLE_LABEL: Record<Role, string> = { owner: "Dono", admin: "Administrador"
 
 export default function TeamPage() {
   return (
-    <SettingsPage title="Pessoas" description="Dono: tudo, inclusive a equipe. Administrador: equipe e configurações. Membro: atende as conversas.">
+    <SettingsPage title="Pessoas" description="Dono: tudo, inclusive a equipe. Administrador: equipe e configurações. Membro: atende as conversas. O nome aparece na agenda, na conversa e para o cliente quando a IA oferece o profissional.">
       <Team />
     </SettingsPage>
   );
@@ -52,14 +53,17 @@ async function Team() {
             const editable = manage && !isMe && (me.role === "owner" || m.role !== "owner");
             return (
               <li key={m.user_id} className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-5">
-                <Avatar name={m.email.split("@")[0]} size="sm" />
+                <Avatar name={m.display_name || m.email.split("@")[0]} size="sm" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">
-                    {m.email}
+                    {m.display_name || m.email}
                     {isMe ? <span className="font-normal text-text-muted"> (você)</span> : null}
                   </p>
-                  <p className="text-xs text-text-muted">Desde {formatDate(m.created_at)}</p>
+                  <p className="truncate text-xs text-text-muted">
+                    {m.display_name ? `${m.email} · ` : ""}Desde {formatDate(m.created_at)}
+                  </p>
                 </div>
+                {manage || isMe ? <NameField memberId={m.user_id} name={m.display_name} email={m.email} /> : null}
                 {editable ? (
                   <div className="flex w-full items-center gap-2 sm:w-auto">
                     <RoleSelect

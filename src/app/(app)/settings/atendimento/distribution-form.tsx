@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
 import type { BusinessHours } from "@/lib/replies/auto-reply";
 import { saveDistributionAction, type TeamItemState } from "./actions";
+import { memberName } from "@/lib/team";
 
 export function DistributionForm({
   enabled,
   members,
 }: {
   enabled: boolean;
-  members: { id: string; email: string; acceptsConversations: boolean; workHours: BusinessHours | null }[];
+  members: { id: string; email: string; name: string | null; acceptsConversations: boolean; workHours: BusinessHours | null }[];
 }) {
   const [state, action, pending] = useActionState<TeamItemState, FormData>(saveDistributionAction, { status: "idle" });
   return (
@@ -40,7 +41,7 @@ export function DistributionForm({
                   defaultChecked={member.acceptsConversations}
                   className="size-5 shrink-0 accent-brand"
                 />
-                <span className="min-w-0 truncate">{member.email}</span>
+                <span className="min-w-0 truncate">{memberName(member)}</span>
               </label>
               <details className="pb-2">
                 <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-info sm:min-h-0">

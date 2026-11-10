@@ -187,18 +187,20 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
 export interface TeamMember {
   id: string;
   email: string;
+  /** Set in Ajustes; null until then. Show it with memberName(). */
+  name: string | null;
 }
 
 export async function listTeamMembers(organizationId: string): Promise<TeamMember[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("list_members", { org_id: organizationId });
   if (error) throw new Error(`Could not load the team (${error.code})`);
-  return data.map((m) => ({ id: m.user_id, email: m.email }));
+  return data.map((m) => ({ id: m.user_id, email: m.email, name: m.display_name ?? null }));
 }
 
 export async function getDistribution(organizationId: string): Promise<{
   enabled: boolean;
-  members: { id: string; email: string; acceptsConversations: boolean; workHours: BusinessHours | null }[];
+  members: { id: string; email: string; name: string | null; acceptsConversations: boolean; workHours: BusinessHours | null }[];
 }> {
   const supabase = await createClient();
   const [settings, memberships, team] = await Promise.all([
@@ -224,7 +226,7 @@ export type MemberVisibility = (typeof MEMBER_VISIBILITIES)[number];
 /** For managers: what members see, and the departments of those who are not managers. */
 export async function getAccessSettings(organizationId: string): Promise<{
   visibility: MemberVisibility;
-  members: { id: string; email: string; departmentIds: string[] }[];
+  members: { id: string; email: string; name: string | null; departmentIds: string[] }[];
 }> {
   const supabase = await createClient();
   const [settings, memberships, departments, team] = await Promise.all([

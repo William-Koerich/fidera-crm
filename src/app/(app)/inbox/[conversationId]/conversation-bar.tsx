@@ -16,6 +16,7 @@ import {
 import { AssigneeSelect } from "./assignee-select";
 import { ConversationSummary } from "./conversation-summary";
 import { ScheduleButton } from "./schedule";
+import { memberName } from "@/lib/team";
 
 /** How the team organizes this conversation. Collapsed so the messages keep the space on phones. */
 export function ConversationBar({
@@ -79,7 +80,7 @@ export function ConversationBar({
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm sm:px-4 [&::-webkit-details-marker]:hidden">
         <span className="font-medium">Atendimento</span>
         <span className="min-w-0 flex-1 truncate text-text-muted">
-          {upcoming[0] ? `Agendado: ${upcoming[0]}` : status === "closed" ? "Finalizada" : assignee ? assignee.email : "Sem responsável"}
+          {upcoming[0] ? `Agendado: ${upcoming[0]}` : status === "closed" ? "Finalizada" : assignee ? memberName(assignee) : "Sem responsável"}
         </span>
         <span aria-hidden className="text-lg leading-none text-text-muted transition-transform group-open:rotate-45">
           +
@@ -128,7 +129,7 @@ export function ConversationBar({
               <option value="">Ninguém</option>
               {members.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.email}
+                  {memberName(m)}
                   {m.id === currentUserId ? " (você)" : ""}
                 </option>
               ))}

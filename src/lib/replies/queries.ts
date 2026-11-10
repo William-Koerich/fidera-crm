@@ -36,7 +36,7 @@ export async function isRatingEnabled(organizationId: string): Promise<boolean> 
 
 export async function getBotSettings(organizationId: string): Promise<{
   settings: import("@/lib/bot/config").BotSettings;
-  members: { id: string; email: string; bookable: boolean }[];
+  members: { id: string; email: string; name: string | null; bookable: boolean }[];
   hasBusinessHours: boolean;
   serviceCount: number;
 }> {
@@ -56,7 +56,7 @@ export async function getBotSettings(organizationId: string): Promise<{
       handoffText: bot.data?.handoff_text ?? "",
       options: (bot.data?.options ?? []) as unknown as import("@/lib/bot/config").BotSettings["options"],
     },
-    members: (team.data ?? []).map((m) => ({ id: m.user_id, email: m.email, bookable: bookable.get(m.user_id) ?? true })),
+    members: (team.data ?? []).map((m) => ({ id: m.user_id, email: m.email, name: m.display_name ?? null, bookable: bookable.get(m.user_id) ?? true })),
     hasBusinessHours: Object.keys((autoReply.data?.business_hours ?? {}) as object).length > 0,
     serviceCount: services.count ?? 0,
   };

@@ -8,6 +8,7 @@ import { Field, Input, Select, Textarea, fieldA11y } from "@/components/ui/field
 import { MAX_BOT_OPTIONS, type BotSettings } from "@/lib/bot/config";
 import type { InboxOption } from "@/lib/inbox/queries";
 import { saveBotAction, type ReplyFormState } from "./actions";
+import { memberName } from "@/lib/team";
 
 /** A starting point the owner edits, not an example: it is saved as written. */
 const SUGGESTED = {
@@ -28,7 +29,7 @@ export function BotForm({
 }: {
   settings: BotSettings;
   departments: InboxOption[];
-  members: { id: string; email: string; bookable: boolean }[];
+  members: { id: string; email: string; name: string | null; bookable: boolean }[];
 }) {
   const [state, action, pending] = useActionState<ReplyFormState, FormData>(saveBotAction, { status: "idle" });
   const welcome = settings.welcome || SUGGESTED.welcome;
@@ -96,7 +97,7 @@ export function BotForm({
             <li key={member.id} className="px-4">
               <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
                 <input type="checkbox" name="bookable" value={member.id} defaultChecked={member.bookable} className="size-5 shrink-0 accent-brand" />
-                <span className="min-w-0 truncate">{member.email}</span>
+                <span className="min-w-0 truncate">{memberName(member)}</span>
               </label>
             </li>
           ))}

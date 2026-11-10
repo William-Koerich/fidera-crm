@@ -6,7 +6,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { addDays, formatDay, isoToLocal, localDateTimeToIso } from "../../agenda/time";
 import { daysWithSlots, freeSlots, type Availability } from "../../bot/slots";
 import type { AgentSettings } from "./config";
-import type { AgentService } from "./prompt";
+import type { AgentService, AgentStaff } from "./prompt";
 
 /** Bookings this far ahead at most: the agenda's free times are loaded for this window. */
 export const BOOKING_HORIZON_DAYS = 30;
@@ -16,6 +16,7 @@ export interface UpcomingAppointment {
   id: string;
   service: string | null;
   startsAt: string;
+  staffId: string | null;
 }
 
 export interface AgentPort {
@@ -31,7 +32,7 @@ export interface AgentPort {
 
 /** What the AI did, for the team's notes in the conversation. */
 export type AgentAction =
-  | { kind: "booked"; service: string; day: string; time: string }
+  | { kind: "booked"; service: string; day: string; time: string; staff: string | null }
   | { kind: "cancelled"; service: string | null; day: string; time: string }
   | { kind: "handoff"; reason: string };
 
@@ -62,8 +63,9 @@ export function agentTools(settings: AgentSettings): Anthropic.Beta.BetaTool[] {
         {
           servico_id: { type: "string", description: "O id do serviço, da lista de serviços." },
           dia: { type: "string", description: "AAAA-MM-DD, ou vazio para ver os próximos dias com vaga." },
+          profissional_id: { type: "string", description: "O id do profissional que o cliente escolheu, ou vazio para qualquer um." },
         },
-        ["servico_id", "dia"],
+        ["servico_id", "dia", "profissional_id"],
       ),
     },
     {
@@ -92,8 +94,9 @@ export function agentTools(settings: AgentSettings): Anthropic.Beta.BetaTool[] {
           dia: { type: "string", description: "AAAA-MM-DD" },
           horario: { type: "string", description: "HH:MM, um dos horários livres." },
           nome_cliente: { type: "string", description: "Como o cliente se chama." },
+          profissional_id: { type: "string", description: "O id do profissional escolhido, ou vazio para quem estiver livre." },
         },
-        ["servico_id", "dia", "horario", "nome_cliente"],
+        ["servico_id", "dia", "horario", "nome_cliente", "profissional_id"],
       ),
     });
   }
@@ -140,26 +143,41 @@ const when = (startsAt: string) => {
 export async function runAgentTool(
   name: string,
   input: unknown,
-  context: { settings: AgentSettings; services: AgentService[]; port: AgentPort },
+  context: { settings: AgentSettings; services: AgentService[]; port: AgentPort; staff?: AgentStaff[] },
 ): Promise<ToolOutcome> {
   const { port, services, settings } = context;
+  const staff = context.staff ?? [];
   const serviceOf = (id: string) => services.find((s) => s.id === id);
+  const nameOf = (id: string | null) => staff.find((s) => s.id === id)?.name ?? null;
+  /** The chosen professional, or everyone. Undefined: an id that is not on the list. */
+  const chosen = (input: unknown): { id: string | null; name: string | null } | undefined => {
+    const id = str(input, "profissional_id");
+    if (!id) return { id: null, name: null };
+    const person = staff.find((s) => s.id === id);
+    return person ? { id: person.id, name: person.name } : undefined;
+  };
+  const only = (availability: Availability, id: string | null): Availability =>
+    id ? { ...availability, staff: availability.staff.filter((s) => s.id === id) } : availability;
+  const UNKNOWN_STAFF = { content: "Profissional não encontrado: use um id da lista de profissionais, ou vazio.", isError: true } as const;
 
   switch (name) {
     case "ver_horarios_livres": {
       const service = serviceOf(str(input, "servico_id"));
       if (!service) return { content: "Serviço não encontrado: use um id da lista de serviços.", isError: true };
-      const availability = await port.availability();
+      const person = chosen(input);
+      if (!person) return UNKNOWN_STAFF;
+      const availability = only(await port.availability(), person.id);
+      const who = person.name ? ` com ${person.name}` : "";
       const day = str(input, "dia");
-      if (!day) return { content: `Próximos dias com vaga para ${service.name}:\n${nextDaysText(service, availability)}` };
+      if (!day) return { content: `Próximos dias com vaga para ${service.name}${who}:\n${nextDaysText(service, availability)}` };
       const invalid = checkDay(day, availability);
       if (invalid) return { content: invalid, isError: true };
       const times = freeSlots(day, service.durationMinutes, availability).map((s) => s.time);
       if (times.length === 0) {
-        return { content: `Sem horários livres para ${service.name} em ${formatDay(day)}. Próximos dias com vaga:\n${nextDaysText(service, availability)}` };
+        return { content: `Sem horários livres para ${service.name}${who} em ${formatDay(day)}. Próximos dias com vaga:\n${nextDaysText(service, availability)}` };
       }
       return {
-        content: `Horários livres para ${service.name} em ${formatDay(day)} (${day}): ${times.slice(0, MAX_TIMES_LISTED).join(", ")}${times.length > MAX_TIMES_LISTED ? " (e outros mais tarde)" : ""}.`,
+        content: `Horários livres para ${service.name}${who} em ${formatDay(day)} (${day}): ${times.slice(0, MAX_TIMES_LISTED).join(", ")}${times.length > MAX_TIMES_LISTED ? " (e outros mais tarde)" : ""}.`,
       };
     }
 
@@ -172,7 +190,9 @@ export async function runAgentTool(
       const clientName = str(input, "nome_cliente").slice(0, 120);
       if (!clientName) return { content: "Falta o nome do cliente: pergunte antes de agendar.", isError: true };
       if (!TIME.test(time)) return { content: "Horário inválido: use HH:MM.", isError: true };
-      let availability = await port.availability();
+      const person = chosen(input);
+      if (!person) return UNKNOWN_STAFF;
+      let availability = only(await port.availability(), person.id);
       const invalid = checkDay(day, availability);
       if (invalid) return { content: invalid, isError: true };
 
@@ -181,7 +201,7 @@ export async function runAgentTool(
         if (!slot) {
           const others = freeSlots(day, service.durationMinutes, availability).map((s) => s.time);
           return {
-            content: `${time} não está livre em ${formatDay(day)} para ${service.name}. ${others.length ? `Livres nesse dia: ${others.slice(0, 12).join(", ")}.` : "Esse dia está sem vagas."} Ofereça outro horário ao cliente.`,
+            content: `${time} não está livre em ${formatDay(day)} para ${service.name}${person.name ? ` com ${person.name}` : ""}. ${others.length ? `Livres nesse dia: ${others.slice(0, 12).join(", ")}.` : "Esse dia está sem vagas."} Ofereça outro horário ao cliente.`,
             isError: true,
           };
         }
@@ -189,14 +209,15 @@ export async function runAgentTool(
         const endsAt = new Date(Date.parse(startsAt) + service.durationMinutes * 60_000).toISOString();
         const result = await port.book({ clientName, serviceName: service.name, staffId: slot.staffId, startsAt, endsAt });
         if (result.ok) {
+          const staffName = nameOf(slot.staffId);
           return {
-            content: `Agendado: ${service.name}, ${formatDay(day)} às ${time}, para ${clientName}. Confirme ao cliente.`,
-            action: { kind: "booked", service: service.name, day, time },
+            content: `Agendado: ${service.name}, ${formatDay(day)} às ${time}, para ${clientName}${staffName ? `, com ${staffName}` : ""}. Confirme ao cliente.`,
+            action: { kind: "booked", service: service.name, day, time, staff: staffName },
           };
         }
         if (result.reason === "failed") return { content: "Não consegui agendar agora. Chame a equipe.", isError: true };
         // Someone took that person's time meanwhile: another free person may still have it.
-        if (attempt === 1) availability = await port.availability(true);
+        if (attempt === 1) availability = only(await port.availability(true), person.id);
       }
       return { content: `${time} acabou de ser ocupado. Consulte de novo e ofereça outro horário.`, isError: true };
     }
@@ -205,7 +226,9 @@ export async function runAgentTool(
       const upcoming = await port.upcoming();
       if (upcoming.length === 0) return { content: "Este cliente não tem agendamentos marcados." };
       return {
-        content: upcoming.map((a) => `- id ${a.id}: ${a.service ?? "Atendimento"}, ${when(a.startsAt).label}`).join("\n"),
+        content: upcoming
+          .map((a) => `- id ${a.id}: ${a.service ?? "Atendimento"}, ${when(a.startsAt).label}${nameOf(a.staffId) ? `, com ${nameOf(a.staffId)}` : ""}`)
+          .join("\n"),
       };
     }
 

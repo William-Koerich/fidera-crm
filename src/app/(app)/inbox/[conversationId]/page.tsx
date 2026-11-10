@@ -32,6 +32,7 @@ import { MarkRead } from "./mark-read";
 import { DaySeparator, MessageBubble, NoteBubble } from "./message-parts";
 import { ScheduleProvider } from "./schedule";
 import { ScrollToBottom } from "./scroll-to-bottom";
+import { memberName } from "@/lib/team";
 
 export const metadata: Metadata = { title: "Conversa" };
 
@@ -107,7 +108,7 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
     olderCursor ? (items[0]?.occurred_at ?? null) : null,
     before ? (items.at(-1)?.occurred_at ?? null) : null,
   );
-  const authorOf = (id: string | null) => members.find((m) => m.id === id)?.email ?? "Ex-integrante da equipe";
+  const authorOf = (id: string | null) => memberName(members.find((m) => m.id === id));
   const timeline = [
     ...items.map((message) => ({ at: message.occurred_at, message, note: null })),
     ...notes.map((note) => ({ at: note.createdAt, message: null, note })),

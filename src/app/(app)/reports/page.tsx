@@ -9,6 +9,7 @@ import { PERIOD_PRESETS, chartBuckets, formatDuration, monthlyPace, parsePreset,
 import { getNpsReport, getReportSummary } from "@/lib/reports/queries";
 import { npsScore } from "@/lib/replies/nps";
 import { DailyBars } from "./daily-bars";
+import { memberName } from "@/lib/team";
 
 export const metadata: Metadata = { title: "Relatórios" };
 
@@ -85,7 +86,7 @@ async function Report({ searchParams }: { searchParams: PageProps<"/reports">["s
   const inbound = report.by_day.reduce((sum, d) => sum + d.inbound, 0);
   const outbound = report.by_day.reduce((sum, d) => sum + d.outbound, 0);
   const assignees = report.by_assignee.map((a) => ({
-    name: a.user_id ? (members.find((m) => m.id === a.user_id)?.email ?? "Ex-integrante da equipe") : "Sem responsável",
+    name: a.user_id ? memberName(members.find((m) => m.id === a.user_id)) : "Sem responsável",
     conversations: a.conversations,
   }));
   const chart = chartBuckets(report.by_day);
@@ -176,7 +177,7 @@ async function Report({ searchParams }: { searchParams: PageProps<"/reports">["s
                   {nps.by_assignee.map((row) => (
                     <tr key={row.user_id ?? "none"}>
                       <td className="max-w-0 truncate py-1.5 pr-4">
-                        {row.user_id ? (members.find((m) => m.id === row.user_id)?.email ?? "Ex-integrante da equipe") : "Sem responsável"}
+                        {row.user_id ? memberName(members.find((m) => m.id === row.user_id)) : "Sem responsável"}
                       </td>
                       <td className="w-20 py-1.5 text-right">{row.answered}</td>
                       <td className="w-16 py-1.5 text-right">{npsScore(row)}</td>

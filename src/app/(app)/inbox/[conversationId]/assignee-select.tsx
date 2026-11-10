@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { Select } from "@/components/ui/field";
 import type { TeamMember } from "@/lib/inbox/queries";
 import { assignConversationAction } from "../actions";
+import { memberName } from "@/lib/team";
 
 /** Who answers this conversation. Picking someone else transfers it. */
 export function AssigneeSelect({
@@ -55,7 +56,7 @@ export function AssigneeSelect({
             <option value="">Ninguém</option>
             {members.map((m) => (
               <option key={m.id} value={m.id}>
-                {m.email}
+                {memberName(m)}
                 {m.id === currentUserId ? " (você)" : ""}
               </option>
             ))}

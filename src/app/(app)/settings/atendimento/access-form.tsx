@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
 import type { InboxOption, MemberVisibility } from "@/lib/inbox/queries";
 import { saveAccessAction, type TeamItemState } from "./actions";
+import { memberName } from "@/lib/team";
 
 const OPTIONS: { value: MemberVisibility; label: string; hint: string }[] = [
   { value: "all", label: "Todas as conversas", hint: "Toda a equipe vê tudo." },
@@ -19,7 +20,7 @@ export function AccessForm({
   departments,
 }: {
   visibility: MemberVisibility;
-  members: { id: string; email: string; departmentIds: string[] }[];
+  members: { id: string; email: string; name: string | null; departmentIds: string[] }[];
   departments: InboxOption[];
 }) {
   const [state, action, pending] = useActionState<TeamItemState, FormData>(saveAccessAction, { status: "idle" });
@@ -45,7 +46,7 @@ export function AccessForm({
           <ul className="divide-y divide-border rounded-lg border border-border">
             {members.map((member) => (
               <li key={member.id} className="grid gap-1 px-4 py-2">
-                <p className="truncate text-sm font-medium">{member.email}</p>
+                <p className="truncate text-sm font-medium">{memberName(member)}</p>
                 <div className="flex flex-wrap gap-x-4">
                   {departments.map((department) => (
                     <label key={department.id} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">

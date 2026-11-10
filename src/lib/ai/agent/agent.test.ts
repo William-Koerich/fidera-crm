@@ -144,7 +144,7 @@ describe("runAgentTool", () => {
       startsAt: at("2026-11-07", "10:00"),
       endsAt: at("2026-11-07", "11:00"),
     });
-    expect(outcome.action).toEqual({ kind: "booked", service: "Corte", day: "2026-11-07", time: "10:00" });
+    expect(outcome.action).toEqual({ kind: "booked", service: "Corte", day: "2026-11-07", time: "10:00", staff: null });
   });
 
   it("never books a time that is not free, and offers the others", async () => {
@@ -170,7 +170,7 @@ describe("runAgentTool", () => {
   });
 
   it("only cancels this client's own appointments", async () => {
-    const mine = { id: "a1", service: "Corte", startsAt: at("2026-11-07", "09:00") };
+    const mine = { id: "a1", service: "Corte", startsAt: at("2026-11-07", "09:00"), staffId: "ana" };
     const port = fakePort({}, [mine]);
     expect((await run("cancelar_agendamento", { agendamento_id: "someone-else" }, port)).isError).toBe(true);
     expect(port.cancel).not.toHaveBeenCalled();
@@ -233,5 +233,54 @@ describe("runAgentTurn", () => {
     const turn = await runAgentTurn({ ...base, createMessage, runTool: async () => Promise.reject(new Error("db down")) });
     expect(turn.status).toBe("reply");
     expect(createMessage.mock.calls[1]![0].messages.at(-1)).toMatchObject({ content: [{ is_error: true }] });
+  });
+});
+
+describe("choosing a professional", () => {
+  const staff = [
+    { id: "ana", name: "Ana" },
+    { id: "bia", name: "Bia" },
+  ];
+  // Ana is busy at 10:00 on Saturday; Bia is free all morning.
+  const port = () => {
+    const availability: Availability = {
+      businessHours,
+      staff: [
+        { id: "ana", workHours: null },
+        { id: "bia", workHours: null },
+      ],
+      booked: [{ staffId: "ana", startsAt: at("2026-11-07", "10:00"), endsAt: at("2026-11-07", "11:00") }],
+      now: NOW,
+    };
+    return fakePort({ availability: vi.fn(async () => availability) });
+  };
+  const run = (name: string, input: unknown, p = port()) => runAgentTool(name, input, { settings, services, port: p, staff });
+
+  it("lists only the chosen person's free times", async () => {
+    const ana = await run("ver_horarios_livres", { servico_id: "corte", dia: "2026-11-07", profissional_id: "ana" });
+    expect(ana.content).toBe("Horários livres para Corte com Ana em Sábado, 07/11 (2026-11-07): 09:00, 11:00.");
+    const anyone = await run("ver_horarios_livres", { servico_id: "corte", dia: "2026-11-07", profissional_id: "" });
+    expect(anyone.content).toContain("09:00, 09:30, 10:00, 10:30, 11:00");
+  });
+
+  it("books with the chosen person, and says who in the note", async () => {
+    const p = port();
+    const outcome = await run("agendar", { servico_id: "corte", dia: "2026-11-07", horario: "10:00", nome_cliente: "Rita", profissional_id: "bia" }, p);
+    expect(p.book).toHaveBeenCalledWith(expect.objectContaining({ staffId: "bia" }));
+    expect(outcome.action).toEqual({ kind: "booked", service: "Corte", day: "2026-11-07", time: "10:00", staff: "Bia" });
+  });
+
+  it("refuses a time the chosen person does not have, and unknown people", async () => {
+    const p = port();
+    const busy = await run("agendar", { servico_id: "corte", dia: "2026-11-07", horario: "10:00", nome_cliente: "Rita", profissional_id: "ana" }, p);
+    expect(busy.isError).toBe(true);
+    expect(busy.content).toContain("com Ana");
+    expect(p.book).not.toHaveBeenCalled();
+    expect((await run("ver_horarios_livres", { servico_id: "corte", dia: "", profissional_id: "x@y.com" })).isError).toBe(true);
+  });
+
+  it("names the professionals in the prompt, and never offers a choice without names", () => {
+    expect(stablePrompt({ settings, services, businessHours, staff })).toContain("- Bia (id: bia)");
+    expect(stablePrompt({ settings, services, businessHours, staff: [] })).toContain("não ofereça escolha de profissional");
   });
 });

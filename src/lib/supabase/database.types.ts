@@ -132,9 +132,9 @@ export type Database = {
         Relationships: [{ foreignKeyName: "member_departments_organization_id_department_id_fkey"; columns: ["organization_id", "department_id"]; isOneToOne: false; referencedRelation: "departments"; referencedColumns: ["organization_id", "id"] }, { foreignKeyName: "member_departments_organization_id_user_id_fkey"; columns: ["organization_id", "user_id"]; isOneToOne: false; referencedRelation: "memberships"; referencedColumns: ["organization_id", "user_id"] }];
       };
       memberships: {
-        Row: { organization_id: string; user_id: string; role: Database["crm"]["Enums"]["membership_role"]; created_at: string; accepts_conversations: boolean; last_assigned_at: string | null; work_hours: Json | null; bookable: boolean };
-        Insert: { organization_id: string; user_id: string; role?: Database["crm"]["Enums"]["membership_role"]; created_at?: string; accepts_conversations?: boolean; last_assigned_at?: string | null; work_hours?: Json | null; bookable?: boolean };
-        Update: { organization_id?: string; user_id?: string; role?: Database["crm"]["Enums"]["membership_role"]; created_at?: string; accepts_conversations?: boolean; last_assigned_at?: string | null; work_hours?: Json | null; bookable?: boolean };
+        Row: { organization_id: string; user_id: string; role: Database["crm"]["Enums"]["membership_role"]; created_at: string; accepts_conversations: boolean; last_assigned_at: string | null; work_hours: Json | null; bookable: boolean; display_name: string | null };
+        Insert: { organization_id: string; user_id: string; role?: Database["crm"]["Enums"]["membership_role"]; created_at?: string; accepts_conversations?: boolean; last_assigned_at?: string | null; work_hours?: Json | null; bookable?: boolean; display_name?: string | null };
+        Update: { organization_id?: string; user_id?: string; role?: Database["crm"]["Enums"]["membership_role"]; created_at?: string; accepts_conversations?: boolean; last_assigned_at?: string | null; work_hours?: Json | null; bookable?: boolean; display_name?: string | null };
         Relationships: [{ foreignKeyName: "memberships_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
       messages: {
@@ -195,12 +195,13 @@ export type Database = {
       get_channel_token: { Args: { p_provider: Database["crm"]["Enums"]["channel_provider"]; p_external_account_id: string }; Returns: string };
       ingest_events: { Args: { p_provider: Database["crm"]["Enums"]["channel_provider"]; p_events: Json }; Returns: Json };
       list_callbacks: { Args: { p_org: string; p_today: string }; Returns: { contact_id: string; contact_name: string; phone: string; conversation_id: string; service_id: string; service_name: string; last_visit_at: string; due_on: string }[] };
-      list_members: { Args: { org_id: string }; Returns: { user_id: string; email: string; role: Database["crm"]["Enums"]["membership_role"]; created_at: string }[] };
+      list_members: { Args: { org_id: string }; Returns: { user_id: string; email: string; role: Database["crm"]["Enums"]["membership_role"]; created_at: string; display_name: string }[] };
       report_conversations: { Args: { p_org: string; p_from: string; p_to: string; p_limit?: number }; Returns: { contact_name: string; phone: string; status: string; assigned_to: string; department: string; ending: string; labels: string; first_message_at: string; last_message_at: string; received: number; sent: number }[] };
       report_nps: { Args: { p_org: string; p_from: string; p_to: string }; Returns: Json };
       report_summary: { Args: { p_org: string; p_from: string; p_to: string }; Returns: Json };
       search_conversations: { Args: { p_org: string; p_query: string; p_limit?: number }; Returns: string[] };
       set_channel_token: { Args: { p_account_id: string; p_token: string }; Returns: undefined };
+      set_member_name: { Args: { org_id: string; member_id: string; new_name: string }; Returns: undefined };
     };
     Enums: {
       channel: "whatsapp" | "instagram" | "webchat";
