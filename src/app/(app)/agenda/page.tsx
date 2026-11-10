@@ -1,22 +1,23 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { ButtonLink, PageHeader, Skeleton } from "@/components/ui";
-import { addDays, formatDay, isoToLocal, validDay, weekStart } from "@/lib/agenda/form";
+import { Skeleton } from "@/components/ui";
+import { isoToLocal, validDay, weekStart } from "@/lib/agenda/form";
 import { listServices, listWeekAppointments } from "@/lib/agenda/queries";
 import { requireMembership } from "@/lib/auth";
 import { listTeamMembers } from "@/lib/inbox/queries";
-import { AgendaWeek } from "./agenda-week";
-import { StaffFilter } from "./staff-filter";
+import type { BusinessHours } from "@/lib/replies/auto-reply";
+import { createAdminClient } from "@/lib/supabase/server";
+import { AgendaCalendar, type AgendaView } from "./agenda-calendar";
 
 export const metadata: Metadata = { title: "Agenda" };
 
 export default function AgendaPage({ searchParams }: PageProps<"/agenda">) {
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:py-10">
-      <PageHeader title="Agenda" description="Os horários marcados no salão. Agende também clicando na data dentro da conversa." />
-      <Suspense fallback={<Skeleton className="mt-6 h-96" />}>
-        <Week searchParams={searchParams} />
+    // The grid scrolls inside: the toolbar and day names stay in view, like a paper planner.
+    <div className="mx-auto flex h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom))] w-full max-w-[1600px] flex-col px-3 pt-4 pb-3 sm:px-6 lg:h-dvh lg:pt-6 lg:pb-6">
+      <Suspense fallback={<Skeleton className="h-full" />}>
+        <Calendar searchParams={searchParams} />
       </Suspense>
     </div>
   );
@@ -27,37 +28,34 @@ function parseDate(raw: unknown): string | null {
   return parts ? validDay(Number(parts[1]), Number(parts[2]), Number(parts[3])) : null;
 }
 
-async function Week({ searchParams }: { searchParams: PageProps<"/agenda">["searchParams"] }) {
+async function Calendar({ searchParams }: { searchParams: PageProps<"/agenda">["searchParams"] }) {
   const params = await searchParams;
   await connection();
   const me = await requireMembership();
   const today = isoToLocal(new Date()).date;
-  const monday = weekStart(parseDate(params.semana) ?? today);
+  // `semana` is the old address, kept so saved links still open.
+  const day = parseDate(params.dia) ?? parseDate(params.semana) ?? today;
+  const view: AgendaView | null = params.visao === "dia" || params.visao === "semana" ? params.visao : null;
   const members = await listTeamMembers(me.organizationId);
   const staffId = members.find((m) => m.id === params.pessoa)?.id ?? null;
-  const [items, services] = await Promise.all([listWeekAppointments(me.organizationId, monday, staffId), listServices(me.organizationId)]);
-  const link = (week: string) => `/agenda?semana=${week}${staffId ? `&pessoa=${staffId}` : ""}`;
+  const [items, services, hours] = await Promise.all([
+    listWeekAppointments(me.organizationId, weekStart(day), staffId),
+    listServices(me.organizationId),
+    // Opening hours shade the grid for everyone; only managers may read the reply settings themselves.
+    createAdminClient().from("auto_reply_settings").select("business_hours").eq("organization_id", me.organizationId).maybeSingle(),
+  ]);
 
   return (
-    <div className="mt-5 grid gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <ButtonLink href={link(addDays(monday, -7))} variant="secondary" size="sm" aria-label="Semana anterior">
-          Anterior
-        </ButtonLink>
-        <ButtonLink href={link(today)} variant="secondary" size="sm">
-          Hoje
-        </ButtonLink>
-        <ButtonLink href={link(addDays(monday, 7))} variant="secondary" size="sm" aria-label="Próxima semana">
-          Próxima
-        </ButtonLink>
-        <p className="text-sm text-text-muted" aria-live="polite">
-          {formatDay(monday)} a {formatDay(addDays(monday, 6))}
-        </p>
-        <div className="w-full sm:ml-auto sm:w-64">
-          <StaffFilter members={members} value={staffId} monday={monday} />
-        </div>
-      </div>
-      <AgendaWeek key={`${monday}-${staffId}`} monday={monday} today={today} items={items} members={members} services={services} />
-    </div>
+    <AgendaCalendar
+      key={`${weekStart(day)}-${staffId}`}
+      day={day}
+      today={today}
+      view={view}
+      staffId={staffId}
+      items={items}
+      members={members}
+      services={services}
+      businessHours={(hours.data?.business_hours ?? {}) as unknown as BusinessHours}
+    />
   );
 }
