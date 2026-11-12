@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Script from "next/script";
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "@/components/icons";
 import { Logo } from "@/components/logo";
@@ -14,8 +13,6 @@ export const metadata: Metadata = {
 };
 
 const SIGNUP = "/login?mode=signup";
-/** The Fidera team's own website chat: it lands in our inbox like any salon's would. Public by design. */
-const SITE_CHAT_KEY = "4403e12144854315ed299fbf99242be8";
 
 const HIGHLIGHTS: { icon: IconName; title: string; text: string }[] = [
   { icon: "sparkles", title: "Atendente com IA", text: "Responde, mostra horários livres e agenda sozinha, 24 horas." },
@@ -67,7 +64,7 @@ const FEATURES: { eyebrow: string; title: string; text: string; points: string[]
   {
     eyebrow: "Chat do site",
     title: "Quem visita seu site também conversa com o salão",
-    text: "Cole uma linha no seu site e aparece um botão de conversa no canto. As mensagens chegam no Fidera junto com as do WhatsApp, e a IA pode responder também. O botão aqui no canto desta página é o nosso.",
+    text: "Cole uma linha no seu site e aparece um botão de conversa no canto. As mensagens chegam no Fidera junto com as do WhatsApp, e a IA pode responder também.",
     points: ["Funciona em qualquer site", "O visitante pode deixar o telefone", "Resposta na mesma caixa de entrada"],
     visual: <WebchatMock />,
   },
@@ -354,9 +351,6 @@ export default function Home() {
                 </details>
               ))}
             </div>
-            <p className="mt-6 text-center text-sm text-text-muted">
-              Outra dúvida? Fale com a gente pelo botão de conversa no canto da tela.
-            </p>
           </div>
         </section>
 
@@ -390,9 +384,6 @@ export default function Home() {
           </Link>
         </div>
       </footer>
-
-      {/* Our own website chat: messages land in the Fidera team's inbox. */}
-      <Script src="/widget.js" data-key={SITE_CHAT_KEY} strategy="lazyOnload" />
     </div>
   );
 }
