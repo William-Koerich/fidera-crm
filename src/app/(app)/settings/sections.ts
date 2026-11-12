@@ -34,6 +34,7 @@ export const SETTINGS_SECTIONS: { title: string; items: SettingsItem[] }[] = [
     items: [
       { key: "atendente-ia", href: "/settings/atendente-ia", label: "Atendente com IA", description: "Responde, agenda e chama a equipe sozinha.", icon: "sparkles", managersOnly: true },
       { key: "robo", href: "/settings/robo", label: "Robô de atendimento", description: "Menu que responde, agenda e passa para a equipe.", icon: "wrench", managersOnly: true },
+      { key: "campanhas", href: "/settings/campanhas", label: "Campanhas", description: "Reconhecer quem veio de cada anúncio, com etiqueta e resposta.", icon: "chart", managersOnly: true },
       { key: "respostas-automaticas", href: "/settings/respostas-automaticas", label: "Respostas automáticas", description: "Saudação, fora do horário e horário de atendimento.", icon: "clock", managersOnly: true },
       { key: "avaliacao", href: "/settings/avaliacao", label: "Avaliação do atendimento", description: "Nota de 0 a 10 ao finalizar.", icon: "chart", managersOnly: true },
     ],

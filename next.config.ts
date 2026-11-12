@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["ffmpeg-static"],
   outputFileTracingIncludes: {
     "/settings/respostas-automaticas": ["./node_modules/ffmpeg-static/ffmpeg"],
+    "/settings/campanhas": ["./node_modules/ffmpeg-static/ffmpeg"],
   },
   async redirects() {
     // Ajustes used to group several subjects per page; old links land on the first of each.
