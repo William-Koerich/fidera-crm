@@ -27,7 +27,7 @@ export async function sendAutomatic(
   const recent = await store.countRecent(target.organizationId, new Date(now.getTime() - 3_600_000));
   if (recent >= MAX_AUTO_REPLIES_PER_HOUR) return "hourly_limit";
 
-  const messageId = await store.createPending(target, body, now);
+  const messageId = await store.createPending(target, { type: "text", body }, now);
   const result = await getProviderByName(providerName).sendMessage({
     channel: target.channel,
     accountExternalId: target.accountExternalId,

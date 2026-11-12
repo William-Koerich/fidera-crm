@@ -36,9 +36,9 @@ export type Database = {
         Relationships: [{ foreignKeyName: "audit_log_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
       auto_reply_settings: {
-        Row: { organization_id: string; greeting_enabled: boolean; greeting_text: string; away_enabled: boolean; away_text: string; business_hours: Json; updated_at: string };
-        Insert: { organization_id: string; greeting_enabled?: boolean; greeting_text?: string; away_enabled?: boolean; away_text?: string; business_hours?: Json; updated_at?: string };
-        Update: { organization_id?: string; greeting_enabled?: boolean; greeting_text?: string; away_enabled?: boolean; away_text?: string; business_hours?: Json; updated_at?: string };
+        Row: { organization_id: string; greeting_enabled: boolean; greeting_text: string; away_enabled: boolean; away_text: string; business_hours: Json; updated_at: string; greeting_format: string; greeting_audio_path: string | null };
+        Insert: { organization_id: string; greeting_enabled?: boolean; greeting_text?: string; away_enabled?: boolean; away_text?: string; business_hours?: Json; updated_at?: string; greeting_format?: string; greeting_audio_path?: string | null };
+        Update: { organization_id?: string; greeting_enabled?: boolean; greeting_text?: string; away_enabled?: boolean; away_text?: string; business_hours?: Json; updated_at?: string; greeting_format?: string; greeting_audio_path?: string | null };
         Relationships: [{ foreignKeyName: "auto_reply_settings_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
       bot_sessions: {

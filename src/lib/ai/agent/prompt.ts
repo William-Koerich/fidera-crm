@@ -118,7 +118,7 @@ Cliente: ${input.clientName ? input.clientName : "nome ainda não informado"}. C
 
 function render(m: HistoryMessage): string {
   const text = (m.body ?? "").trim().slice(0, MAX_MESSAGE_CHARS);
-  const media = m.direction === "inbound" ? MEDIA[m.type] : null;
+  const media = m.direction === "inbound" ? MEDIA[m.type] : m.type !== "text" ? `[o salão enviou ${m.type === "audio" ? "um áudio" : "um arquivo"}]` : null;
   return [media, text].filter(Boolean).join(" ") || "[mensagem sem texto]";
 }
 

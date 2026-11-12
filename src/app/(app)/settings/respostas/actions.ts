@@ -3,6 +3,8 @@
 import { refresh } from "next/cache";
 import { canManage, requireMembership } from "@/lib/auth";
 import { parseAutoReplyForm } from "@/lib/replies/auto-reply";
+import { isGreetingAudioPathOf } from "@/lib/replies/greeting-audio";
+import { MEDIA_BUCKET } from "@/lib/webhooks/media";
 import { parseBotForm } from "@/lib/bot/config";
 import { parseNpsForm } from "@/lib/replies/nps";
 import { MAX_REPLY_LENGTH, normalizeShortcut } from "@/lib/replies/quick-replies";
@@ -66,11 +68,21 @@ export async function saveAutoRepliesAction(_prev: ReplyFormState, formData: For
   });
   if (!parsed.ok) return fail(parsed.message);
   const { settings } = parsed;
+  if (settings.greetingAudioPath && !isGreetingAudioPathOf(settings.greetingAudioPath, me.organizationId)) {
+    return fail("Grave ou escolha o áudio de novo.");
+  }
 
   const supabase = await createClient();
+  const { data: previous } = await supabase
+    .from("auto_reply_settings")
+    .select("greeting_audio_path")
+    .eq("organization_id", me.organizationId)
+    .maybeSingle();
   const { error } = await supabase.from("auto_reply_settings").upsert({
     organization_id: me.organizationId,
     greeting_enabled: settings.greetingEnabled,
+    greeting_format: settings.greetingFormat,
+    greeting_audio_path: settings.greetingAudioPath,
     greeting_text: settings.greetingText,
     away_enabled: settings.awayEnabled,
     away_text: settings.awayText,
@@ -78,11 +90,17 @@ export async function saveAutoRepliesAction(_prev: ReplyFormState, formData: For
   });
   if (error) return fail("Não foi possível salvar. Tente de novo.");
 
-  await createAdminClient().from("audit_log").insert({
+  const admin = createAdminClient();
+  // A replaced or removed recording is not needed anymore.
+  const old = previous?.greeting_audio_path;
+  if (old && old !== settings.greetingAudioPath && isGreetingAudioPathOf(old, me.organizationId)) {
+    await admin.storage.from(MEDIA_BUCKET).remove([old]);
+  }
+  await admin.from("audit_log").insert({
     organization_id: me.organizationId,
     actor_id: me.user.id,
     action: "auto_replies.updated",
-    metadata: { greeting_enabled: settings.greetingEnabled, away_enabled: settings.awayEnabled },
+    metadata: { greeting_enabled: settings.greetingEnabled, greeting_format: settings.greetingFormat, away_enabled: settings.awayEnabled },
   });
   refresh();
   return { status: "saved", savedAt: Date.now() };

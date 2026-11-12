@@ -284,3 +284,19 @@ describe("choosing a professional", () => {
     expect(stablePrompt({ settings, services, businessHours, staff: [] })).toContain("não ofereça escolha de profissional");
   });
 });
+
+describe("what the salon sent", () => {
+  it("shows the AI that a voice note went out, instead of an empty message", () => {
+    expect(
+      historyToMessages([
+        { direction: "inbound", type: "text", body: "Oi" },
+        { direction: "outbound", type: "audio", body: null },
+        { direction: "inbound", type: "text", body: "Quero marcar" },
+      ]),
+    ).toEqual([
+      { role: "user", content: "Oi" },
+      { role: "assistant", content: "[o salão enviou um áudio]" },
+      { role: "user", content: "Quero marcar" },
+    ]);
+  });
+});

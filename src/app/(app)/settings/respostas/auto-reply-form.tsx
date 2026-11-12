@@ -1,13 +1,14 @@
 "use client";
 
 import { KeepValuesForm } from "@/components/ui/keep-values-form";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/feedback";
 import { BusinessHoursFields } from "@/components/business-hours-fields";
 import { Field, Textarea, fieldA11y } from "@/components/ui/field";
 import type { AutoReplySettings } from "@/lib/replies/auto-reply";
 import { saveAutoRepliesAction, type ReplyFormState } from "./actions";
+import { GreetingAudioField } from "./greeting-audio-field";
 
 function Toggle({ name, label, defaultChecked }: { name: string; label: string; defaultChecked: boolean }) {
   return (
@@ -18,8 +19,9 @@ function Toggle({ name, label, defaultChecked }: { name: string; label: string; 
   );
 }
 
-export function AutoReplyForm({ settings }: { settings: AutoReplySettings }) {
+export function AutoReplyForm({ settings, greetingAudioUrl }: { settings: AutoReplySettings; greetingAudioUrl: string | null }) {
   const [state, action, pending] = useActionState<ReplyFormState, FormData>(saveAutoRepliesAction, { status: "idle" });
+  const [format, setFormat] = useState(settings.greetingFormat);
 
   return (
     <KeepValuesForm action={action} className="grid gap-6">
@@ -30,8 +32,39 @@ export function AutoReplyForm({ settings }: { settings: AutoReplySettings }) {
           Vale para quem ainda não tem conversa no Fidera. Quem já fala com você também conta como novo se a conversa não foi
           importada: use Importar mensagens em Canais antes de ligar.
         </p>
-        <Field id="greeting-text" label="Texto da saudação">
-          <Textarea {...fieldA11y("greeting-text")} name="greeting_text" defaultValue={settings.greetingText} maxLength={4096} rows={3} />
+        <div role="radiogroup" aria-label="Como enviar a saudação" className="flex flex-wrap gap-2">
+          {(
+            [
+              ["text", "Mensagem escrita"],
+              ["audio", "Áudio gravado"],
+            ] as const
+          ).map(([value, label]) => (
+            <label
+              key={value}
+              className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-border bg-surface px-4 text-sm font-medium has-[:checked]:border-brand has-[:checked]:bg-brand-soft"
+            >
+              <input
+                type="radio"
+                name="greeting_format"
+                value={value}
+                checked={format === value}
+                onChange={() => setFormat(value)}
+                className="size-4 accent-brand"
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+        {format === "audio" ? <GreetingAudioField initialPath={settings.greetingAudioPath} initialUrl={greetingAudioUrl} /> : (
+          <input type="hidden" name="greeting_audio_path" value={settings.greetingAudioPath ?? ""} />
+        )}
+        <Field
+          id="greeting-text"
+          label={format === "audio" ? "Texto de reserva" : "Texto da saudação"}
+          optional={format === "audio"}
+          hint={format === "audio" ? "Enviado só se o áudio não puder ser enviado." : undefined}
+        >
+          <Textarea {...fieldA11y("greeting-text", { hint: format === "audio" })} name="greeting_text" defaultValue={settings.greetingText} maxLength={4096} rows={3} />
         </Field>
       </fieldset>
 

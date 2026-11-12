@@ -3,12 +3,16 @@ import { isAgentOn } from "@/lib/ai/agent/runner";
 import { recordSendUsage } from "@/lib/inbox/usage";
 import type { Enums, Tables } from "@/lib/supabase/database.types";
 import type { AdminClient } from "@/lib/supabase/server";
+import { isStoragePathOf } from "@/lib/inbox/attachments";
+import { MEDIA_BUCKET } from "@/lib/webhooks/media";
 import { AWAY_COOLDOWN_MS, type AutoReplySettings, type AutoReplyStore, type BusinessHours, type SendTarget } from "./auto-reply";
 
 export function toAutoReplySettings(row: Tables<"auto_reply_settings"> | null): AutoReplySettings {
   return {
     greetingEnabled: row?.greeting_enabled ?? false,
+    greetingFormat: row?.greeting_format === "audio" ? "audio" : "text",
     greetingText: row?.greeting_text ?? "",
+    greetingAudioPath: row?.greeting_audio_path ?? null,
     awayEnabled: row?.away_enabled ?? false,
     awayText: row?.away_text ?? "",
     businessHours: (row?.business_hours ?? {}) as unknown as BusinessHours,
@@ -37,7 +41,9 @@ export function supabaseAutoReplyStore(admin: AdminClient, provider: Enums<"chan
       // The bot greets and answers instead, when it is on.
       const { data: bot } = await admin.from("bot_settings").select("enabled").eq("organization_id", account.organization_id).maybeSingle();
       if (bot?.enabled) return null;
-      if (await isAgentOn(admin, account.organization_id)) return null;
+      // With the AI attendant on, only the greeting goes out: the AI answers the rest.
+      const agentOn = await isAgentOn(admin, account.organization_id);
+      if (agentOn && !row.greeting_enabled) return null;
 
       const { data: message } = await admin
         .from("messages")
@@ -67,6 +73,7 @@ export function supabaseAutoReplyStore(admin: AdminClient, provider: Enums<"chan
         lastAwayReplyAt: message.conversations.last_away_reply_at,
         lastOutboundAt: message.conversations.last_outbound_at,
         settings: toAutoReplySettings(row),
+        agentOn,
       };
     },
 
@@ -97,7 +104,15 @@ export function supabaseAutoReplyStore(admin: AdminClient, provider: Enums<"chan
       return data.length === 1;
     },
 
-    async createPending(context: SendTarget, body, now) {
+    async fileUrl(organizationId, path) {
+      // A stored path is only trusted inside the business's own folder.
+      if (!isStoragePathOf(path, organizationId)) return null;
+      // Long enough for the provider to fetch it, even after a retry on its side.
+      const { data } = await admin.storage.from(MEDIA_BUCKET).createSignedUrl(path, 3600);
+      return data?.signedUrl ?? null;
+    },
+
+    async createPending(context: SendTarget, message, now) {
       const { data, error } = await admin
         .from("messages")
         .insert({
@@ -106,8 +121,9 @@ export function supabaseAutoReplyStore(admin: AdminClient, provider: Enums<"chan
           channel_account_id: context.accountId,
           direction: "outbound",
           origin: "automation",
-          type: "text",
-          body,
+          ...(message.type === "text"
+            ? { type: "text" as const, body: message.body }
+            : { type: "audio" as const, body: null, media_path: message.mediaPath, media_mime_type: message.mimeType }),
           status: "pending",
           occurred_at: now.toISOString(),
         })

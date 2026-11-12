@@ -84,16 +84,17 @@ export async function processWebhookEvents(
       });
 
       // After the event is complete: a failed bot or auto reply must not make the webhook retry.
+      // The greeting goes first on a first contact; the AI answers right after it.
+      await runAutoReplies(normalized, provider, supabaseAutoReplyStore(admin, event.provider), {
+        onOutcome: (outcome) => logEvent("auto_reply.outcome", { eventId: event.id, outcome }, outcome === "sent" ? "info" : "warn"),
+        onError: (e) =>
+          logEvent("auto_reply.failed", { eventId: event.id, error: e instanceof Error ? e.message : "unknown" }, "error"),
+      });
       await runAiAgent(admin, event.provider, normalized).catch((e: unknown) => {
         logEvent("ai_agent.failed", { eventId: event.id, error: e instanceof Error ? e.message : "unknown" }, "error");
       });
       await runBot(admin, event.provider, normalized).catch((e: unknown) => {
         logEvent("bot.failed", { eventId: event.id, error: e instanceof Error ? e.message : "unknown" }, "error");
-      });
-      await runAutoReplies(normalized, provider, supabaseAutoReplyStore(admin, event.provider), {
-        onOutcome: (outcome) => logEvent("auto_reply.outcome", { eventId: event.id, outcome }, outcome === "sent" ? "info" : "warn"),
-        onError: (e) =>
-          logEvent("auto_reply.failed", { eventId: event.id, error: e instanceof Error ? e.message : "unknown" }, "error"),
       });
       await sendNpsThanks(admin, event.provider).catch((e: unknown) => {
         logEvent("nps.thanks_failed", { eventId: event.id, error: e instanceof Error ? e.message : "unknown" }, "warn");

@@ -19,7 +19,9 @@ const CLOSED = new Date("2026-11-07T01:00:00Z");
 
 const settings: AutoReplySettings = {
   greetingEnabled: true,
+  greetingFormat: "text",
   greetingText: "Olá!",
+  greetingAudioPath: null,
   awayEnabled: true,
   awayText: "Estamos fechados.",
   businessHours: { "5": { open: "09:00", close: "18:00" } },
@@ -80,7 +82,9 @@ describe("parseAutoReplyForm", () => {
       ok: true,
       settings: {
         greetingEnabled: false,
+        greetingFormat: "text",
         greetingText: "",
+        greetingAudioPath: null,
         awayEnabled: true,
         awayText: "Fechado",
         businessHours: { "1": { open: "09:00", close: "18:00" } },
@@ -156,10 +160,34 @@ describe("runAutoReplies", () => {
       createPending: vi.fn<AutoReplyStore["createPending"]>(async () => "pending-id"),
       markFailed: vi.fn<AutoReplyStore["markFailed"]>(async () => {}),
       markSent: vi.fn<AutoReplyStore["markSent"]>(async () => {}),
+      fileUrl: vi.fn<AutoReplyStore["fileUrl"]>(async (_org, path) => `https://files/${path}?signed`),
     };
     const sendMessage = vi.fn(async () => ({ ok: true as const, externalMessageId: "EXT", acceptedAt: OPEN }));
-    return { store, provider: { sendMessage } };
+    const sendMedia = vi.fn(async () => ({ ok: true as const, externalMessageId: "EXT-A", acceptedAt: OPEN }));
+    return { store, provider: { sendMessage, sendMedia } };
   }
+
+  it("sends the greeting as the recorded voice note when chosen", async () => {
+    const audio = { ...settings, greetingFormat: "audio" as const, greetingText: "", greetingAudioPath: "org/greetings/a.ogg" };
+    const { store, provider } = setup({ settings: audio });
+    await runAutoReplies([event()], provider, store, { now: OPEN });
+    expect(store.fileUrl).toHaveBeenCalledWith("org", "org/greetings/a.ogg");
+    expect(store.createPending).toHaveBeenCalledWith(expect.anything(), { type: "audio", mediaPath: "org/greetings/a.ogg", mimeType: "audio/ogg" }, OPEN);
+    expect(provider.sendMedia).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "5548999990000", url: "https://files/org/greetings/a.ogg?signed", mimeType: "audio/ogg", idempotencyKey: "pending-id" }),
+    );
+    expect(provider.sendMessage).not.toHaveBeenCalled();
+    expect(store.markSent).toHaveBeenCalledWith(expect.anything(), "pending-id", "EXT-A", OPEN);
+  });
+
+  it("falls back to the text when the audio file is gone", async () => {
+    const audio = { ...settings, greetingFormat: "audio" as const, greetingAudioPath: "org/greetings/gone.ogg" };
+    const { store, provider } = setup({ settings: audio });
+    store.fileUrl.mockResolvedValueOnce(null);
+    await runAutoReplies([event()], provider, store, { now: OPEN });
+    expect(provider.sendMedia).not.toHaveBeenCalled();
+    expect(provider.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ body: "Olá!" }));
+  });
 
   it("replies to the sender and records the send", async () => {
     const { store, provider } = setup();
@@ -214,5 +242,28 @@ describe("runAutoReplies", () => {
     expect(onError).toHaveBeenCalledOnce();
     expect(store.markFailed).toHaveBeenCalledWith("pending-id", "http_500");
     expect(store.markSent).not.toHaveBeenCalled();
+  });
+});
+
+describe("decideAutoReply with a voice note and the AI attendant", () => {
+  it("greets with the voice note, keeping the text as a fallback", () => {
+    const audio = { ...settings, greetingFormat: "audio" as const, greetingAudioPath: "org/greetings/a.ogg" };
+    expect(decide({ settings: audio, isFirstMessage: true })).toEqual({ kind: "greeting", body: "Olá!", audioPath: "org/greetings/a.ogg" });
+  });
+
+  it("with the AI on, still greets the first contact but never sends the away message", () => {
+    expect(decide({ now: CLOSED, isFirstMessage: true, agentOn: true })).toEqual({ kind: "greeting", body: "Olá!" });
+    expect(decide({ now: CLOSED, isFirstMessage: false, agentOn: true })).toBeNull();
+  });
+});
+
+describe("parseAutoReplyForm with a voice note", () => {
+  const form = (values: Record<string, string>) => parseAutoReplyForm((name) => values[name] ?? null);
+  it("needs the audio when the greeting is a voice note, not the text", () => {
+    expect(form({ greeting_enabled: "on", greeting_format: "audio" })).toMatchObject({ ok: false, message: "Grave ou escolha o áudio da saudação." });
+    expect(form({ greeting_enabled: "on", greeting_format: "audio", greeting_audio_path: "org/greetings/a.ogg" })).toMatchObject({
+      ok: true,
+      settings: { greetingFormat: "audio", greetingText: "", greetingAudioPath: "org/greetings/a.ogg" },
+    });
   });
 });
