@@ -7,6 +7,7 @@ import { MobileTitle, MobileUser, SidebarOrganization, SidebarUser } from "./she
 
 const MAIN_NAV: NavItem[] = [
   { href: "/inbox", label: "Conversas", icon: "inbox" },
+  { href: "/funil", label: "Funil", icon: "funnel" },
   { href: "/chamar", label: "Chamar hoje", icon: "phone" },
   { href: "/agenda", label: "Agenda", icon: "calendar" },
   { href: "/reports", label: "Relatórios", icon: "chart" },

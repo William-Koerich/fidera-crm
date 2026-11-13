@@ -6,6 +6,9 @@ import { getWhatsAppProviderName } from "@/lib/env";
 import { decodeCursor } from "@/lib/inbox/cursor";
 import { formatPhone, formatShortDate } from "@/lib/inbox/format";
 import { listChannelAccounts, listConversations, type InboxFilter } from "@/lib/inbox/queries";
+import { listLabels } from "@/lib/labels/server";
+import { isStage } from "@/lib/labels/stages";
+import { LabelChip } from "@/components/label-chip";
 import { RealtimeRefresh } from "./realtime-refresh";
 import { WindowBadge } from "./window-badge";
 
@@ -14,7 +17,15 @@ export function parseInboxParams(params: Record<string, string | string[] | unde
     filter: (params.filter === "awaiting" || params.filter === "mine" || params.filter === "closed" ? params.filter : "all") as InboxFilter,
     search: typeof params.q === "string" && params.q.trim().length >= 2 ? params.q.trim().slice(0, 100) : null,
     cursor: typeof params.cursor === "string" ? params.cursor : null,
+    labelId: typeof params.etiqueta === "string" && UUID.test(params.etiqueta) ? params.etiqueta : null,
   };
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Query string that keeps the list's filter and label when opening or leaving a conversation. */
+export function listQuery(filter: InboxFilter, labelId: string | null, extra: Record<string, string> = {}): string {
+  return new URLSearchParams({ ...(filter !== "all" ? { filter } : {}), ...(labelId ? { etiqueta: labelId } : {}), ...extra }).toString();
 }
 
 export function ListSkeleton() {
@@ -37,10 +48,12 @@ export function ListSkeleton() {
   );
 }
 
-function hrefFor(filter: InboxFilter, extra: Record<string, string> = {}) {
-  const q = new URLSearchParams({ ...(filter !== "all" ? { filter } : {}), ...extra }).toString();
+function hrefFor(filter: InboxFilter, labelId: string | null, extra: Record<string, string> = {}) {
+  const q = listQuery(filter, labelId, extra);
   return q ? `/inbox?${q}` : "/inbox";
 }
+
+const MAX_ROW_LABELS = 3;
 
 /** Conversation list with filters, alerts and empty states. Shared by /inbox and the desktop pane of a conversation. */
 export async function ConversationList({
@@ -49,18 +62,23 @@ export async function ConversationList({
   cursor,
   activeId,
   search,
+  labelId = null,
 }: {
   organizationId: string;
   filter: InboxFilter;
   cursor: string | null;
   activeId?: string;
   search?: string | null;
+  labelId?: string | null;
 }) {
   const user = await requireUser();
-  const [{ items, nextCursor }, accounts] = await Promise.all([
-    listConversations({ organizationId, filter, cursor: decodeCursor(cursor), userId: user.id, search }),
+  const [{ items, nextCursor }, accounts, labels] = await Promise.all([
+    listConversations({ organizationId, filter, cursor: decodeCursor(cursor), userId: user.id, search, labelId }),
     listChannelAccounts(organizationId),
+    listLabels(organizationId),
   ]);
+  const labelById = new Map(labels.map((l) => [l.id, l]));
+  const activeLabel = labelId ? labelById.get(labelId) : undefined;
   const disconnected = accounts.find((a) => a.status === "disconnected");
   const hasActiveChannel = accounts.some((a) => a.status === "active");
   const isMock = getWhatsAppProviderName() === "mock";
@@ -90,12 +108,36 @@ export async function ConversationList({
           label="Filtrar conversas"
           active={search ? "" : filter}
           items={[
-            { key: "all", label: "Todas", href: hrefFor("all") },
-            { key: "awaiting", label: "Sem resposta", href: hrefFor("awaiting") },
-            { key: "mine", label: "Minhas", href: hrefFor("mine") },
-            { key: "closed", label: "Finalizadas", href: hrefFor("closed") },
+            { key: "all", label: "Todas", href: hrefFor("all", labelId) },
+            { key: "awaiting", label: "Sem resposta", href: hrefFor("awaiting", labelId) },
+            { key: "mine", label: "Minhas", href: hrefFor("mine", labelId) },
+            { key: "closed", label: "Finalizadas", href: hrefFor("closed", labelId) },
           ]}
         />
+        {labels.length > 0 && !search ? (
+          <nav aria-label="Filtrar por etiqueta" className="-mx-4 mt-2.5 flex gap-1.5 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none]">
+            {labels.map((label) => {
+              const active = label.id === labelId;
+              return (
+                <Link
+                  key={label.id}
+                  href={hrefFor(filter, active ? null : label.id)}
+                  aria-current={active ? "page" : undefined}
+                  title={isStage(label) ? `Etapa do funil: ${label.name}` : label.name}
+                  className={cx(
+                    "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors sm:min-h-8",
+                    active ? "border-transparent text-text" : "border-border bg-surface text-text-muted hover:text-text",
+                  )}
+                  style={active ? { backgroundColor: `color-mix(in oklab, ${label.color} 22%, transparent)`, borderColor: label.color } : undefined}
+                >
+                  <span aria-hidden className="size-2 rounded-full" style={{ backgroundColor: label.color }} />
+                  {label.name}
+                  {active ? <Icon name="x" className="size-3.5" /> : null}
+                </Link>
+              );
+            })}
+          </nav>
+        ) : null}
       </div>
 
       {disconnected ? (
@@ -115,7 +157,18 @@ export async function ConversationList({
       ) : null}
 
       {items.length === 0 ? (
-        search ? (
+        activeLabel ? (
+          <EmptyState
+            icon="message"
+            title={`Ninguém com "${activeLabel.name}" aqui`}
+            description="Troque a aba acima ou tire o filtro de etiqueta para ver todas as conversas."
+            action={
+              <ButtonLink href={hrefFor(filter, null)} variant="secondary">
+                Tirar o filtro
+              </ButtonLink>
+            }
+          />
+        ) : search ? (
           <EmptyState icon="message" title="Nada encontrado" description="Tente outro nome, número ou trecho da mensagem." />
         ) : accounts.length === 0 ? (
           <EmptyState
@@ -162,10 +215,12 @@ export async function ConversationList({
             const name = c.contactName || formatPhone(c.contactPhone) || "Contato";
             const active = c.id === activeId;
             const unread = c.unreadCount > 0;
+            // Stage first: it is what the team looks for when scanning the list.
+            const rowLabels = labels.filter((l) => c.labelIds.includes(l.id));
             return (
               <li key={c.id}>
                 <Link
-                  href={`/inbox/${c.id}${filter !== "all" ? `?filter=${filter}` : ""}`}
+                  href={`/inbox/${c.id}${listQuery(filter, labelId) ? `?${listQuery(filter, labelId)}` : ""}`}
                   aria-current={active ? "page" : undefined}
                   className={cx(
                     "flex gap-3 rounded-2xl px-3 py-3 transition-colors",
@@ -194,13 +249,23 @@ export async function ConversationList({
                         </span>
                       ) : null}
                     </div>
-                    {c.awaitingReply ? (
-                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-warning">
-                          <Icon name="alert" className="size-3" />
-                          Sem resposta
-                        </span>
-                        <WindowBadge endsAt={c.replyWindowEndsAt} compact />
+                    {c.awaitingReply || rowLabels.length > 0 ? (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                        {c.awaitingReply ? (
+                          <>
+                            <span className="mr-1 inline-flex items-center gap-1 text-xs font-medium text-warning">
+                              <Icon name="alert" className="size-3" />
+                              Sem resposta
+                            </span>
+                            <WindowBadge endsAt={c.replyWindowEndsAt} compact />
+                          </>
+                        ) : null}
+                        {rowLabels.slice(0, MAX_ROW_LABELS).map((label) => (
+                          <LabelChip key={label.id} name={label.name} color={label.color} stage={isStage(label)} size="xs" className="max-w-[9rem]" />
+                        ))}
+                        {rowLabels.length > MAX_ROW_LABELS ? (
+                          <span className="text-[11px] font-medium text-text-muted">+{rowLabels.length - MAX_ROW_LABELS}</span>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>
@@ -214,7 +279,7 @@ export async function ConversationList({
       {nextCursor ? (
         <div className="border-t border-border p-3 text-center">
           <Link
-            href={hrefFor(filter, { cursor: nextCursor })}
+            href={hrefFor(filter, labelId, { cursor: nextCursor })}
             className="inline-flex min-h-11 items-center px-3 text-sm font-medium text-info hover:underline"
           >
             Carregar conversas mais antigas

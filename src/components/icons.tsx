@@ -26,9 +26,11 @@ export type IconName =
   | "paperclip"
   | "chart"
   | "calendar"
-  | "sparkles";
+  | "sparkles"
+  | "funnel";
 
 const PATHS: Record<IconName, string> = {
+  funnel: "M3 4h18l-7 8.5V19l-4 2v-8.5L3 4Z",
   sparkles: "M12 3l1.8 4.6L18.5 9.5l-4.7 1.9L12 16l-1.8-4.6L5.5 9.5l4.7-1.9L12 3ZM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z",
   calendar: "M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z",
   chart: "M4 20V10M10 20V4M16 20v-7M22 20H2",

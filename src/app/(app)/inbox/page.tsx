@@ -30,9 +30,9 @@ export default function InboxPage({ searchParams }: PageProps<"/inbox">) {
 }
 
 async function List({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const { filter, cursor, search } = parseInboxParams(await searchParams);
+  const { filter, cursor, search, labelId } = parseInboxParams(await searchParams);
   // Dates in the list are relative to "now": render at request time.
   await connection();
   const me = await requireMembership();
-  return <ConversationList organizationId={me.organizationId} filter={filter} cursor={cursor} search={search} />;
+  return <ConversationList organizationId={me.organizationId} filter={filter} cursor={cursor} search={search} labelId={labelId} />;
 }

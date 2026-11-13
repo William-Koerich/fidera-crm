@@ -20,7 +20,7 @@ import {
   listTeamMembers,
 } from "@/lib/inbox/queries";
 import { isRatingEnabled, listQuickReplies } from "@/lib/replies/queries";
-import { ConversationList, ListSkeleton, parseInboxParams } from "../conversation-list";
+import { ConversationList, ListSkeleton, listQuery, parseInboxParams } from "../conversation-list";
 import { RealtimeRefresh } from "../realtime-refresh";
 import { WindowBadge } from "../window-badge";
 import { Composer } from "./composer";
@@ -28,6 +28,8 @@ import { getConversationAiStatus } from "@/lib/ai/agent/status";
 import { AiControl } from "./ai-control";
 import { ContactPanel } from "./contact-panel";
 import { ConversationBar } from "./conversation-bar";
+import { LabelBar } from "./label-bar";
+import { listLabels } from "@/lib/labels/server";
 import { MarkRead } from "./mark-read";
 import { DaySeparator, MessageBubble, NoteBubble } from "./message-parts";
 import { ScheduleProvider } from "./schedule";
@@ -61,8 +63,8 @@ async function SideList({ params, searchParams }: { params: Params; searchParams
   const [{ conversationId }, query] = await Promise.all([params, searchParams]);
   await connection();
   const me = await requireMembership();
-  const { filter } = parseInboxParams(query);
-  return <ConversationList organizationId={me.organizationId} filter={filter} cursor={null} activeId={conversationId} />;
+  const { filter, labelId } = parseInboxParams(query);
+  return <ConversationList organizationId={me.organizationId} filter={filter} cursor={null} activeId={conversationId} labelId={labelId} />;
 }
 
 function ConversationSkeleton() {
@@ -92,12 +94,13 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
   const before = typeof query.before === "string" ? decodeCursor(query.before) : null;
   // A message prepared elsewhere (Chamar hoje). It only fills the box: nothing is sent without a click.
   const draftText = typeof query.texto === "string" ? query.texto.slice(0, 1000) : "";
-  const [{ items, olderCursor }, quickReplies, members, options, contactLabelIds, rating, upcoming, services, aiStatus] = await Promise.all([
+  const [{ items, olderCursor }, quickReplies, members, options, contactLabelIds, labels, rating, upcoming, services, aiStatus] = await Promise.all([
     listMessages(conversation.id, before),
     listQuickReplies(me.organizationId),
     listTeamMembers(conversation.organizationId),
     listInboxOptions(conversation.organizationId),
     listContactLabelIds(conversation.contact.id),
+    listLabels(conversation.organizationId),
     isRatingEnabled(conversation.organizationId),
     listUpcomingForContact(conversation.contact.id),
     listServices(conversation.organizationId),
@@ -118,8 +121,9 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
   const windowOpen =
     !conversation.hasReplyWindow ||
     (conversation.replyWindowEndsAt ? new Date(conversation.replyWindowEndsAt) > new Date() : false);
-  const backHref =
-    query.filter === "awaiting" || query.filter === "mine" || query.filter === "closed" ? `/inbox?filter=${query.filter}` : "/inbox";
+  const listParams = parseInboxParams(query);
+  const backQuery = listQuery(listParams.filter, listParams.labelId);
+  const backHref = backQuery ? `/inbox?${backQuery}` : "/inbox";
   const connected = conversation.account.status === "active";
 
   return (
@@ -160,6 +164,13 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
           </div>
         </header>
 
+        <LabelBar
+          key={`labels-${conversation.id}`}
+          conversationId={conversation.id}
+          labels={labels.map(({ id, name, color, stagePosition }) => ({ id, name, color, stagePosition }))}
+          contactLabelIds={contactLabelIds}
+          canCreate={canManage(me.role)}
+        />
         <ConversationBar
           key={conversation.id}
           conversationId={conversation.id}
@@ -168,12 +179,10 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
           departmentId={conversation.departmentId}
           contactOwnerId={contact.ownerId}
           canChangeOwner={canManage(me.role)}
-          contactLabelIds={contactLabelIds}
           members={members}
           currentUserId={me.user.id}
           departments={options.departments}
           endings={options.endings}
-          labels={options.labels}
           ratingEnabled={rating}
           aiEnabled={isAssistantEnabled()}
           upcoming={upcoming.map((a) => `${formatDay(a.date)} às ${a.time}${a.service ? ` · ${a.service}` : ""}`)}

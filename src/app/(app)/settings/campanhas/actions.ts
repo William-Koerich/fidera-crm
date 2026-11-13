@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { canManage, requireMembership } from "@/lib/auth";
 import { parseCampaignForm, NEW_LABEL_COLOR } from "@/lib/campaigns/config";
-import { getProviderByName } from "@/lib/channels";
+import { createLabel } from "@/lib/labels/server";
 import { isGreetingAudioPathOf } from "@/lib/replies/greeting-audio";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { MEDIA_BUCKET } from "@/lib/webhooks/media";
@@ -19,30 +19,6 @@ const fail = (message: string): CampaignFormState => ({ status: "error", message
 async function requireManager() {
   const me = await requireMembership();
   return canManage(me.role) ? me : null;
-}
-
-/** A new label, mirrored to the channel like the ones made in Ajustes > Etiquetas. */
-async function createLabel(organizationId: string, name: string): Promise<{ id: string } | { error: string }> {
-  const supabase = await createClient();
-  const { data: row, error } = await supabase.from("labels").insert({ organization_id: organizationId, name, color: NEW_LABEL_COLOR }).select("id").single();
-  if (error?.code === "23505") {
-    const { data: same } = await supabase.from("labels").select("id").eq("organization_id", organizationId).eq("name", name).single();
-    return same ? { id: same.id } : { error: "Não foi possível criar a etiqueta." };
-  }
-  if (error || !row) return { error: "Não foi possível criar a etiqueta." };
-  const { data: accounts } = await createAdminClient()
-    .from("channel_accounts")
-    .select("provider, external_account_id")
-    .eq("organization_id", organizationId)
-    .eq("status", "active");
-  for (const account of accounts ?? []) {
-    const sync = getProviderByName(account.provider).team;
-    if (!sync) continue;
-    const externalId = await sync.createLabel(account.external_account_id, name, NEW_LABEL_COLOR);
-    if (externalId) await supabase.from("labels").update({ external_id: externalId }).eq("id", row.id);
-    break;
-  }
-  return { id: row.id };
 }
 
 export async function saveCampaignAction(_prev: CampaignFormState, formData: FormData): Promise<CampaignFormState> {
@@ -62,7 +38,7 @@ export async function saveCampaignAction(_prev: CampaignFormState, formData: For
     const { data } = await supabase.from("labels").select("id").eq("organization_id", me.organizationId).eq("id", labelId).maybeSingle();
     if (!data) return fail("Essa etiqueta não existe mais. Escolha outra.");
   } else if (values.newLabelName) {
-    const created = await createLabel(me.organizationId, values.newLabelName);
+    const created = await createLabel(me.organizationId, { name: values.newLabelName, color: NEW_LABEL_COLOR });
     if ("error" in created) return fail(created.error);
     labelId = created.id;
   }

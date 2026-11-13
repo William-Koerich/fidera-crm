@@ -9,7 +9,6 @@ import type { InboxOption, TeamMember } from "@/lib/inbox/queries";
 import {
   finishConversationAction,
   reopenConversationAction,
-  setContactLabelAction,
   setContactOwnerAction,
   setDepartmentAction,
 } from "../team-actions";
@@ -26,12 +25,10 @@ export function ConversationBar({
   departmentId,
   contactOwnerId,
   canChangeOwner,
-  contactLabelIds,
   members,
   currentUserId,
   departments,
   endings,
-  labels,
   ratingEnabled,
   upcoming,
   aiEnabled,
@@ -42,12 +39,10 @@ export function ConversationBar({
   departmentId: string | null;
   contactOwnerId: string | null;
   canChangeOwner: boolean;
-  contactLabelIds: string[];
   members: TeamMember[];
   currentUserId: string;
   departments: InboxOption[];
   endings: InboxOption[];
-  labels: InboxOption[];
   ratingEnabled: boolean;
   upcoming: string[];
   aiEnabled: boolean;
@@ -55,7 +50,6 @@ export function ConversationBar({
   const [notice, setNotice] = useState<string | null>(null);
   const [department, setDepartment] = useState(departmentId ?? "");
   const [owner, setOwner] = useState(contactOwnerId ?? "");
-  const [activeLabels, setActiveLabels] = useState(() => new Set(contactLabelIds));
   const [pending, startTransition] = useTransition();
 
   const router = useRouter();
@@ -163,38 +157,6 @@ export function ConversationBar({
               </Select>
             </div>
           </div>
-        ) : null}
-
-        {labels.length > 0 ? (
-          <fieldset>
-            <legend className="mb-1 text-sm text-text-muted">Etiquetas do contato</legend>
-            <div className="flex flex-wrap gap-x-4">
-              {labels.map((label) => (
-                <label key={label.id} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="size-5 accent-brand"
-                    checked={activeLabels.has(label.id)}
-                    disabled={pending}
-                    onChange={(e) => {
-                      const on = e.target.checked;
-                      const change = (value: boolean) =>
-                        setActiveLabels((current) => {
-                          const copy = new Set(current);
-                          if (value) copy.add(label.id);
-                          else copy.delete(label.id);
-                          return copy;
-                        });
-                      change(on);
-                      run(() => setContactLabelAction(conversationId, label.id, on), () => change(!on));
-                    }}
-                  />
-                  <span aria-hidden className="size-2.5 rounded-full" style={{ backgroundColor: label.color ?? undefined }} />
-                  {label.name}
-                </label>
-              ))}
-            </div>
-          </fieldset>
         ) : null}
 
         <div>

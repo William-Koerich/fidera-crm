@@ -132,9 +132,9 @@ export type Database = {
         Relationships: [{ foreignKeyName: "invitations_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
       labels: {
-        Row: { id: string; organization_id: string; name: string; color: string; external_id: string | null; created_at: string };
-        Insert: { id?: string; organization_id: string; name: string; color: string; external_id?: string | null; created_at?: string };
-        Update: { id?: string; organization_id?: string; name?: string; color?: string; external_id?: string | null; created_at?: string };
+        Row: { id: string; organization_id: string; name: string; color: string; external_id: string | null; created_at: string; stage_position: number | null };
+        Insert: { id?: string; organization_id: string; name: string; color: string; external_id?: string | null; created_at?: string; stage_position?: number | null };
+        Update: { id?: string; organization_id?: string; name?: string; color?: string; external_id?: string | null; created_at?: string; stage_position?: number | null };
         Relationships: [{ foreignKeyName: "labels_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] }];
       };
       member_departments: {

@@ -26,6 +26,8 @@ export interface ConversationListItem {
   replyWindowEndsAt: string | null;
   /** The latest message was sent by the business (API or phone). */
   lastFromUs: boolean;
+  /** The contact's labels and stage. */
+  labelIds: string[];
 }
 
 /** Only Meta's official API limits free replies to 24 hours after the customer's last message. */
@@ -48,12 +50,17 @@ export async function listConversations(opts: {
   userId: string;
   /** Search text: looks through open and finished conversations alike. */
   search?: string | null;
+  /** Only contacts with this label (or in this stage). */
+  labelId?: string | null;
 }): Promise<{ items: ConversationListItem[]; nextCursor: string | null }> {
   const supabase = await createClient();
+  // With a label chosen, only contacts that have it: `match` is there just to filter.
   let query = supabase
     .from("conversations")
     .select(
-      "id, channel, last_message_at, last_message_preview, awaiting_reply, unread_count, reply_window_ends_at, last_inbound_at, last_outbound_at, contacts(id, display_name, phone_normalized, avatar_path, profile_synced_at), channel_accounts(provider)",
+      opts.labelId
+        ? "id, channel, last_message_at, last_message_preview, awaiting_reply, unread_count, reply_window_ends_at, last_inbound_at, last_outbound_at, contacts!inner(id, display_name, phone_normalized, avatar_path, profile_synced_at, labels:contact_labels(label_id), match:contact_labels!inner(label_id)), channel_accounts(provider)"
+        : "id, channel, last_message_at, last_message_preview, awaiting_reply, unread_count, reply_window_ends_at, last_inbound_at, last_outbound_at, contacts(id, display_name, phone_normalized, avatar_path, profile_synced_at, labels:contact_labels(label_id)), channel_accounts(provider)",
     )
     .eq("organization_id", opts.organizationId)
     .not("last_message_at", "is", null)
@@ -73,6 +80,7 @@ export async function listConversations(opts: {
   }
   if (opts.filter === "awaiting") query = query.eq("awaiting_reply", true);
   if (opts.filter === "mine") query = query.eq("assigned_to", opts.userId);
+  if (opts.labelId) query = query.eq("contacts.match.label_id", opts.labelId);
   if (opts.cursor) query = query.or(afterCursorFilter("last_message_at", opts.cursor));
 
   const { data, error } = await query;
@@ -93,6 +101,7 @@ export async function listConversations(opts: {
       unreadCount: c.unread_count,
       replyWindowEndsAt: hasReplyWindow(c.channel_accounts?.provider) ? c.reply_window_ends_at : null,
       lastFromUs: !!c.last_outbound_at && (!c.last_inbound_at || c.last_outbound_at >= c.last_inbound_at),
+      labelIds: c.contacts?.labels.map((l) => l.label_id) ?? [],
     })),
     nextCursor:
       data.length > CONVERSATIONS_PAGE_SIZE && last?.last_message_at

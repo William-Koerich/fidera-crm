@@ -81,34 +81,6 @@ export async function setDepartmentAction(conversationId: string, departmentId: 
   };
 }
 
-export async function setContactLabelAction(conversationId: string, labelId: string, on: boolean): Promise<TeamActionState> {
-  const ctx = await load(conversationId);
-  if (!ctx) return error("Conversa não encontrada.");
-  const { conversation } = ctx;
-  const { labels } = await listInboxOptions(conversation.organizationId);
-  const label = labels.find((l) => l.id === labelId);
-  if (!label) return error("Etiqueta não encontrada.");
-
-  const supabase = await createClient();
-  const { error: writeError } = on
-    ? await supabase.from("contact_labels").upsert({
-        organization_id: conversation.organizationId,
-        contact_id: conversation.contact.id,
-        label_id: label.id,
-      })
-    : await supabase.from("contact_labels").delete().eq("contact_id", conversation.contact.id).eq("label_id", label.id);
-  if (writeError) return error("Não foi possível salvar. Tente de novo.");
-  refresh();
-
-  if (!ctx.sync) return { status: "saved" };
-  if (!label.externalId || !ctx.to) return { status: "saved", notice: "Salvo no Fidera. Esta etiqueta não existe no ChatPro." };
-  return mirrored(
-    await ctx.sync.setContactLabel({ accountExternalId: ctx.instanceId, to: ctx.to, labelExternalId: label.externalId, on }),
-    "label",
-    conversation.id,
-  );
-}
-
 /** Who this client belongs to. Managers only: it decides where the client's conversations go. */
 export async function setContactOwnerAction(conversationId: string, ownerId: string): Promise<TeamActionState> {
   const ctx = await load(conversationId);
