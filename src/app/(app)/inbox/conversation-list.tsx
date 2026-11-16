@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Icon } from "@/components/icons";
 import { Alert, Avatar, ButtonLink, EmptyState, Input, Skeleton, TabLinks, cx } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
@@ -63,7 +64,10 @@ export async function ConversationList({
   activeId,
   search,
   labelId = null,
+  banner = null,
 }: {
+  /** Shown under the list header, above any alert. */
+  banner?: ReactNode;
   organizationId: string;
   filter: InboxFilter;
   cursor: string | null;
@@ -139,6 +143,8 @@ export async function ConversationList({
           </nav>
         ) : null}
       </div>
+
+      {banner}
 
       {disconnected ? (
         <div className="px-4 pt-3">

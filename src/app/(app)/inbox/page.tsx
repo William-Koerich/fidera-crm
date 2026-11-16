@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { EmptyState } from "@/components/ui";
-import { requireMembership } from "@/lib/auth";
+import { canManage, requireMembership } from "@/lib/auth";
 import { ConversationList, ListSkeleton, parseInboxParams } from "./conversation-list";
+import { GettingStarted } from "./getting-started";
 
 export const metadata: Metadata = { title: "Conversas" };
 
@@ -34,5 +35,14 @@ async function List({ searchParams }: { searchParams: Promise<Record<string, str
   // Dates in the list are relative to "now": render at request time.
   await connection();
   const me = await requireMembership();
-  return <ConversationList organizationId={me.organizationId} filter={filter} cursor={cursor} search={search} labelId={labelId} />;
+  return (
+    <ConversationList
+      organizationId={me.organizationId}
+      filter={filter}
+      cursor={cursor}
+      search={search}
+      labelId={labelId}
+      banner={canManage(me.role) ? <GettingStarted organizationId={me.organizationId} /> : null}
+    />
+  );
 }
