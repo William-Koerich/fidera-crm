@@ -17,7 +17,8 @@
     "db:types": "node --env-file-if-exists=.env.local scripts/gen-types.mts && eslint --fix src/lib/supabase/database.types.ts",
     "meta:setup": "node --env-file-if-exists=.env.local scripts/meta-setup.mts",
     "chatpro:webhook": "node --env-file-if-exists=.env.local scripts/chatpro-webhook.mts",
-    "chatpro:instances": "node --env-file-if-exists=.env.local scripts/chatpro-instances.mts"
+    "chatpro:instances": "node --env-file-if-exists=.env.local scripts/chatpro-instances.mts",
+    "chatpro:add": "node --env-file-if-exists=.env.local scripts/chatpro-add.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

@@ -3,7 +3,7 @@
 import { randomBytes } from "node:crypto";
 import { refresh } from "next/cache";
 import { canManage, requireMembership } from "@/lib/auth";
-import { getChatProConfig, getChatProPanel, getChatProProvider, getChatProWebhookUrl } from "@/lib/channels/chatpro/config";
+import { getChatProInstanceFor, getChatProPanel, getChatProProvider, getChatProWebhookUrl } from "@/lib/channels/chatpro/config";
 import { refreshStaleProfiles, syncContactProfile } from "@/lib/contacts/profile-sync";
 import { contactFromJid, parseChatProHistory } from "@/lib/channels/chatpro/parse";
 import { ChatProRateLimitError, type ChatProSession } from "@/lib/channels/chatpro/provider";
@@ -133,19 +133,12 @@ export interface ChatProState {
   message?: string;
 }
 
-/** The instance belongs to the single business named in CHATPRO_ORGANIZATION_ID. */
+/** The business's own instance: the env one, or the one prepared with npm run chatpro:add. */
 async function requireChatPro() {
   const me = await requireManager();
-  const config = getChatProConfig();
-  if (
-    getWhatsAppProviderName() !== "chatpro" ||
-    !config.instanceId ||
-    !config.token ||
-    config.organizationId !== me.organizationId
-  ) {
-    throw new Error("ChatPro is not available for this business");
-  }
-  return { me, instanceId: config.instanceId, provider: getChatProProvider() };
+  const instanceId = getWhatsAppProviderName() === "chatpro" ? await getChatProInstanceFor(me.organizationId) : null;
+  if (!instanceId) throw new Error("ChatPro is not available for this business");
+  return { me, instanceId, provider: getChatProProvider() };
 }
 
 const phoneFromWid = (wid: string | null) => {
@@ -173,7 +166,7 @@ export async function configureChatProWebhookAction(): Promise<ChatProWebhookSta
   const { instanceId } = await requireChatPro();
   const panel = getChatProPanel();
   if (!panel) return { status: "no_panel_access" };
-  const { url, isPublic } = getChatProWebhookUrl();
+  const { url, isPublic } = getChatProWebhookUrl(instanceId);
   if (!isPublic) return { status: "no_public_address" };
   try {
     await panel.setWebhook(instanceId, url);
@@ -367,7 +360,8 @@ export async function disconnectChatProAction(): Promise<ChatProState> {
 /**
  * Removes a number from this business. Its conversations and messages go with
  * it (foreign keys cascade) and its token leaves Vault. A connected ChatPro
- * session is closed first so the phone does not stay linked.
+ * session is closed first so the phone does not stay linked. A business's own
+ * ChatPro instance (keys in Vault) stays prepared, so it can connect again.
  */
 export async function removeChannelAccountAction(formData: FormData): Promise<void> {
   const me = await requireManager();
@@ -388,8 +382,31 @@ export async function removeChannelAccountAction(formData: FormData): Promise<vo
       });
   }
 
+  const { data: keptKeys } =
+    account.provider === "chatpro"
+      ? await admin.rpc("get_channel_token", { p_provider: "chatpro", p_external_account_id: account.external_account_id })
+      : { data: null };
+
   const { error } = await admin.from("channel_accounts").delete().eq("id", account.id);
   if (error) throw new Error(`Could not remove channel account (${error.code})`);
+
+  if (typeof keptKeys === "string" && keptKeys) {
+    const { data: fresh, error: insertError } = await admin
+      .from("channel_accounts")
+      .insert({
+        organization_id: me.organizationId,
+        channel: "whatsapp",
+        provider: "chatpro",
+        external_account_id: account.external_account_id,
+        display_name: "WhatsApp do negócio",
+        status: "disconnected",
+      })
+      .select("id")
+      .single();
+    if (insertError) throw new Error(`Could not keep the ChatPro instance (${insertError.code})`);
+    const { error: keyError } = await admin.rpc("set_channel_token", { p_account_id: fresh.id, p_token: keptKeys });
+    if (keyError) throw new Error(`Could not keep the ChatPro keys (${keyError.code})`);
+  }
   await admin.from("audit_log").insert({
     organization_id: me.organizationId,
     actor_id: me.user.id,

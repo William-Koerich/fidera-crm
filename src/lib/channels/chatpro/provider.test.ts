@@ -278,4 +278,23 @@ describe("ChatProChannelProvider", () => {
       provider(fetchMock).downloadMedia({ accountExternalId: "i", mediaId: "http://169.254.169.254/" }),
     ).rejects.toThrow("non-https");
   });
+
+  it("uses each business's own keys, picked by the instance", async () => {
+    const keys: Record<string, { token: string; chatToken: string }> = {
+      "salao-a": { token: "CONN-A", chatToken: "CHAT-A" },
+      "salao-b": { token: "CONN-B", chatToken: "CHAT-B" },
+    };
+    const fetchMock = vi.fn<typeof fetch>(async (url) =>
+      String(url).endsWith("/status") ? json(200, { connected: true }) : json(201, { id: "x" }),
+    );
+    const multi = new ChatProChannelProvider({ credentials: async (id) => keys[id]!, fetch: fetchMock });
+
+    await multi.sendMessage({ ...input, accountExternalId: "salao-b" });
+    await multi.getStatus("salao-a");
+
+    const headers = fetchMock.mock.calls.map(([, init]) => init?.headers as Record<string, string>);
+    expect(headers[0]!["instance-token"]).toBe("CHAT-B");
+    expect(headers[1]!["instance-token"]).toBe("CHAT-B");
+    expect(headers[2]!.Authorization).toBe("CONN-A");
+  });
 });

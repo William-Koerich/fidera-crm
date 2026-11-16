@@ -1,7 +1,7 @@
 import { Icon } from "@/components/icons";
 import { Alert, Badge, Button, Panel, type Tone } from "@/components/ui";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { getChatProConfig, getChatProWebhookUrl } from "@/lib/channels/chatpro/config";
+import { getChatProConfig, getChatProInstanceFor, getChatProWebhookUrl } from "@/lib/channels/chatpro/config";
 import { canManage, requireMembership } from "@/lib/auth";
 import { getWhatsAppProviderName } from "@/lib/env";
 import { countConversations, listChannelAccounts } from "@/lib/inbox/queries";
@@ -32,18 +32,18 @@ function removalWarning(conversations: number, provider: string): string {
 }
 
 async function chatProSection(organizationId: string) {
-  const config = getChatProConfig();
-  if (!config.instanceId || !config.token || !config.webhookSecret) {
+  if (!getChatProConfig().webhookSecret) {
     return (
       <Alert tone="warning" title="ChatPro ainda não configurado">
-        Preencha CHATPRO_INSTANCE_ID, CHATPRO_TOKEN e CHATPRO_WEBHOOK_SECRET nas variáveis do servidor.
+        Preencha CHATPRO_WEBHOOK_SECRET nas variáveis do servidor.
       </Alert>
     );
   }
-  if (config.organizationId !== organizationId) {
+  const instanceId = await getChatProInstanceFor(organizationId);
+  if (!instanceId) {
     return (
-      <Alert tone="info" title="Esta instância não está ligada a este negócio">
-        Para usar o número aqui, defina no servidor: CHATPRO_ORGANIZATION_ID={organizationId}
+      <Alert tone="info" title="O WhatsApp deste negócio ainda não foi preparado">
+        Fale com a equipe do Fidera para liberar a conexão do seu número. Código do negócio: {organizationId}
       </Alert>
     );
   }
@@ -53,7 +53,7 @@ async function chatProSection(organizationId: string) {
         O WhatsApp pode restringir ou bloquear o número, principalmente com envio em massa. Use para conversas com os seus
         clientes. O celular precisa continuar com o WhatsApp instalado e conectado.
       </Alert>
-      <ChatProConnect webhookUrl={getChatProWebhookUrl().url} />
+      <ChatProConnect webhookUrl={getChatProWebhookUrl(instanceId).url} />
     </div>
   );
 }

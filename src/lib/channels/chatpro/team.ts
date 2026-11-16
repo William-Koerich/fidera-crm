@@ -15,19 +15,22 @@
  * record, so nothing here throws: a failure only means ChatPro did not follow.
  */
 import type { AssignResult, ChannelTeamSync, ExternalRecord } from "../types";
+import type { ChatProCredentialResolver } from "./credentials";
 import { findId, isObj, text, type Json } from "./json";
 
 export class ChatProTeamSync implements ChannelTeamSync {
   constructor(
-    private readonly options: { chatToken: string; baseUrl: string; fetch: typeof fetch },
+    private readonly options: { credentials: ChatProCredentialResolver; baseUrl: string; fetch: typeof fetch },
   ) {}
 
-  private async post(path: string, payload: Json): Promise<{ ok: boolean; data: unknown }> {
-    if (!this.options.chatToken) return { ok: false, data: null };
+  /** Every payload names its instance, which picks the key. */
+  private async post(path: string, payload: Json & { instanceId: string }): Promise<{ ok: boolean; data: unknown }> {
     try {
+      const { chatToken } = await this.options.credentials(payload.instanceId);
+      if (!chatToken) return { ok: false, data: null };
       const response = await this.options.fetch(`${this.options.baseUrl}/${path}`, {
         method: "POST",
-        headers: { "instance-token": this.options.chatToken, "Content-Type": "application/json" },
+        headers: { "instance-token": chatToken, "Content-Type": "application/json" },
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(15_000),
       });
@@ -83,12 +86,13 @@ export class ChatProTeamSync implements ChannelTeamSync {
   }
 
   async downloadDayReport(instanceId: string, day: string): Promise<string | null> {
-    if (!this.options.chatToken) return null;
-    const url = new URL(`${this.options.baseUrl}/reports`);
-    url.searchParams.set("date", day);
-    url.searchParams.set("instanceId", instanceId);
-    url.searchParams.set("token", this.options.chatToken);
     try {
+      const { chatToken } = await this.options.credentials(instanceId);
+      if (!chatToken) return null;
+      const url = new URL(`${this.options.baseUrl}/reports`);
+      url.searchParams.set("date", day);
+      url.searchParams.set("instanceId", instanceId);
+      url.searchParams.set("token", chatToken);
       const response = await this.options.fetch(url, { signal: AbortSignal.timeout(30_000) });
       return response.ok ? await response.text() : null;
     } catch {

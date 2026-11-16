@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { fixedCredentials } from "./credentials";
 import { ChatProTeamSync } from "./team";
 
 const json = (status: number, body: unknown) =>
@@ -11,7 +12,7 @@ function setup(routes: Routes) {
     if (!route) return json(404, {});
     return typeof route === "function" ? route() : route.clone();
   });
-  return { sync: new ChatProTeamSync({ chatToken: "CHAT", baseUrl: "https://sparks.test", fetch: fetchMock }), fetchMock };
+  return { sync: new ChatProTeamSync({ credentials: fixedCredentials({ token: "", chatToken: "CHAT" }), baseUrl: "https://sparks.test", fetch: fetchMock }), fetchMock };
 }
 const bodyOf = (mock: ReturnType<typeof setup>["fetchMock"], path: string) => {
   const call = mock.mock.calls.find(([url]) => String(url).endsWith(path));
@@ -128,19 +129,19 @@ describe("ChatProTeamSync", () => {
 
   it("downloads the day's report with the key the route requires", async () => {
     const fetchMock = vi.fn<typeof fetch>(async () => new Response("id;nome\n1;Ana\n", { status: 200 }));
-    const sync = new ChatProTeamSync({ chatToken: "CHAT", baseUrl: "https://sparks.test", fetch: fetchMock });
+    const sync = new ChatProTeamSync({ credentials: fixedCredentials({ token: "", chatToken: "CHAT" }), baseUrl: "https://sparks.test", fetch: fetchMock });
     expect(await sync.downloadDayReport("i", "2026-11-06")).toBe("id;nome\n1;Ana\n");
     const url = new URL(String(fetchMock.mock.calls[0]![0]));
     expect(url.pathname).toBe("/reports");
     expect(Object.fromEntries(url.searchParams)).toEqual({ date: "2026-11-06", instanceId: "i", token: "CHAT" });
 
-    const refused = new ChatProTeamSync({ chatToken: "CHAT", baseUrl: "https://sparks.test", fetch: async () => json(404, {}) });
+    const refused = new ChatProTeamSync({ credentials: fixedCredentials({ token: "", chatToken: "CHAT" }), baseUrl: "https://sparks.test", fetch: async () => json(404, {}) });
     expect(await refused.downloadDayReport("i", "2026-11-06")).toBeNull();
   });
 
   it("never throws when the network fails", async () => {
     const sync = new ChatProTeamSync({
-      chatToken: "CHAT",
+      credentials: fixedCredentials({ token: "", chatToken: "CHAT" }),
       baseUrl: "https://sparks.test",
       fetch: async () => {
         throw new TypeError("fetch failed");

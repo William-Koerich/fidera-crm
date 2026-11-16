@@ -33,6 +33,7 @@ import type {
   SendMessageInput,
   SendResult,
 } from "../types";
+import { fixedCredentials, type ChatProCredentialResolver, type ChatProCredentials } from "./credentials";
 import { findId, isObj, text, type Json } from "./json";
 import { parseChatProWebhook } from "./parse";
 import { ChatProTeamSync } from "./team";
@@ -41,10 +42,12 @@ export const CHATPRO_API_URL = "https://oci.chatpro.com.br";
 export const CHATPRO_CHAT_URL = "https://sparks.chatpro.com.br";
 
 export interface ChatProOptions {
+  /** Keys of each instance. Without it, token and chatToken serve every instance. */
+  credentials?: ChatProCredentialResolver;
   /** Key for connection calls (status, QR Code, disconnect). */
-  token: string;
+  token?: string;
   /** Key for ChatPro Chat calls (sending messages). */
-  chatToken: string;
+  chatToken?: string;
   baseUrl?: string;
   chatBaseUrl?: string;
   fetch?: typeof fetch;
@@ -90,14 +93,17 @@ export class ChatProChannelProvider implements ChannelProvider {
   private readonly baseUrl: string;
   private readonly chatBaseUrl: string;
   private readonly now: () => Date;
+  private readonly credentials: ChatProCredentialResolver;
   readonly team: ChatProTeamSync;
 
-  constructor(private readonly options: ChatProOptions) {
+  constructor(options: ChatProOptions) {
     this.fetchImpl = options.fetch ?? fetch;
     this.baseUrl = (options.baseUrl ?? CHATPRO_API_URL).replace(/\/$/, "");
     this.chatBaseUrl = (options.chatBaseUrl ?? CHATPRO_CHAT_URL).replace(/\/$/, "");
     this.now = options.now ?? (() => new Date());
-    this.team = new ChatProTeamSync({ chatToken: options.chatToken, baseUrl: this.chatBaseUrl, fetch: this.fetchImpl });
+    this.credentials =
+      options.credentials ?? fixedCredentials({ token: options.token ?? "", chatToken: options.chatToken ?? "" });
+    this.team = new ChatProTeamSync({ credentials: this.credentials, baseUrl: this.chatBaseUrl, fetch: this.fetchImpl });
   }
 
   parseWebhook(payload: unknown): NormalizedEvent[] {
@@ -112,10 +118,15 @@ export class ChatProChannelProvider implements ChannelProvider {
     return `${this.baseUrl}/${encodeURIComponent(instanceId)}/api/v1/${action}`;
   }
 
-  private call(instanceId: string, action: string, init: RequestInit = {}): Promise<Response> {
+  private keys(instanceId: string): Promise<ChatProCredentials> {
+    return this.credentials(instanceId);
+  }
+
+  private async call(instanceId: string, action: string, init: RequestInit = {}): Promise<Response> {
+    const { token } = await this.keys(instanceId);
     return this.fetchImpl(this.url(instanceId, action), {
       ...init,
-      headers: { Authorization: this.options.token, ...(init.headers ?? {}) },
+      headers: { Authorization: token, ...(init.headers ?? {}) },
       signal: AbortSignal.timeout(15_000),
     });
   }
@@ -141,9 +152,9 @@ export class ChatProChannelProvider implements ChannelProvider {
   }
 
   async assignConversation(input: { accountExternalId: string; to: string; assigneeEmail: string }): Promise<AssignResult> {
-    if (!this.options.chatToken) return "failed";
     const instanceId = input.accountExternalId;
     try {
+      if (!(await this.keys(instanceId)).chatToken) return "failed";
       const users = await this.chatJson("users/getAllInstanceUsers", { instanceId });
       if (!users.ok || !Array.isArray(users.data)) return "failed";
       const email = input.assigneeEmail.trim().toLowerCase();
@@ -171,10 +182,10 @@ export class ChatProChannelProvider implements ChannelProvider {
     idempotencyKey: string | undefined,
     request: (sessionId: string) => [path: string, fields: Json],
   ): Promise<SendResult> {
-    if (!this.options.chatToken) {
-      return { ok: false, errorCode: "chatpro_chat_not_configured", errorMessage: "Missing CHATPRO_CHAT_TOKEN", retryable: false };
-    }
     try {
+      if (!(await this.keys(instanceId)).chatToken) {
+        return { ok: false, errorCode: "chatpro_chat_not_configured", errorMessage: "Missing ChatPro Chat key", retryable: false };
+      }
       const session = await this.chat("sessions/getOrCreateByNumber", { instanceId, number: to, provider: "whatsapp" });
       if (!session.ok) return sendError(session.status, session.body);
       const sessionId = findId(session.body);
@@ -199,15 +210,20 @@ export class ChatProChannelProvider implements ChannelProvider {
     }
   }
 
-  private async chat(path: string, payload: Json): Promise<{ ok: boolean; status: number; body: Json }> {
+  private async chat(path: string, payload: Json & { instanceId: string }): Promise<{ ok: boolean; status: number; body: Json }> {
     const { ok, status, data } = await this.chatJson(path, payload);
     return { ok, status, body: isObj(data) ? data : {} };
   }
 
-  private async chatJson(path: string, payload: Json): Promise<{ ok: boolean; status: number; data: unknown }> {
+  /** Every ChatPro Chat payload names its instance, which picks the key. */
+  private async chatJson(
+    path: string,
+    payload: Json & { instanceId: string },
+  ): Promise<{ ok: boolean; status: number; data: unknown }> {
+    const { chatToken } = await this.keys(payload.instanceId);
     const response = await this.fetchImpl(`${this.chatBaseUrl}/${path}`, {
       method: "POST",
-      headers: { "instance-token": this.options.chatToken, "Content-Type": "application/json" },
+      headers: { "instance-token": chatToken, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(15_000),
     });
@@ -215,7 +231,7 @@ export class ChatProChannelProvider implements ChannelProvider {
   }
 
   /** Read call that returns a list, one page. */
-  private async chatPage(path: string, payload: Json): Promise<unknown[]> {
+  private async chatPage(path: string, payload: Json & { instanceId: string }): Promise<unknown[]> {
     const { ok, status, data } = await this.chatJson(path, payload);
     if (status === 429) throw new ChatProRateLimitError();
     if (!ok || !Array.isArray(data)) throw new Error(`ChatPro ${path} failed (${status})`);
@@ -299,7 +315,7 @@ export class ChatProChannelProvider implements ChannelProvider {
     const imageUrl = text(profile.imgUrl) ?? text(profile.eurl);
     if (savedName && imageUrl) return { savedName, publicName, imageUrl };
 
-    const lead = this.options.chatToken
+    const lead = (await this.keys(instanceId)).chatToken
       ? await this.chatJson("leads/findByPhoneNumber", { instanceId, phoneNumber: externalId })
       : null;
     if (lead?.status === 429) throw new ChatProRateLimitError();
