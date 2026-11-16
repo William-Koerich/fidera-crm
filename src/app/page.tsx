@@ -3,7 +3,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "@/components/icons";
 import { Logo } from "@/components/logo";
-import { ButtonLink, cx } from "@/components/ui";
+import { ButtonAnchor, ButtonLink, cx } from "@/components/ui";
+import { salesWhatsAppUrl, SIGNUP_PATH } from "@/lib/sales";
 import { AgendaMock, AiMock, CallbackMock, InboxMock, WebchatMock } from "./_landing/mocks";
 
 export const metadata: Metadata = {
@@ -12,7 +13,26 @@ export const metadata: Metadata = {
     "A IA responde seus clientes no WhatsApp e marca na agenda. A equipe atende o mesmo número, e o Fidera lembra quem está na hora de voltar. Feito para salões e barbearias.",
 };
 
-const SIGNUP = "/login?mode=signup";
+/**
+ * Every "try it" button opens the sales WhatsApp: for now each new business is set
+ * up by hand (WhatsApp connection, services, AI), so a conversation comes first.
+ */
+function TryButton({
+  text,
+  children,
+  ...props
+}: { text?: string; children: ReactNode; className?: string; block?: boolean } & Pick<Parameters<typeof ButtonLink>[0], "variant" | "size">) {
+  const url = salesWhatsAppUrl(text);
+  return url ? (
+    <ButtonAnchor href={url} {...props}>
+      {children}
+    </ButtonAnchor>
+  ) : (
+    <ButtonLink href={SIGNUP_PATH} {...props}>
+      {children}
+    </ButtonLink>
+  );
+}
 
 const HIGHLIGHTS: { icon: IconName; title: string; text: string }[] = [
   { icon: "sparkles", title: "Atendente com IA", text: "Responde, mostra horários livres e agenda sozinha, 24 horas." },
@@ -71,8 +91,8 @@ const FEATURES: { eyebrow: string; title: string; text: string; points: string[]
 ];
 
 const STEPS: { icon: IconName; title: string; text: string }[] = [
-  { icon: "user", title: "Crie sua conta", text: "Cadastre o seu negócio com e-mail e senha." },
-  { icon: "phone", title: "Conecte o WhatsApp", text: "Leia o QR Code com o celular, em Ajustes." },
+  { icon: "message", title: "Chame no WhatsApp", text: "Conte como o seu salão atende hoje. A gente configura junto com você." },
+  { icon: "phone", title: "Conecte o WhatsApp", text: "Leia o QR Code com o celular. Você continua com o mesmo número." },
   { icon: "calendar", title: "Cadastre serviços e horários", text: "Duração, prazo de retorno e quando o salão abre." },
   { icon: "sparkles", title: "Ligue a IA", text: "Escreva as instruções e deixe a IA atender e agendar." },
 ];
@@ -157,9 +177,7 @@ export default function Home() {
           <Link href="/login" className="inline-flex min-h-11 items-center px-3 text-sm font-medium text-text hover:text-brand">
             Entrar
           </Link>
-          <ButtonLink href={SIGNUP} size="sm">
-            Criar conta
-          </ButtonLink>
+          <TryButton size="sm">Quero testar</TryButton>
         </div>
       </header>
 
@@ -181,14 +199,13 @@ export default function Home() {
                 quem está na hora de voltar.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <ButtonLink href={SIGNUP} className="sm:px-7">
-                  Criar conta
-                </ButtonLink>
+                <TryButton className="sm:px-7">Quero testar 7 dias grátis</TryButton>
                 <ButtonLink href="#recursos" variant="secondary" className="sm:px-7">
                   Ver o que ele faz
                 </ButtonLink>
               </div>
-              <p className="mt-4 text-sm text-text-muted">Feito para salões de beleza, barbearias, esmalterias e estúdios.</p>
+              <p className="mt-4 text-sm text-text-muted">Sem cartão. A gente configura com você pelo WhatsApp.</p>
+              <p className="mt-1 text-sm text-text-muted">Feito para salões de beleza, barbearias, esmalterias e estúdios.</p>
               <p className="mt-1 text-xs text-text-muted">Telas ilustrativas, com pessoas fictícias.</p>
             </div>
             <div className="relative min-w-0 lg:pl-6">
@@ -319,9 +336,14 @@ export default function Home() {
                         <Check key={item}>{item}</Check>
                       ))}
                     </ul>
-                    <ButtonLink href={SIGNUP} variant={plan.recommended ? undefined : "secondary"} block className="mt-auto">
-                      Criar conta
-                    </ButtonLink>
+                    <TryButton
+                      text={`Oi! Vi o Fidera e quero testar o plano ${plan.name} por 7 dias no meu salão.`}
+                      variant={plan.recommended ? undefined : "secondary"}
+                      block
+                      className="mt-auto"
+                    >
+                      Testar 7 dias grátis
+                    </TryButton>
                   </div>
                 </li>
               ))}
@@ -366,12 +388,14 @@ export default function Home() {
               <Check tone="light">Agenda e lista de quem chamar hoje</Check>
               <Check tone="light">A equipe toda no mesmo WhatsApp</Check>
             </ul>
-            <Link
-              href={SIGNUP}
+            <a
+              href={salesWhatsAppUrl() ?? SIGNUP_PATH}
+              target="_blank"
+              rel="noopener noreferrer"
               className="relative mt-9 inline-flex min-h-12 items-center justify-center rounded-xl bg-surface px-8 text-sm font-semibold text-brand shadow-lg transition-colors hover:bg-brand-soft"
             >
-              Criar conta
-            </Link>
+              Quero testar 7 dias grátis
+            </a>
           </div>
         </section>
       </main>
