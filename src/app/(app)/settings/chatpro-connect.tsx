@@ -35,9 +35,13 @@ const WEBHOOK_TEXT: Record<ChatProWebhookState["status"], { tone: "success" | "w
   failed: { tone: "warning", text: "Não foi possível configurar o recebimento de mensagens. Tente de novo." },
 };
 
-/** QR Code connection inside the CRM. The webhook is configured automatically when possible. */
-export function ChatProConnect({ webhookUrl }: { webhookUrl: string }) {
-  const [state, setState] = useState<ChatProState>({ status: "idle" });
+/**
+ * QR Code connection inside the CRM. The webhook is configured automatically when possible.
+ * A number on Meta's official API is linked by the Fidera team (npm run chatpro:add --
+ * --oficial): it has no QR Code, no session to poll and no disconnect button here.
+ */
+export function ChatProConnect({ webhookUrl, official = false }: { webhookUrl: string; official?: boolean }) {
+  const [state, setState] = useState<ChatProState>({ status: official ? "connected" : "idle" });
   const [starting, startConnect] = useTransition();
   const stateRef = useRef(state);
   const [webhook, setWebhook] = useState<ChatProWebhookState | null>(null);
@@ -61,6 +65,7 @@ export function ChatProConnect({ webhookUrl }: { webhookUrl: string }) {
 
   // Keeps the status live: on load, while waiting for the scan, and after connecting.
   useEffect(() => {
+    if (official) return;
     let active = true;
     const check = async () => {
       const next = await checkChatProAction().catch(() => null);
@@ -79,7 +84,7 @@ export function ChatProConnect({ webhookUrl }: { webhookUrl: string }) {
       clearInterval(poll);
       clearInterval(refreshQr);
     };
-  }, [connect]);
+  }, [connect, official]);
 
   const connected = state.status === "connected";
 
@@ -88,12 +93,16 @@ export function ChatProConnect({ webhookUrl }: { webhookUrl: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4">
         <div className="min-w-0">
           <p className="text-sm font-medium">Conexão com o WhatsApp</p>
-          <p className="truncate text-sm text-text-muted">
-            {connected ? (state.phone ?? "Número conectado") : "Conecte lendo o QR Code com o celular."}
+          <p className="text-sm text-text-muted">
+            {official
+              ? "API oficial da Meta. O WhatsApp Business continua funcionando no celular."
+              : connected
+                ? (state.phone ?? "Número conectado")
+                : "Conecte lendo o QR Code com o celular."}
           </p>
         </div>
         <Badge tone={connected ? "success" : state.status === "waiting" ? "info" : "warning"}>
-          {connected ? "Conectado" : state.status === "waiting" ? "Aguardando leitura" : "Desconectado"}
+          {official ? "API oficial" : connected ? "Conectado" : state.status === "waiting" ? "Aguardando leitura" : "Desconectado"}
         </Badge>
       </div>
 
@@ -153,9 +162,9 @@ export function ChatProConnect({ webhookUrl }: { webhookUrl: string }) {
       ) : null}
 
       {connected ? <ChatProImport /> : null}
-      {connected ? <ChatProProfiles /> : null}
+      {connected && !official ? <ChatProProfiles /> : null}
 
-      {connected ? (
+      {connected && !official ? (
         <div>
           <ConfirmDialog
             trigger="Desconectar número"

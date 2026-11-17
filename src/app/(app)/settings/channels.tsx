@@ -17,7 +17,7 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
   error: { label: "Com erro", tone: "danger" },
 };
 
-const PROVIDER_LABEL = { mock: "Teste (simulado)", meta: "API oficial da Meta", coexy: "Integração removida", chatpro: "ChatPro (QR Code)", webchat: "Chat do site" } as const;
+const PROVIDER_LABEL = { mock: "Teste (simulado)", meta: "API oficial da Meta", coexy: "Integração removida", chatpro: "ChatPro", webchat: "Chat do site" } as const;
 
 function removalWarning(conversations: number, provider: string): string {
   const session =
@@ -31,7 +31,7 @@ function removalWarning(conversations: number, provider: string): string {
   return `${what} Não dá para desfazer. Os contatos continuam salvos, e o WhatsApp no celular não perde nenhuma mensagem.${session}`;
 }
 
-async function chatProSection(organizationId: string) {
+async function chatProSection(organizationId: string, official: boolean) {
   if (!getChatProConfig().webhookSecret) {
     return (
       <Alert tone="warning" title="ChatPro ainda não configurado">
@@ -49,11 +49,19 @@ async function chatProSection(organizationId: string) {
   }
   return (
     <div className="grid gap-4">
-      <Alert tone="warning" title="Conexão por QR Code, fora da API oficial da Meta">
-        O WhatsApp pode restringir ou bloquear o número, principalmente com envio em massa. Use para conversas com os seus
-        clientes. O celular precisa continuar com o WhatsApp instalado e conectado.
-      </Alert>
-      <ChatProConnect webhookUrl={getChatProWebhookUrl(instanceId).url} />
+      {official ? (
+        <Alert tone="info" title="Conectado pela API oficial da Meta">
+          Sem risco de bloqueio por conexão não oficial. As respostas livres valem por 24 horas depois da última mensagem do
+          cliente; depois disso, a conversa oferece os modelos de mensagem aprovados.
+        </Alert>
+      ) : (
+        <Alert tone="warning" title="Conexão por QR Code, fora da API oficial da Meta">
+          O WhatsApp pode restringir ou bloquear o número, principalmente com envio em massa. Use para conversas com os seus
+          clientes. O celular precisa continuar com o WhatsApp instalado e conectado. Para usar a API oficial, fale com a
+          equipe do Fidera.
+        </Alert>
+      )}
+      <ChatProConnect webhookUrl={getChatProWebhookUrl(instanceId).url} official={official} />
     </div>
   );
 }
@@ -85,6 +93,7 @@ export async function Channels() {
                     <p className="truncate text-sm font-medium">{a.display_phone ?? a.display_name ?? "Número em conexão"}</p>
                     <p className="truncate text-xs text-text-muted">
                       {PROVIDER_LABEL[a.provider]}
+                      {a.provider === "chatpro" ? (a.official_api ? " · API oficial da Meta" : " · QR Code") : ""}
                       {a.history_sync_progress !== null && a.history_sync_progress < 100
                         ? ` · Importando histórico: ${a.history_sync_progress}%`
                         : ""}
@@ -118,7 +127,7 @@ export async function Channels() {
         {!manage ? (
           <p className="text-sm text-text-muted">Apenas donos e administradores podem conectar ou trocar o número.</p>
         ) : provider === "chatpro" ? (
-          await chatProSection(me.organizationId)
+          await chatProSection(me.organizationId, accounts.some((a) => a.provider === "chatpro" && a.official_api))
         ) : provider === "mock" ? (
           <form action={connectMockChannelAction} className="grid gap-2 rounded-lg bg-background p-4">
             <p className="text-sm font-medium">Ambiente de desenvolvimento</p>

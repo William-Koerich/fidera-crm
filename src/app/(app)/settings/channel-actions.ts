@@ -181,6 +181,13 @@ export async function configureChatProWebhookAction(): Promise<ChatProWebhookSta
 export async function connectChatProAction(): Promise<ChatProState> {
   try {
     const { me, instanceId, provider } = await requireChatPro();
+    const { data: current } = await createAdminClient()
+      .from("channel_accounts")
+      .select("official_api, display_phone")
+      .eq("provider", "chatpro")
+      .eq("external_account_id", instanceId)
+      .maybeSingle();
+    if (current?.official_api) return { status: "connected", phone: current.display_phone };
     const status = await provider.getStatus(instanceId);
     if (status.connected) {
       const phone = phoneFromWid(status.wid);
@@ -206,11 +213,13 @@ export async function checkChatProAction(): Promise<ChatProState> {
     const admin = createAdminClient();
     const { data: account } = await admin
       .from("channel_accounts")
-      .select("id, status")
+      .select("id, status, official_api, display_phone")
       .eq("organization_id", me.organizationId)
       .eq("provider", "chatpro")
       .eq("external_account_id", instanceId)
       .maybeSingle();
+    // An official number has no WhatsApp Web session: the QR Code status says nothing about it.
+    if (account?.official_api) return { status: "connected", phone: account.display_phone };
     const status = await provider.getStatus(instanceId);
     const phone = phoneFromWid(status.wid);
 
@@ -335,6 +344,15 @@ export async function syncContactProfileAction(contactId: string): Promise<"ok" 
 export async function disconnectChatProAction(): Promise<ChatProState> {
   try {
     const { me, instanceId, provider } = await requireChatPro();
+    const { data: current } = await createAdminClient()
+      .from("channel_accounts")
+      .select("official_api")
+      .eq("provider", "chatpro")
+      .eq("external_account_id", instanceId)
+      .maybeSingle();
+    if (current?.official_api) {
+      return { status: "error", message: "Este número está na API oficial da Meta. Para desligar, fale com a equipe do Fidera." };
+    }
     await provider.disconnect(instanceId);
     const admin = createAdminClient();
     await admin
@@ -368,13 +386,13 @@ export async function removeChannelAccountAction(formData: FormData): Promise<vo
   const admin = createAdminClient();
   const { data: account } = await admin
     .from("channel_accounts")
-    .select("id, provider, external_account_id")
+    .select("id, provider, external_account_id, official_api")
     .eq("id", String(formData.get("accountId") ?? ""))
     .eq("organization_id", me.organizationId)
     .maybeSingle();
   if (!account) return;
 
-  if (account.provider === "chatpro") {
+  if (account.provider === "chatpro" && !account.official_api) {
     await getChatProProvider()
       .disconnect(account.external_account_id)
       .catch((e: unknown) => {
@@ -400,6 +418,7 @@ export async function removeChannelAccountAction(formData: FormData): Promise<vo
         external_account_id: account.external_account_id,
         display_name: "WhatsApp do negócio",
         status: "disconnected",
+        official_api: account.official_api,
       })
       .select("id")
       .single();

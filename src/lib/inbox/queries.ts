@@ -387,7 +387,7 @@ export async function listChannelAccounts(organizationId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("channel_accounts")
-    .select("id, channel, provider, external_account_id, display_name, display_phone, status, disconnected_reason, history_sync_progress")
+    .select("id, channel, provider, external_account_id, display_name, display_phone, status, disconnected_reason, history_sync_progress, official_api")
     .eq("organization_id", organizationId)
     .order("created_at");
   return data ?? [];
