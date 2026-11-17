@@ -23,6 +23,7 @@ import { isRatingEnabled, listQuickReplies } from "@/lib/replies/queries";
 import { ConversationList, ListSkeleton, listQuery, parseInboxParams } from "../conversation-list";
 import { RealtimeRefresh } from "../realtime-refresh";
 import { WindowBadge } from "../window-badge";
+import { TemplatePicker } from "./template-picker";
 import { Composer } from "./composer";
 import { getConversationAiStatus } from "@/lib/ai/agent/status";
 import { AiControl } from "./ai-control";
@@ -241,6 +242,8 @@ async function Conversation({ params, searchParams }: { params: Params; searchPa
                 initialText={draftText}
                 aiEnabled={isAssistantEnabled()}
               />
+            ) : connected && conversation.account.officialApi ? (
+              <TemplatePicker conversationId={conversation.id} />
             ) : (
               <p className="text-sm text-text-muted">
                 {!connected

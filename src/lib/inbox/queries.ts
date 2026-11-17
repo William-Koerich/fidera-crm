@@ -30,9 +30,13 @@ export interface ConversationListItem {
   labelIds: string[];
 }
 
-/** Only Meta's official API limits free replies to 24 hours after the customer's last message. */
-function hasReplyWindow(provider: string | undefined): boolean {
-  return provider === "meta" || provider === "mock";
+/**
+ * Only Meta's official API limits free replies to 24 hours after the customer's last
+ * message: direct (meta), or through ChatPro on a number connected officially.
+ */
+function hasReplyWindow(account: { provider: string; official_api: boolean } | null | undefined): boolean {
+  if (!account) return false;
+  return account.provider === "meta" || account.provider === "mock" || (account.provider === "chatpro" && account.official_api);
 }
 
 /** The version in the query string makes the browser fetch a photo again after each sync. */
@@ -59,8 +63,8 @@ export async function listConversations(opts: {
     .from("conversations")
     .select(
       opts.labelId
-        ? "id, channel, last_message_at, last_message_preview, awaiting_reply, unread_count, reply_window_ends_at, last_inbound_at, last_outbound_at, contacts!inner(id, display_name, phone_normalized, avatar_path, profile_synced_at, labels:contact_labels(label_id), match:contact_labels!inner(label_id)), channel_accounts(provider)"
-        : "id, channel, last_message_at, last_message_preview, awaiting_reply, unread_count, reply_window_ends_at, last_inbound_at, last_outbound_at, contacts(id, display_name, phone_normalized, avatar_path, profile_synced_at, labels:contact_labels(label_id)), channel_accounts(provider)",
+        ? "id, channel, last_message_at, last_message_preview, awaiting_reply, unread_count, reply_window_ends_at, last_inbound_at, last_outbound_at, contacts!inner(id, display_name, phone_normalized, avatar_path, profile_synced_at, labels:contact_labels(label_id), match:contact_labels!inner(label_id)), channel_accounts(provider, official_api)"
+        : "id, channel, last_message_at, last_message_preview, awaiting_reply, unread_count, reply_window_ends_at, last_inbound_at, last_outbound_at, contacts(id, display_name, phone_normalized, avatar_path, profile_synced_at, labels:contact_labels(label_id)), channel_accounts(provider, official_api)",
     )
     .eq("organization_id", opts.organizationId)
     .not("last_message_at", "is", null)
@@ -99,7 +103,7 @@ export async function listConversations(opts: {
       lastMessagePreview: previewText(c.last_message_preview),
       awaitingReply: c.awaiting_reply,
       unreadCount: c.unread_count,
-      replyWindowEndsAt: hasReplyWindow(c.channel_accounts?.provider) ? c.reply_window_ends_at : null,
+      replyWindowEndsAt: hasReplyWindow(c.channel_accounts) ? c.reply_window_ends_at : null,
       lastFromUs: !!c.last_outbound_at && (!c.last_inbound_at || c.last_outbound_at >= c.last_inbound_at),
       labelIds: c.contacts?.labels.map((l) => l.label_id) ?? [],
     })),
@@ -136,7 +140,14 @@ export interface ConversationDetail {
     /** Team member this client belongs to (carteira). */
     ownerId: string | null;
   };
-  account: { id: string; externalAccountId: string; provider: Tables<"channel_accounts">["provider"]; status: Tables<"channel_accounts">["status"] };
+  account: {
+    id: string;
+    externalAccountId: string;
+    provider: Tables<"channel_accounts">["provider"];
+    status: Tables<"channel_accounts">["status"];
+    /** ChatPro number on Meta's official API: 24h window and templates. */
+    officialApi: boolean;
+  };
   /** Channel identifier to send to (wa_id / IGSID). */
   recipientExternalId: string | null;
 }
@@ -146,7 +157,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
   const { data, error } = await supabase
     .from("conversations")
     .select(
-      "id, organization_id, channel, assigned_to, status, department_id, last_inbound_at, last_outbound_at, reply_window_ends_at, contact_id, contacts(id, display_name, phone_normalized, source, created_at, last_interaction_at, avatar_path, profile_synced_at, owner_id), channel_accounts(id, external_account_id, provider, status)",
+      "id, organization_id, channel, assigned_to, status, department_id, last_inbound_at, last_outbound_at, reply_window_ends_at, contact_id, contacts(id, display_name, phone_normalized, source, created_at, last_interaction_at, avatar_path, profile_synced_at, owner_id), channel_accounts(id, external_account_id, provider, status, official_api)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -167,8 +178,8 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
     channel: data.channel,
     lastInboundAt: data.last_inbound_at,
     lastOutboundAt: data.last_outbound_at,
-    replyWindowEndsAt: hasReplyWindow(data.channel_accounts.provider) ? data.reply_window_ends_at : null,
-    hasReplyWindow: hasReplyWindow(data.channel_accounts.provider),
+    replyWindowEndsAt: hasReplyWindow(data.channel_accounts) ? data.reply_window_ends_at : null,
+    hasReplyWindow: hasReplyWindow(data.channel_accounts),
     assignedTo: data.assigned_to,
     status: data.status === "closed" ? "closed" : "open",
     departmentId: data.department_id,
@@ -188,6 +199,7 @@ export async function getConversation(id: string): Promise<ConversationDetail | 
       externalAccountId: data.channel_accounts.external_account_id,
       provider: data.channel_accounts.provider,
       status: data.channel_accounts.status,
+      officialApi: data.channel_accounts.official_api,
     },
     recipientExternalId: identity?.external_id ?? null,
   };

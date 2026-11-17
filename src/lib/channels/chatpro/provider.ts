@@ -19,19 +19,28 @@
  * - users/getAllInstanceUsers: POST { instanceId } -> [{ user_id, active, deleted, user: { email } }].
  * - sessions/assignTo: POST { instanceId, sessionId, userId }.
  *
- * The number is linked by QR Code and is not on Meta's Cloud API, so there is
- * no 24h reply window here.
+ * Official API (Cloud, through ChatPro; same ChatPro Chat key):
+ * - waba/register: POST { instanceId, apiVersion, apiToken, wabaId, phoneId } (npm run chatpro:add -- --oficial).
+ * - waba/getTemplates: POST { instanceId } (success body not documented, hence the tolerant parse).
+ * - waba/sendTemplate: POST { instanceId, number, name, languageCode }. No variables: templates are fixed text.
+ *
+ * A number linked by QR Code has no reply window. An official one follows Meta's:
+ * free-form replies within 24h of the customer's last message, templates outside it.
  */
+import { computeReplyWindow } from "../reply-window";
 import type {
   AssignResult,
   ChannelProvider,
   ContactProfile,
   DownloadedMedia,
+  MessageTemplate,
   NormalizedEvent,
   ReplyWindow,
+  ReplyWindowConversation,
   SendMediaInput,
   SendMessageInput,
   SendResult,
+  SendTemplateInput,
 } from "../types";
 import { fixedCredentials, type ChatProCredentialResolver, type ChatProCredentials } from "./credentials";
 import { findId, isObj, text, type Json } from "./json";
@@ -110,8 +119,41 @@ export class ChatProChannelProvider implements ChannelProvider {
     return parseChatProWebhook(payload);
   }
 
-  getReplyWindow(): ReplyWindow {
+  getReplyWindow(conversation: ReplyWindowConversation, now: Date = new Date()): ReplyWindow {
+    if (conversation.officialApi) return computeReplyWindow(conversation, now);
     return { isOpen: true, endsAt: null, remainingMs: Number.POSITIVE_INFINITY, humanAgentEndsAt: null };
+  }
+
+  /** Approved templates of an official number. Empty when there are none or ChatPro refuses. */
+  async listTemplates(instanceId: string): Promise<MessageTemplate[]> {
+    const { ok, data } = await this.chatJson("waba/getTemplates", { instanceId });
+    if (!ok) return [];
+    return parseTemplates(data);
+  }
+
+  async sendTemplate(input: SendTemplateInput): Promise<SendResult> {
+    if (input.channel !== "whatsapp") {
+      return { ok: false, errorCode: "unsupported_channel", errorMessage: "Only WhatsApp is supported", retryable: false };
+    }
+    try {
+      const sent = await this.chat("waba/sendTemplate", {
+        instanceId: input.accountExternalId,
+        number: input.to,
+        name: input.name,
+        languageCode: input.languageCode,
+      });
+      if (!sent.ok) return sendError(sent.status, sent.body);
+      const id = findId(sent.body) ?? `chatpro-local-${input.idempotencyKey ?? crypto.randomUUID()}`;
+      return { ok: true, externalMessageId: id, acceptedAt: this.now() };
+    } catch (error) {
+      const timeout = error instanceof Error && error.name === "TimeoutError";
+      return {
+        ok: false,
+        errorCode: timeout ? "timeout" : "network_error",
+        errorMessage: timeout ? "ChatPro API timed out" : "Could not reach ChatPro API",
+        retryable: true,
+      };
+    }
   }
 
   private url(instanceId: string, action: string): string {
@@ -351,4 +393,28 @@ export class ChatProChannelProvider implements ChannelProvider {
       mimeType: file.headers.get("content-type") ?? "application/octet-stream",
     };
   }
+}
+
+/**
+ * Templates as ChatPro returns them: a list, bare or under data/templates, in Meta's
+ * shape ({ name, language, status, components: [{ type: "BODY", text }] }). Only
+ * approved ones, when a status is given.
+ */
+export function parseTemplates(data: unknown): MessageTemplate[] {
+  const list = Array.isArray(data)
+    ? data
+    : isObj(data) && Array.isArray(data.data)
+      ? data.data
+      : isObj(data) && Array.isArray(data.templates)
+        ? data.templates
+        : [];
+  return list.filter(isObj).flatMap((t) => {
+    const name = text(t.name);
+    const languageCode = text(t.language) ?? text(t.languageCode) ?? text(t.language_code);
+    const status = text(t.status);
+    if (!name || !languageCode || (status && status.toUpperCase() !== "APPROVED")) return [];
+    const components = Array.isArray(t.components) ? t.components.filter(isObj) : [];
+    const body = text(components.find((c) => text(c.type)?.toUpperCase() === "BODY")?.text) ?? text(t.body) ?? null;
+    return [{ name, languageCode, body }];
+  });
 }

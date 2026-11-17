@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ChatProChannelProvider, ChatProRateLimitError } from "./provider";
+import { ChatProChannelProvider, ChatProRateLimitError, parseTemplates } from "./provider";
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -247,8 +247,57 @@ describe("ChatProChannelProvider", () => {
     await expect(provider(image(3 * 1024 * 1024)).downloadContactPhoto("https://pps.whatsapp.net/a")).rejects.toThrow("too large");
   });
 
-  it("has no 24h reply window", () => {
-    expect(provider(vi.fn()).getReplyWindow()).toMatchObject({ isOpen: true, endsAt: null });
+  it("has no 24h reply window on a QR Code number", () => {
+    const window = provider(vi.fn()).getReplyWindow({ channel: "whatsapp", lastInboundAt: null });
+    expect(window).toMatchObject({ isOpen: true, endsAt: null });
+  });
+
+  it("follows Meta's 24h window on an official number", () => {
+    const now = new Date("2026-11-17T12:00:00Z");
+    const p = provider(vi.fn());
+    const recent = p.getReplyWindow({ channel: "whatsapp", lastInboundAt: new Date("2026-11-17T08:00:00Z"), officialApi: true }, now);
+    const old = p.getReplyWindow({ channel: "whatsapp", lastInboundAt: new Date("2026-11-15T08:00:00Z"), officialApi: true }, now);
+    const never = p.getReplyWindow({ channel: "whatsapp", lastInboundAt: null, officialApi: true }, now);
+    expect(recent).toMatchObject({ isOpen: true, endsAt: new Date("2026-11-18T08:00:00Z") });
+    expect(old.isOpen).toBe(false);
+    expect(never.isOpen).toBe(false);
+  });
+
+  it("lists only approved templates, with their body text", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () =>
+      json(200, {
+        data: [
+          { name: "retorno", language: "pt_BR", status: "APPROVED", components: [{ type: "BODY", text: "Oi! Vamos agendar?" }] },
+          { name: "promo", language: "pt_BR", status: "REJECTED" },
+          { name: "sem_idioma", status: "APPROVED" },
+        ],
+      }),
+    );
+    expect(await provider(fetchMock).listTemplates("i")).toEqual([{ name: "retorno", languageCode: "pt_BR", body: "Oi! Vamos agendar?" }]);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://sparks.chatpro.com.br/waba/getTemplates");
+    expect(JSON.parse(String(init?.body))).toEqual({ instanceId: "i" });
+  });
+
+  it("accepts a bare template list and treats a refusal as none", async () => {
+    expect(parseTemplates([{ name: "a", languageCode: "pt_BR" }])).toEqual([{ name: "a", languageCode: "pt_BR", body: null }]);
+    expect(await provider(async () => json(400, {})).listTemplates("i")).toEqual([]);
+  });
+
+  it("sends a template by name and language", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => json(200, { id: "wamid.1" }));
+    const result = await provider(fetchMock).sendTemplate({
+      channel: "whatsapp",
+      accountExternalId: "inst",
+      to: "5511999999999",
+      name: "retorno",
+      languageCode: "pt_BR",
+    });
+    expect(result).toMatchObject({ ok: true, externalMessageId: "wamid.1" });
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://sparks.chatpro.com.br/waba/sendTemplate");
+    expect((init?.headers as Record<string, string>)["instance-token"]).toBe("CHAT");
+    expect(JSON.parse(String(init?.body))).toEqual({ instanceId: "inst", number: "5511999999999", name: "retorno", languageCode: "pt_BR" });
   });
 
   it("reads the connection status", async () => {

@@ -5,7 +5,7 @@ import { requireMembership } from "@/lib/auth";
 import { getProviderByName } from "@/lib/channels";
 import { getConversation, listTeamMembers } from "@/lib/inbox/queries";
 import { logEvent } from "@/lib/log";
-import { createAttachmentUpload, sendAttachment, sendReply } from "@/lib/inbox/send";
+import { createAttachmentUpload, sendAttachment, sendReply, sendTemplateReply } from "@/lib/inbox/send";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 export interface ComposerState {
@@ -18,7 +18,7 @@ export interface ComposerState {
 const REASONS: Record<string, string> = {
   empty: "Escreva uma mensagem.",
   too_long: "Mensagem longa demais.",
-  window_closed: "A janela de 24h fechou. Use o botão para abrir no WhatsApp.",
+  window_closed: "A janela de 24h fechou. Envie um modelo aprovado para retomar a conversa.",
   account_unavailable: "O canal está desconectado. Reconecte em Ajustes.",
   no_recipient: "Não encontramos o identificador do contato neste canal.",
   provider_error: "O envio falhou. Tente de novo.",
@@ -38,6 +38,37 @@ export async function sendReplyAction(_prev: ComposerState, formData: FormData):
   if (!conversation) return { status: "error", message: "Conversa não encontrada." };
 
   const result = await sendReply({ conversation, body: String(formData.get("body") ?? ""), userId: me.user.id });
+  if (!result.ok) return { status: "error", message: REASONS[result.reason] };
+  refresh();
+  return { status: "sent", sentAt: Date.now() };
+}
+
+export interface TemplateOption {
+  name: string;
+  languageCode: string;
+  body: string | null;
+}
+
+/** Approved templates of the conversation's number (official API only). */
+export async function listTemplatesAction(conversationId: string): Promise<TemplateOption[]> {
+  await requireMembership();
+  const conversation = await getConversation(conversationId);
+  if (!conversation?.account.officialApi) return [];
+  const provider = getProviderByName(conversation.account.provider);
+  if (!provider.listTemplates) return [];
+  try {
+    return await provider.listTemplates(conversation.account.externalAccountId);
+  } catch (e) {
+    logEvent("templates.list_failed", { error: e instanceof Error ? e.message : "unknown" }, "warn");
+    return [];
+  }
+}
+
+export async function sendTemplateAction(input: { conversationId: string; name: string; languageCode: string }): Promise<ComposerState> {
+  const me = await requireMembership();
+  const conversation = await getConversation(input.conversationId);
+  if (!conversation) return { status: "error", message: "Conversa não encontrada." };
+  const result = await sendTemplateReply({ conversation, name: input.name, languageCode: input.languageCode, userId: me.user.id });
   if (!result.ok) return { status: "error", message: REASONS[result.reason] };
   refresh();
   return { status: "sent", sentAt: Date.now() };

@@ -150,6 +150,25 @@ export type SendResult =
 export interface ReplyWindowConversation {
   channel: Channel;
   lastInboundAt: Date | null;
+  /** The number is on Meta's official API through the provider (ChatPro). */
+  officialApi?: boolean;
+}
+
+/** A message template approved by Meta, sent outside the 24h window. */
+export interface MessageTemplate {
+  name: string;
+  languageCode: string;
+  /** Body text as approved, for the person to read before sending. */
+  body: string | null;
+}
+
+export interface SendTemplateInput {
+  channel: Channel;
+  accountExternalId: string;
+  to: string;
+  name: string;
+  languageCode: string;
+  idempotencyKey?: string;
 }
 
 export interface ReplyWindow {
@@ -186,6 +205,9 @@ export interface ChannelProvider {
   assignConversation?(input: { accountExternalId: string; to: string; assigneeEmail: string }): Promise<AssignResult>;
   /** Absent when the provider has no team features to mirror. */
   team?: ChannelTeamSync;
+  /** Approved templates of an official number; absent when the provider has none. */
+  listTemplates?(accountExternalId: string): Promise<MessageTemplate[]>;
+  sendTemplate?(input: SendTemplateInput): Promise<SendResult>;
   /** Sends a file. Providers without it do not offer attachments in the inbox. */
   sendMedia?(input: SendMediaInput): Promise<SendResult>;
   getReplyWindow(conversation: ReplyWindowConversation, now?: Date): ReplyWindow;

@@ -34,6 +34,7 @@ function replyBlocker(conversation: ConversationDetail, now: Date): SendReplyRes
     {
       channel: conversation.channel,
       lastInboundAt: conversation.lastInboundAt ? new Date(conversation.lastInboundAt) : null,
+      officialApi: conversation.account.officialApi,
     },
     now,
   );
@@ -164,6 +165,46 @@ export async function sendReply(input: {
       body,
       idempotencyKey,
     }),
+  );
+}
+
+/**
+ * Sends an approved template: the only way to write first, or again after the 24h
+ * window, on a number on Meta's official API. The template is checked against the
+ * number's approved list, so the form cannot send anything else.
+ */
+export async function sendTemplateReply(input: {
+  conversation: ConversationDetail;
+  name: string;
+  languageCode: string;
+  userId: string;
+  now?: Date;
+}): Promise<SendReplyResult> {
+  const { conversation, userId } = input;
+  if (conversation.account.status !== "active") return { ok: false, reason: "account_unavailable" };
+  if (!conversation.recipientExternalId) return { ok: false, reason: "no_recipient" };
+  const provider = getProviderByName(conversation.account.provider);
+  if (!conversation.account.officialApi || !provider.listTemplates || !provider.sendTemplate) {
+    return { ok: false, reason: "provider_error" };
+  }
+  const template = (await provider.listTemplates(conversation.account.externalAccountId)).find(
+    (t) => t.name === input.name && t.languageCode === input.languageCode,
+  );
+  if (!template) return { ok: false, reason: "provider_error" };
+
+  const now = input.now ?? new Date();
+  const sendTemplate = provider.sendTemplate.bind(provider);
+  return deliver(
+    { conversation, userId, now, message: { type: "template", body: template.body ?? `Modelo: ${template.name}` } },
+    (idempotencyKey) =>
+      sendTemplate({
+        channel: conversation.channel,
+        accountExternalId: conversation.account.externalAccountId,
+        to: conversation.recipientExternalId!,
+        name: template.name,
+        languageCode: template.languageCode,
+        idempotencyKey,
+      }),
   );
 }
 
